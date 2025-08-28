@@ -13,7 +13,7 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
 
 # Build flags
-BUILD_FLAGS="-X github.com/gittower/git-flow-next/version.BuildTime='${BUILD_TIME}' -X github.com/gittower/git-flow-next/version.GitCommit=${GIT_COMMIT}"
+BUILD_FLAGS="-X 'github.com/gittower/git-flow-next/version.BuildTime=${BUILD_TIME}' -X 'github.com/gittower/git-flow-next/version.GitCommit=${GIT_COMMIT}'"
 
 # Create build directory if it doesn't exist
 mkdir -p $BUILD_DIR
@@ -22,31 +22,61 @@ mkdir -p $BUILD_DIR
 echo "Building $PACKAGE_NAME version $VERSION..."
 
 # macOS (both Intel and Apple Silicon)
+echo "Building darwin/amd64..."
 GOOS=darwin GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-amd64" main.go
+echo "Building darwin/arm64..."
 GOOS=darwin GOARCH=arm64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-arm64" main.go
 
 # Linux
+echo "Building linux/amd64..."
 GOOS=linux GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-amd64" main.go
+echo "Building linux/arm64..."
 GOOS=linux GOARCH=arm64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-arm64" main.go
+echo "Building linux/386..."
 GOOS=linux GOARCH=386 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-386" main.go
 
 # Windows
+echo "Building windows/amd64..."
 GOOS=windows GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-amd64.exe" main.go
+echo "Building windows/386..."
 GOOS=windows GOARCH=386 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-386.exe" main.go
+
+# Verify all binaries were created
+echo "Verifying binaries..."
+MISSING_BINARIES=()
+
+for binary in "${BINARY_NAME}-${VERSION}-darwin-amd64" "${BINARY_NAME}-${VERSION}-darwin-arm64" \
+              "${BINARY_NAME}-${VERSION}-linux-amd64" "${BINARY_NAME}-${VERSION}-linux-arm64" "${BINARY_NAME}-${VERSION}-linux-386" \
+              "${BINARY_NAME}-${VERSION}-windows-amd64.exe" "${BINARY_NAME}-${VERSION}-windows-386.exe"; do
+    if [[ ! -f "$BUILD_DIR/$binary" ]]; then
+        MISSING_BINARIES+=("$binary")
+    fi
+done
+
+if [[ ${#MISSING_BINARIES[@]} -gt 0 ]]; then
+    echo "Error: The following binaries were not created:"
+    for binary in "${MISSING_BINARIES[@]}"; do
+        echo "  - $binary"
+    done
+    exit 1
+fi
 
 # Create archives for each binary
 echo "Creating archives..."
 
 # macOS
+echo "Creating darwin archives..."
 tar czf "$BUILD_DIR/${PACKAGE_NAME}-${VERSION}-darwin-amd64.tar.gz" -C "$BUILD_DIR" "${BINARY_NAME}-${VERSION}-darwin-amd64"
 tar czf "$BUILD_DIR/${PACKAGE_NAME}-${VERSION}-darwin-arm64.tar.gz" -C "$BUILD_DIR" "${BINARY_NAME}-${VERSION}-darwin-arm64"
 
 # Linux
+echo "Creating linux archives..."
 tar czf "$BUILD_DIR/${PACKAGE_NAME}-${VERSION}-linux-amd64.tar.gz" -C "$BUILD_DIR" "${BINARY_NAME}-${VERSION}-linux-amd64"
 tar czf "$BUILD_DIR/${PACKAGE_NAME}-${VERSION}-linux-arm64.tar.gz" -C "$BUILD_DIR" "${BINARY_NAME}-${VERSION}-linux-arm64"
 tar czf "$BUILD_DIR/${PACKAGE_NAME}-${VERSION}-linux-386.tar.gz" -C "$BUILD_DIR" "${BINARY_NAME}-${VERSION}-linux-386"
 
 # Windows (using zip instead of tar.gz)
+echo "Creating windows archives..."
 if command -v zip >/dev/null 2>&1; then
     (cd "$BUILD_DIR" && zip "${PACKAGE_NAME}-${VERSION}-windows-amd64.zip" "${BINARY_NAME}-${VERSION}-windows-amd64.exe")
     (cd "$BUILD_DIR" && zip "${PACKAGE_NAME}-${VERSION}-windows-386.zip" "${BINARY_NAME}-${VERSION}-windows-386.exe")
