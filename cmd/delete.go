@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
@@ -9,7 +10,21 @@ import (
 )
 
 // DeleteCommand handles the deletion of a topic branch
-func DeleteCommand(branchType string, name string, force bool, remote *bool) error {
+func DeleteCommand(branchType string, name string, force bool, remote *bool) {
+	if err := executeDelete(branchType, name, force, remote); err != nil {
+		var exitCode errors.ExitCode
+		if flowErr, ok := err.(errors.Error); ok {
+			exitCode = flowErr.ExitCode()
+		} else {
+			exitCode = errors.ExitCodeGitError
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(int(exitCode))
+	}
+}
+
+// executeDelete performs the actual branch deletion logic and returns any errors
+func executeDelete(branchType string, name string, force bool, remote *bool) error {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {

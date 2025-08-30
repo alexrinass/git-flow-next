@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
@@ -9,7 +10,21 @@ import (
 )
 
 // RenameCommand handles renaming a topic branch
-func RenameCommand(branchType string, oldName string, newName string) error {
+func RenameCommand(branchType string, oldName string, newName string) {
+	if err := executeRename(branchType, oldName, newName); err != nil {
+		var exitCode errors.ExitCode
+		if flowErr, ok := err.(errors.Error); ok {
+			exitCode = flowErr.ExitCode()
+		} else {
+			exitCode = errors.ExitCodeGitError
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(int(exitCode))
+	}
+}
+
+// executeRename performs the actual branch renaming logic and returns any errors
+func executeRename(branchType string, oldName string, newName string) error {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {

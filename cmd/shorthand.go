@@ -45,7 +45,8 @@ func RegisterShorthandCommands() {
 				f := false
 				remote = &f
 			}
-			return DeleteCommand(branchType, name, force, remote)
+			DeleteCommand(branchType, name, force, remote)
+			return nil
 		},
 	}
 	deleteCmd.Flags().BoolP("force", "f", false, "Force delete even if unmerged")
@@ -86,7 +87,8 @@ func RegisterShorthandCommands() {
 			if err != nil {
 				return err
 			}
-			return RenameCommand(branchType, oldName, args[0])
+			RenameCommand(branchType, oldName, args[0])
+			return nil
 		},
 	}
 	rootCmd.AddCommand(renameCmd)

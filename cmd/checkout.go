@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gittower/git-flow-next/internal/config"
@@ -10,7 +11,21 @@ import (
 )
 
 // CheckoutCommand handles checking out a topic branch
-func CheckoutCommand(branchType string, nameOrPrefix string, showCommands bool) error {
+func CheckoutCommand(branchType string, nameOrPrefix string, showCommands bool) {
+	if err := executeCheckout(branchType, nameOrPrefix, showCommands); err != nil {
+		var exitCode errors.ExitCode
+		if flowErr, ok := err.(errors.Error); ok {
+			exitCode = flowErr.ExitCode()
+		} else {
+			exitCode = errors.ExitCodeGitError
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(int(exitCode))
+	}
+}
+
+// executeCheckout performs the actual branch checkout logic and returns any errors
+func executeCheckout(branchType string, nameOrPrefix string, showCommands bool) error {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {

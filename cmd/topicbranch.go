@@ -219,16 +219,7 @@ func registerBranchCommand(branchType string) {
 				remotePtr = &falseBool
 			}
 
-			if err := DeleteCommand(branchType, args[0], force, remotePtr); err != nil {
-				var exitCode errors.ExitCode
-				if flowErr, ok := err.(errors.Error); ok {
-					exitCode = flowErr.ExitCode()
-				} else {
-					exitCode = errors.ExitCodeGitError
-				}
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(int(exitCode))
-			}
+			DeleteCommand(branchType, args[0], force, remotePtr)
 			return nil
 		},
 	}
@@ -248,16 +239,7 @@ func registerBranchCommand(branchType string) {
 		Example: fmt.Sprintf("  git flow %s rename old-feature new-feature", branchType),
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := RenameCommand(branchType, args[0], args[1]); err != nil {
-				var exitCode errors.ExitCode
-				if flowErr, ok := err.(errors.Error); ok {
-					exitCode = flowErr.ExitCode()
-				} else {
-					exitCode = errors.ExitCodeGitError
-				}
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(int(exitCode))
-			}
+			RenameCommand(branchType, args[0], args[1])
 			return nil
 		},
 	}
@@ -277,16 +259,7 @@ func registerBranchCommand(branchType string) {
 				nameOrPrefix = args[0]
 			}
 			showCommands, _ := cmd.Flags().GetBool("showcommands")
-			if err := CheckoutCommand(branchType, nameOrPrefix, showCommands); err != nil {
-				var exitCode errors.ExitCode
-				if flowErr, ok := err.(errors.Error); ok {
-					exitCode = flowErr.ExitCode()
-				} else {
-					exitCode = errors.ExitCodeGitError
-				}
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(int(exitCode))
-			}
+			CheckoutCommand(branchType, nameOrPrefix, showCommands)
 			return nil
 		},
 	}
