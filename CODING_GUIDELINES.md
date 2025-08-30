@@ -148,50 +148,189 @@ const (
 
 ## Command Structure
 
-### Command Implementation Pattern
+### Universal Command Architecture
 
-Each command follows a consistent two-layer pattern:
+All commands must follow this exact three-layer pattern:
 
 ```go
-// 1. Command function handles error conversion and exit codes
-func FinishCommand(params...) {
-    if err := executeFinish(params...); err != nil {
+// Layer 1: Cobra Command Handler (in init() or command creation)
+RunE: func(cmd *cobra.Command, args []string) error {
+    // Parse flags and arguments
+    param1, _ := cmd.Flags().GetString("flag1")
+    param2, _ := cmd.Flags().GetBool("flag2")
+    
+    // Call command wrapper
+    CommandName(branchType, name, param1, param2)
+    return nil
+}
+
+// Layer 2: Command Wrapper - Handles error conversion and exit codes
+func CommandName(params...) {
+    if err := executeCommand(params...); err != nil {
         var exitCode errors.ExitCode
         if flowErr, ok := err.(errors.Error); ok {
             exitCode = flowErr.ExitCode()
         } else {
-            exitCode = errors.ExitCodeGeneral
+            exitCode = errors.ExitCodeGitError // Default fallback
         }
-        fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
         os.Exit(int(exitCode))
     }
 }
 
-// 2. Execute function contains actual business logic
-func executeFinish(params...) error {
-    // Implementation logic
-    // Return structured errors
+// Layer 3: Execute Function - Contains actual business logic
+func executeCommand(params...) error {
+    // All business logic here
+    // Return structured errors only
     return nil
 }
 ```
 
-### Configuration Handling
+### Configuration Loading Pattern
 
-Load configuration once and pass to functions:
+**CRITICAL**: Load configuration once at the beginning and pass through all calls:
 
 ```go
-// Load configuration early
-cfg, err := config.LoadConfig()
-if err != nil {
-    return &errors.ConfigError{Err: err}
+func executeCommand(params...) error {
+    // Load config ONCE at the start
+    cfg, err := config.LoadConfig()
+    if err != nil {
+        return &errors.GitError{Operation: "load configuration", Err: err}
+    }
+    
+    // Pass cfg to all subsequent function calls
+    return doWork(cfg, params...)
 }
+```
 
-// Validate using configuration methods
-branchConfig, exists := cfg.Branches[branchType]
-if !exists {
+**Guidelines:**
+- Never call `config.LoadConfig()` multiple times within a command
+- Pass `cfg` parameter to all helper functions that need configuration
+- Cache configuration lookups within the command execution
+
+### Standard Command Initialization
+
+Every command (except `init`) must start with this exact pattern:
+
+```go
+// Validate that git-flow is initialized
+initialized, err := config.IsInitialized()
+if err != nil {
+    return &errors.GitError{Operation: "check if git-flow is initialized", Err: err}
+}
+if !initialized {
+    return &errors.NotInitializedError{}
+}
+```
+
+### Branch Type Validation
+
+For topic branch commands:
+
+```go
+// Get branch configuration
+branchConfig, ok := cfg.Branches[branchType]
+if !ok {
     return &errors.InvalidBranchTypeError{BranchType: branchType}
 }
 ```
+
+### Branch Name Resolution
+
+For commands accepting branch names:
+
+```go
+// Construct full branch name if needed
+fullBranchName := name
+if branchConfig.Prefix != "" && !strings.HasPrefix(name, branchConfig.Prefix) {
+    fullBranchName = branchConfig.Prefix + name
+}
+
+// Check if branch exists
+if err := git.BranchExists(fullBranchName); err != nil {
+    return &errors.BranchNotFoundError{BranchName: fullBranchName}
+}
+```
+
+### Current Branch Detection
+
+When commands can work on current branch:
+
+```go
+var branchName string
+if name == "" {
+    currentBranch, err := git.GetCurrentBranch()
+    if err != nil {
+        return &errors.GitError{Operation: "get current branch", Err: err}
+    }
+    branchName = currentBranch
+} else {
+    branchName = name
+}
+```
+
+### Configuration Override Pattern
+
+For configurable options with multiple precedence levels:
+
+```go
+// 1. Start with branch configuration default
+shouldTag := branchConfig.Tag
+
+// 2. Check for branch-specific config override
+branchSpecificConfig, err := git.GetConfig(fmt.Sprintf("gitflow.%s.finish.notag", branchType))
+if err == nil && branchSpecificConfig == "true" {
+    shouldTag = false
+}
+
+// 3. Command-line flags override everything
+if tagOptions != nil && tagOptions.ShouldTag != nil {
+    shouldTag = *tagOptions.ShouldTag
+}
+```
+
+### Input Validation
+
+Always validate inputs early in the execute function:
+
+```go
+// Validate required inputs
+if name == "" {
+    return &errors.EmptyBranchNameError{}
+}
+
+// Validate branch exists before operations
+if err := git.BranchExists(branchName); err != nil {
+    return &errors.BranchNotFoundError{BranchName: branchName}
+}
+```
+
+### Options Struct Pattern
+
+For commands with multiple flags, use structured options:
+
+```go
+type TagOptions struct {
+    ShouldTag   *bool  // nil means use config default
+    ShouldSign  *bool  // nil means use config default
+    SigningKey  string
+    Message     string
+    TagName     string
+}
+
+type BranchRetentionOptions struct {
+    Keep        *bool // Whether to keep the branch
+    KeepRemote  *bool // Whether to keep remote branch
+    KeepLocal   *bool // Whether to keep local branch
+    ForceDelete *bool // Whether to force delete
+}
+```
+
+### Command Function Signatures
+
+Use consistent signatures:
+- Command wrapper: `func CommandName(branchType, name string, options...)`
+- Execute function: `func executeCommand(branchType, name string, options...) error`
 
 ## Git Operations
 
@@ -368,14 +507,50 @@ func finish(state *mergestate.MergeState) error {
 
 ## Quality Standards
 
+### Mandatory Change Requirements
+
+**CRITICAL**: When changing code, you MUST always complete all three steps:
+
+1. **Create/Adjust Tests**
+   - Add new tests for new functionality
+   - Update existing tests when behavior changes
+   - Follow test naming conventions: `TestFunctionNameWithScenario`
+   - Use test utilities from `testutil/` package
+   - Ensure tests cover both success and error cases
+
+2. **Run All Tests**
+   - Execute `go test ./...` to run complete test suite
+   - Fix any test failures before committing
+   - Ensure no regressions in existing functionality
+   - Verify new tests pass consistently
+
+3. **Update Documentation**
+   - Update relevant `.md` files for user-facing changes
+   - Update function/package documentation for API changes
+   - Update CLAUDE.md for development workflow changes
+   - Update configuration examples if config changes
+
+**Test Command Reference:**
+```bash
+# Run all tests
+go test ./...
+
+# Run tests for specific package
+go test ./test/cmd/
+go test ./test/internal/
+
+# Run specific test file with verbose output
+go test -v ./test/cmd/init_test.go
+```
+
 ### Code Reviews
 
 All code changes must:
 - Follow these coding guidelines
-- Include appropriate tests
-- Have clear commit messages
+- **Complete all three mandatory requirements above**
+- Have clear commit messages following COMMIT_GUIDELINES.md
 - Pass all existing tests
-- Include documentation for new features
+- Include comprehensive test coverage
 
 ### Static Analysis
 
