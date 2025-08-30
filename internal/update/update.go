@@ -55,12 +55,8 @@ func UpdateBranchFromParent(branchName string, parentBranch string, strategy str
 }
 
 // GetParentBranch returns the parent branch for a given branch name
-func GetParentBranch(branchName string) (string, error) {
-	// Get configuration
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return "", &errors.GitError{Operation: "load configuration", Err: err}
-	}
+func GetParentBranch(cfg *config.Config, branchName string) (string, error) {
+	// Use provided configuration
 
 	// Find the branch type and its configuration
 	var branchConfig *config.BranchConfig

@@ -147,7 +147,7 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 	}
 
 	// Get parent branch
-	parentBranch, err := update.GetParentBranch(branchName)
+	parentBranch, err := update.GetParentBranch(cfg, branchName)
 	if err != nil {
 		return err
 	}
@@ -225,48 +225,4 @@ func updateWithRebase(branchName, parentBranch string) error {
 		return &errors.GitError{Operation: fmt.Sprintf("rebase %s onto %s", branchName, parentBranch), Err: err}
 	}
 	return nil
-}
-
-func getParentBranch(branchName string) (string, error) {
-	// Get configuration
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return "", &errors.GitError{Operation: "load configuration", Err: err}
-	}
-
-	// Find the branch type and its configuration
-	var branchConfig *config.BranchConfig
-	// First check if it's a base branch (main or develop)
-	fmt.Fprintf(os.Stderr, "Looking for branch: %s\n", branchName)
-	fmt.Fprintf(os.Stderr, "Available branches: %+v\n", cfg.Branches)
-	for branchKey, bc := range cfg.Branches {
-		fmt.Fprintf(os.Stderr, "Checking branch %s (type: %s)\n", branchKey, bc.Type)
-		if bc.Type == string(config.BranchTypeBase) && branchKey == branchName {
-			fmt.Fprintf(os.Stderr, "Found base branch match: %s\n", branchKey)
-			bc := bc // Create new variable to avoid taking address of range variable
-			branchConfig = &bc
-			break
-		}
-	}
-	// If not a base branch, check topic branches by prefix
-	if branchConfig == nil {
-		for _, bc := range cfg.Branches {
-			if bc.Type == string(config.BranchTypeTopic) && bc.Prefix != "" && strings.HasPrefix(branchName, bc.Prefix) {
-				bc := bc // Create new variable to avoid taking address of range variable
-				branchConfig = &bc
-				break
-			}
-		}
-	}
-
-	if branchConfig == nil {
-		return "", &errors.InvalidBranchTypeError{BranchType: branchName}
-	}
-
-	// Get parent branch from config
-	parentBranch := branchConfig.Parent
-	if parentBranch == "" {
-		return "", &errors.GitError{Operation: "get parent branch", Err: fmt.Errorf("no parent branch configured for branch type")}
-	}
-	return parentBranch, nil
 }
