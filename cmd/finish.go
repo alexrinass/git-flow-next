@@ -91,7 +91,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 		}
 
 		if continueOp {
-			return handleContinue(state, stateBranchConfig, tagOptions, retentionOptions)
+			return handleContinue(cfg, state, stateBranchConfig, tagOptions, retentionOptions)
 		}
 
 		return &errors.MergeInProgressError{BranchName: state.FullBranchName}
@@ -155,10 +155,10 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 	}
 
 	// Regular finish command flow
-	return finishBranch(branchType, name, branchConfig, tagOptions, retentionOptions)
+	return finishBranch(cfg, branchType, name, branchConfig, tagOptions, retentionOptions)
 }
 
-func finishBranch(branchType string, name string, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+func finishBranch(cfg *config.Config, branchType string, name string, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	// Validate that git-flow is initialized
 	initialized, err := config.IsInitialized()
 	if err != nil {
@@ -197,11 +197,6 @@ func finishBranch(branchType string, name string, branchConfig config.BranchConf
 	}
 
 	// Find child base branches that need to be updated
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return &errors.GitError{Operation: "load configuration", Err: err}
-	}
-
 	childBranches := []string{}
 	for branchName, branch := range cfg.Branches {
 		if branch.Type == string(config.BranchTypeBase) && branch.Parent == targetBranch {
@@ -226,7 +221,7 @@ func finishBranch(branchType string, name string, branchConfig config.BranchConf
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
 
-	return finish(state, branchConfig, tagOptions, retentionOptions)
+	return finish(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
 // resolveBranchName tries to find the branch name with and without prefix
@@ -248,7 +243,7 @@ func resolveBranchName(name string, branchConfig config.BranchConfig) (string, e
 }
 
 // handleCreateTagStep handles the tag creation step
-func handleCreateTagStep(state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+func handleCreateTagStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	// 1. Start with branch configuration default
 	shouldTag := branchConfig.Tag
 
@@ -275,7 +270,7 @@ func handleCreateTagStep(state *mergestate.MergeState, branchConfig config.Branc
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
-	return handleContinue(state, branchConfig, tagOptions, retentionOptions)
+	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
 // createTagForBranch creates a tag for the finished branch
@@ -372,7 +367,7 @@ func createTagForBranch(state *mergestate.MergeState, branchConfig config.Branch
 }
 
 // handleUpdateChildrenStep handles updating child base branches
-func handleUpdateChildrenStep(state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	// Find next child branch to update
 	nextBranch := findNextBranchToUpdate(state)
 
@@ -382,11 +377,11 @@ func handleUpdateChildrenStep(state *mergestate.MergeState, branchConfig config.
 		if err := mergestate.SaveMergeState(state); err != nil {
 			return &errors.GitError{Operation: "save merge state", Err: err}
 		}
-		return handleContinue(state, branchConfig, tagOptions, retentionOptions)
+		return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
 	}
 
 	// Update the next child branch
-	if err := updateChildBranch(nextBranch, state); err != nil {
+	if err := updateChildBranch(cfg, nextBranch, state); err != nil {
 		return err
 	}
 
@@ -397,7 +392,7 @@ func handleUpdateChildrenStep(state *mergestate.MergeState, branchConfig config.
 	}
 
 	// Continue with next branch
-	return handleContinue(state, branchConfig, tagOptions, retentionOptions)
+	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
 // findNextBranchToUpdate finds the next child branch that needs updating
@@ -418,22 +413,17 @@ func findNextBranchToUpdate(state *mergestate.MergeState) string {
 }
 
 // updateChildBranch updates a single child branch
-func updateChildBranch(branchName string, state *mergestate.MergeState) error {
+func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.MergeState) error {
 	fmt.Printf("Updating child base branch '%s' from '%s'...\n", branchName, state.ParentBranch)
 
-	// Load config to get merge strategy for this child branch
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return &errors.GitError{Operation: "load configuration", Err: err}
-	}
-
+	// Get merge strategy for this child branch from provided config
 	childBranchConfig, ok := cfg.Branches[branchName]
 	if !ok {
 		return &errors.GitError{Operation: fmt.Sprintf("get config for branch '%s'", branchName), Err: fmt.Errorf("branch config not found")}
 	}
 
 	// Use the shared update logic
-	err = update.UpdateBranchFromParent(branchName, state.ParentBranch, childBranchConfig.DownstreamStrategy, true, state)
+	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, childBranchConfig.DownstreamStrategy, true, state)
 	if err != nil {
 		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
 			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s'. Resolve conflicts and run 'git flow %s finish --continue %s'\n", branchName, state.BranchType, state.BranchName)
@@ -545,7 +535,7 @@ func deleteBranchesIfNeeded(state *mergestate.MergeState, keep, keepRemote, keep
 	return nil
 }
 
-func finish(state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+func finish(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	// Checkout target branch
 	err := git.Checkout(state.ParentBranch)
 	if err != nil {
@@ -605,10 +595,10 @@ func finish(state *mergestate.MergeState, branchConfig config.BranchConfig, tagO
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
 
-	return handleContinue(state, branchConfig, tagOptions, retentionOptions)
+	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
-func handleContinue(state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	switch state.CurrentStep {
 	case stepMerge:
 		// Check if there are still conflicts
@@ -621,13 +611,13 @@ func handleContinue(state *mergestate.MergeState, branchConfig config.BranchConf
 		if err := mergestate.SaveMergeState(state); err != nil {
 			return &errors.GitError{Operation: "save merge state", Err: err}
 		}
-		return handleContinue(state, branchConfig, tagOptions, retentionOptions)
+		return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
 
 	case stepCreateTag:
-		return handleCreateTagStep(state, branchConfig, tagOptions, retentionOptions)
+		return handleCreateTagStep(cfg, state, branchConfig, tagOptions, retentionOptions)
 
 	case stepUpdateChildren:
-		return handleUpdateChildrenStep(state, branchConfig, tagOptions, retentionOptions)
+		return handleUpdateChildrenStep(cfg, state, branchConfig, tagOptions, retentionOptions)
 
 	case stepDeleteBranch:
 		return handleDeleteBranchStep(state, retentionOptions)
