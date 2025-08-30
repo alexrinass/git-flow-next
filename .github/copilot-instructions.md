@@ -137,6 +137,11 @@ if !exists {
 - Merge strategies (downstream): `gitflow.feature.downstreamStrategy`, `gitflow.release.downstreamStrategy`
 - Branch-specific settings: `gitflow.feature.finish.notag`, `gitflow.release.finish.notag`
 
+**Configuration Precedence (Command-line Always Wins):**
+1. **Layer 1**: Branch config defaults (`gitflow.branch.*`)
+2. **Layer 2**: Command-specific config (`gitflow.<branchtype>.*`)
+3. **Layer 3**: Command-line flags (**HIGHEST PRIORITY** - always override config)
+
 ### Git Operations
 
 **Always Use Wrappers:**

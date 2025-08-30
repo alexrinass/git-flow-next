@@ -271,23 +271,67 @@ if name == "" {
 
 ### Configuration Override Pattern
 
-For configurable options with multiple precedence levels:
+**CRITICAL**: All commands must implement a **three-layer precedence hierarchy** where command-line arguments always win:
+
+#### **Layer 1: Branch Configuration Defaults**
+Default values from branch type configuration in Git config under `gitflow.branch.*`
+
+#### **Layer 2: Command-Specific Git Config Overrides**
+Branch-specific overrides in Git config under `gitflow.<branchtype>.*`
+
+#### **Layer 3: Command-Line Arguments (HIGHEST PRIORITY)**
+Explicit flags passed to the command - **THESE ALWAYS WIN**
+
+#### **Implementation Pattern:**
 
 ```go
-// 1. Start with branch configuration default
+// 1. Start with branch configuration default (Layer 1)
 shouldTag := branchConfig.Tag
 
-// 2. Check for branch-specific config override
+// 2. Check for branch-specific config override (Layer 2)
 branchSpecificConfig, err := git.GetConfig(fmt.Sprintf("gitflow.%s.finish.notag", branchType))
 if err == nil && branchSpecificConfig == "true" {
     shouldTag = false
 }
 
-// 3. Command-line flags override everything
+// 3. Command-line flags override everything (Layer 3 - WINS)
 if tagOptions != nil && tagOptions.ShouldTag != nil {
     shouldTag = *tagOptions.ShouldTag
 }
 ```
+
+#### **Examples of Configuration Hierarchy:**
+
+**Tag Creation Example:**
+```bash
+# Layer 1: Branch config default
+git config gitflow.branch.release.tag true
+
+# Layer 2: Command-specific override
+git config gitflow.release.finish.notag true  # Disables tags
+
+# Layer 3: Command-line override (WINS)
+git flow release finish v1.0 --tag  # Forces tag creation despite config
+```
+
+**Merge Strategy Example:**
+```bash
+# Layer 1: Branch config default
+git config gitflow.branch.feature.upstreamStrategy merge
+
+# Layer 2: Command-specific override
+git config gitflow.feature.finish.merge rebase
+
+# Layer 3: Command-line override (WINS)
+git flow feature finish my-feature --squash  # Forces squash merge
+```
+
+#### **Required Implementation:**
+
+1. **Always check all three layers** in the correct order
+2. **Use pointer types** (`*bool`, `*string`) for command-line options to distinguish between "not set" and "set to false/empty"
+3. **Command-line flags must always win** - no exceptions
+4. **Document the precedence** in command help text when relevant
 
 ### Input Validation
 

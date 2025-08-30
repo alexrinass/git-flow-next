@@ -152,6 +152,7 @@ git config gitflow.feature.finish.fetch true
 - Implement both long and short flag variants
 - Add command examples and usage information
 - Validate inputs before executing operations
+- **Follow three-layer configuration precedence**: Branch config defaults → Git config overrides → Command-line flags (always win)
 
 ## Commit Guidelines
 
