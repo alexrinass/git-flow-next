@@ -121,7 +121,7 @@ func RegisterShorthandCommands() {
 			continueOp, _ := cmd.Flags().GetBool("continue")
 			abortOp, _ := cmd.Flags().GetBool("abort")
 			force, _ := cmd.Flags().GetBool("force")
-			tagOptions := &TagOptions{
+			tagOptions := &config.TagOptions{
 				ShouldTag:   getBoolPtr(cmd, "tag", "notag"),
 				ShouldSign:  getBoolPtr(cmd, "sign", "no-sign"),
 				SigningKey:  cmd.Flag("signingkey").Value.String(),
@@ -129,7 +129,7 @@ func RegisterShorthandCommands() {
 				MessageFile: cmd.Flag("messagefile").Value.String(),
 				TagName:     cmd.Flag("tagname").Value.String(),
 			}
-			retentionOptions := &BranchRetentionOptions{
+			retentionOptions := &config.BranchRetentionOptions{
 				Keep:        getBoolPtr(cmd, "keep", "no-keep"),
 				KeepRemote:  getBoolPtr(cmd, "keepremote", "no-keepremote"),
 				KeepLocal:   getBoolPtr(cmd, "keeplocal", "no-keeplocal"),

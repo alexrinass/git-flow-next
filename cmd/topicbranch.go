@@ -132,7 +132,7 @@ func registerBranchCommand(branchType string) {
 			noForceDelete, _ := cmd.Flags().GetBool("no-force-delete")
 
 			// Create tag options
-			tagOptions := &TagOptions{
+			tagOptions := &config.TagOptions{
 				ShouldTag:   getBoolFlag(tag, noTag),
 				ShouldSign:  getBoolFlag(sign, noSign),
 				SigningKey:  signingKey,
@@ -142,7 +142,7 @@ func registerBranchCommand(branchType string) {
 			}
 
 			// Create branch retention options
-			retentionOptions := &BranchRetentionOptions{
+			retentionOptions := &config.BranchRetentionOptions{
 				Keep:        getBoolFlag(keep, noKeep),
 				KeepRemote:  getBoolFlag(keepRemote, noKeepRemote),
 				KeepLocal:   getBoolFlag(keepLocal, noKeepLocal),

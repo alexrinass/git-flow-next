@@ -17,9 +17,10 @@ import (
 
 // Config represents the git-flow configuration
 type Config struct {
-	Version  string
-	Branches map[string]BranchConfig
-	Remote   string // Name of the remote to use for all operations
+	Version       string
+	Branches      map[string]BranchConfig
+	Remote        string            // Name of the remote to use for all operations
+	CommandConfig map[string]string // All gitflow.* command-specific config (Layer 2)
 }
 
 // BranchConfig represents the configuration for a branch type
@@ -78,8 +79,9 @@ type ConfigOverrides struct {
 // DefaultConfig returns a default git-flow configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Version: "1.0",
-		Remote:  "origin", // Default remote name
+		Version:       "1.0",
+		Remote:        "origin", // Default remote name
+		CommandConfig: make(map[string]string), // Initialize command config map
 		Branches: map[string]BranchConfig{
 			"main": {
 				Type:               string(BranchTypeBase),
@@ -175,14 +177,22 @@ func LoadConfig() (*Config, error) {
 
 	// Create config with version
 	config := &Config{
-		Version:  version,
-		Remote:   "origin", // Default remote
-		Branches: make(map[string]BranchConfig),
+		Version:       version,
+		Remote:        "origin", // Default remote
+		CommandConfig: make(map[string]string),
+		Branches:      make(map[string]BranchConfig),
 	}
 
+	// Load all gitflow.* command-specific config at once
+	allGitflowConfig, err := loadAllGitflowConfig(currentDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load gitflow config: %w", err)
+	}
+	config.CommandConfig = allGitflowConfig
+	
 	// Get custom remote name if set
-	remote, err := git.GetConfigInDir(currentDir, "gitflow.origin")
-	if err == nil && remote != "" {
+	remote, ok := allGitflowConfig["gitflow.origin"]
+	if ok && remote != "" {
 		config.Remote = remote
 	}
 
@@ -613,4 +623,38 @@ func ClearConfig() error {
 	}
 
 	return nil
+}
+
+// loadAllGitflowConfig loads all gitflow.* configuration keys at once
+func loadAllGitflowConfig(currentDir string) (map[string]string, error) {
+	cmd := exec.Command("git", "config", "--get-regexp", "gitflow\\.")
+	cmd.Dir = currentDir
+	output, err := cmd.Output()
+	
+	result := make(map[string]string)
+	
+	if err != nil {
+		// If no config values match, don't treat it as an error
+		if strings.Contains(err.Error(), "exit status 1") {
+			return result, nil
+		}
+		return nil, fmt.Errorf("failed to get gitflow config: %w", err)
+	}
+	
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) == 2 {
+			result[parts[0]] = parts[1]
+		} else {
+			// Handle case where config value is empty
+			result[parts[0]] = ""
+		}
+	}
+	
+	return result, nil
 }
