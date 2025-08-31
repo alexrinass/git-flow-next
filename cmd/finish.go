@@ -221,7 +221,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
 
-	return finish(cfg, state, branchConfig, tagOptions, retentionOptions)
+	return executeSteps(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
 // resolveBranchName tries to find the branch name with and without prefix
@@ -270,7 +270,7 @@ func handleCreateTagStep(cfg *config.Config, state *mergestate.MergeState, branc
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
-	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
+	return nil
 }
 
 // createTagForBranch creates a tag for the finished branch
@@ -377,7 +377,7 @@ func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, 
 		if err := mergestate.SaveMergeState(state); err != nil {
 			return &errors.GitError{Operation: "save merge state", Err: err}
 		}
-		return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
+		return nil
 	}
 
 	// Update the next child branch
@@ -392,7 +392,7 @@ func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, 
 	}
 
 	// Continue with next branch
-	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
+	return nil
 }
 
 // findNextBranchToUpdate finds the next child branch that needs updating
@@ -535,7 +535,8 @@ func deleteBranchesIfNeeded(state *mergestate.MergeState, keep, keepRemote, keep
 	return nil
 }
 
-func finish(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+// handleMergeStep handles the merge step of the finish operation
+func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
 	// Checkout target branch
 	err := git.Checkout(state.ParentBranch)
 	if err != nil {
@@ -595,36 +596,46 @@ func finish(cfg *config.Config, state *mergestate.MergeState, branchConfig confi
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
 
-	return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
+	return nil
+}
+
+// executeSteps runs the state machine for the finish operation
+func executeSteps(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
+	for {
+		var err error
+		switch state.CurrentStep {
+		case stepMerge:
+			err = handleMergeStep(cfg, state, branchConfig, tagOptions, retentionOptions)
+		case stepCreateTag:
+			err = handleCreateTagStep(cfg, state, branchConfig, tagOptions, retentionOptions)
+		case stepUpdateChildren:
+			err = handleUpdateChildrenStep(cfg, state, branchConfig, tagOptions, retentionOptions)
+		case stepDeleteBranch:
+			return handleDeleteBranchStep(state, retentionOptions) // Final step
+		default:
+			return &errors.GitError{Operation: fmt.Sprintf("unknown step '%s'", state.CurrentStep), Err: nil}
+		}
+
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions) error {
-	switch state.CurrentStep {
-	case stepMerge:
-		// Check if there are still conflicts
+	// For merge step continuation, check if conflicts are resolved
+	if state.CurrentStep == stepMerge {
 		if git.HasConflicts() {
 			return &errors.UnresolvedConflictsError{}
 		}
-
-		// Move to next step
+		// Move to next step since merge conflicts are resolved
 		state.CurrentStep = stepCreateTag
 		if err := mergestate.SaveMergeState(state); err != nil {
 			return &errors.GitError{Operation: "save merge state", Err: err}
 		}
-		return handleContinue(cfg, state, branchConfig, tagOptions, retentionOptions)
-
-	case stepCreateTag:
-		return handleCreateTagStep(cfg, state, branchConfig, tagOptions, retentionOptions)
-
-	case stepUpdateChildren:
-		return handleUpdateChildrenStep(cfg, state, branchConfig, tagOptions, retentionOptions)
-
-	case stepDeleteBranch:
-		return handleDeleteBranchStep(state, retentionOptions)
-
-	default:
-		return &errors.GitError{Operation: fmt.Sprintf("unknown step '%s'", state.CurrentStep), Err: nil}
 	}
+
+	return executeSteps(cfg, state, branchConfig, tagOptions, retentionOptions)
 }
 
 func handleAbort(state *mergestate.MergeState) error {
