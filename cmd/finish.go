@@ -518,19 +518,3 @@ func handleAbort(state *mergestate.MergeState) error {
 	return nil
 }
 
-// getBoolFlag converts two opposite boolean flags into a single *bool value
-// If positive is true, returns &true
-// If negative is true, returns &false
-// If neither is set, returns nil
-func getBoolFlag(positive, negative bool) *bool {
-	if positive {
-		return &positive
-	}
-	if negative {
-		falseBool := false
-		return &falseBool
-	}
-	return nil
-}
-
-
