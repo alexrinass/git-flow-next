@@ -34,6 +34,7 @@ go run main.go                            # Run directly
 For comprehensive development information, see:
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and design overview
 - **[CODING_GUIDELINES.md](CODING_GUIDELINES.md)** - Coding standards and conventions
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration reference and examples
 - **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - Testing methodology and practices
 - **[COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md)** - Commit message standards and best practices
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - GitHub Copilot context and patterns

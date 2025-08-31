@@ -149,6 +149,15 @@ These commands currently show "not implemented" messages when used.
 
 For detailed documentation, please visit our [documentation site](https://github.com/gittower/git-flow-next/wiki).
 
+### Configuration Reference
+
+For comprehensive configuration information, see **[CONFIGURATION.md](CONFIGURATION.md)** which includes:
+- Complete list of all configuration options
+- Default values and examples
+- Configuration precedence hierarchy
+- Migration guide from git-flow-avh
+- Best practices and workflows
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get involved.
