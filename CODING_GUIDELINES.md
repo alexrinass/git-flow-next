@@ -2,6 +2,66 @@
 
 This document outlines the coding standards and conventions used in the git-flow-next project. Following these guidelines ensures consistency and maintainability across the codebase.
 
+## Development Philosophy
+
+**CRITICAL**: We follow a **pragmatic, anti-over-engineering approach** to software development:
+
+### Core Principles
+
+1. **Pragmatism Over Patterns**
+   - Use patterns wisely, but don't let them dictate your code
+   - Solve real problems, not theoretical ones
+   - Choose simplicity over cleverness
+
+2. **Meaningful Encapsulation**
+   - Encapsulate code in meaningful ways that reflect the problem domain
+   - Group related functionality naturally, not artificially
+   - Avoid unnecessary abstractions that don't add real value
+
+3. **Function Parameters and Complexity**
+   - **Complex functions will naturally receive many parameters** - this is acceptable
+   - Many function calls are perfectly fine if that's what the logic requires
+   - Don't artificially reduce parameter counts just for the sake of it
+
+4. **Option Structs - When They Make Sense**
+   - Combine function arguments into option structs when it **makes logical sense**
+   - Example: `TagOptions` groups related tag configuration (good)
+   - Don't create option structs just to reduce parameter counts (bad)
+
+5. **Anti-Over-Engineering**
+   - Reject unnecessary complexity in favor of straightforward solutions
+   - Avoid premature abstractions and excessive layering
+   - Write code that directly solves the problem at hand
+
+### What This Means in Practice
+
+```go
+// GOOD: Complex function with many parameters that reflect the real problem
+func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, 
+    force bool, tagOptions *TagOptions, retentionOptions *BranchRetentionOptions)
+
+// GOOD: Option struct groups related concepts
+type TagOptions struct {
+    ShouldTag   *bool
+    ShouldSign  *bool
+    SigningKey  string
+    Message     string
+}
+
+// BAD: Artificial abstraction that doesn't add value
+type FinishContext struct {
+    Everything interface{}
+}
+func FinishCommand(ctx *FinishContext)
+```
+
+### Guidelines for Refactoring
+
+- **Don't refactor for the sake of following patterns**
+- **Do refactor when it solves actual maintenance or clarity problems**
+- **Prefer explicit over implicit**
+- **Prefer readable over clever**
+
 ## Go Code Style
 
 ### Package Organization

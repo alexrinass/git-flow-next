@@ -6,6 +6,8 @@ This document provides context and guidelines for GitHub Copilot when working wi
 
 git-flow-next is a modern, flexible Go implementation of Git workflow management that builds upon the original git-flow concepts with extensive customization capabilities for modern development practices.
 
+**Development Philosophy**: Follow a pragmatic, anti-over-engineering approach. Use patterns wisely but don't let them dictate code. Complex functions with many parameters are acceptable when they reflect real problems. Prefer explicit over implicit, readable over clever.
+
 ### Core Architecture
 
 - **Branch Dependency Model**: Parent-child relationships between branches with automatic change propagation

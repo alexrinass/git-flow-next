@@ -135,6 +135,15 @@ git config gitflow.feature.finish.fetch true
 - **support**: Long-term support branches
 - Custom types can be added via configuration
 
+## Development Philosophy
+
+**CRITICAL**: Follow a **pragmatic, anti-over-engineering approach**:
+- Use patterns wisely, but don't let them dictate your code
+- Complex functions with many parameters are acceptable when they reflect real problems
+- Encapsulate meaningfully, not artificially
+- Option structs are good when they group related concepts (like `TagOptions`)
+- Prefer explicit over implicit, readable over clever
+
 ## Code Conventions
 
 ### Error Handling
