@@ -27,6 +27,9 @@ const (
 	strategyMerge  = "merge"
 )
 
+// =============================================================================
+// PUBLIC ENTRY POINTS
+// =============================================================================
 
 // FinishCommand is the implementation of the finish command for topic branches
 func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions) {
@@ -41,6 +44,10 @@ func FinishCommand(branchType string, name string, continueOp bool, abortOp bool
 		os.Exit(int(exitCode))
 	}
 }
+
+// =============================================================================
+// MAIN EXECUTION FLOW
+// =============================================================================
 
 // executeFinish performs the actual branch finishing logic and returns any errors
 func executeFinish(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions) error {
@@ -200,255 +207,9 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	return executeSteps(cfg, state, branchConfig, resolvedOptions)
 }
 
-// resolveBranchName tries to find the branch name with and without prefix
-func resolveBranchName(name string, branchConfig config.BranchConfig) (string, error) {
-	// Try name as-is first
-	if err := git.BranchExists(name); err == nil {
-		return name, nil
-	}
-
-	// If not found as-is, try with prefix
-	if !strings.HasPrefix(name, branchConfig.Prefix) {
-		fullName := branchConfig.Prefix + name
-		if err := git.BranchExists(fullName); err == nil {
-			return fullName, nil
-		}
-	}
-
-	return "", &errors.BranchNotFoundError{BranchName: name}
-}
-
-// handleCreateTagStep handles the tag creation step
-func handleCreateTagStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
-	if resolvedOptions.ShouldTag {
-		if err := createTagForBranchResolved(state, resolvedOptions); err != nil {
-			return err
-		}
-	}
-
-	// Move to next step
-	state.CurrentStep = stepUpdateChildren
-	if err := mergestate.SaveMergeState(state); err != nil {
-		return &errors.GitError{Operation: "save merge state", Err: err}
-	}
-	return nil
-}
-
-
-// createTagForBranchResolved creates a tag using resolved options
-func createTagForBranchResolved(state *mergestate.MergeState, options *config.ResolvedFinishOptions) error {
-	// Determine if we should use message file
-	useMessageFile := options.MessageFile != ""
-	
-	// Create the tag using the git module
-	gitTagOptions := &git.TagOptions{
-		Message:     options.TagMessage,
-		MessageFile: options.MessageFile,
-		Sign:        options.ShouldSign,
-		SigningKey:  options.SigningKey,
-	}
-	
-	// Use MessageFile if specified, otherwise use Message
-	if useMessageFile {
-		gitTagOptions.Message = "" // Clear message since we're using file
-	} else {
-		gitTagOptions.MessageFile = "" // Clear file since we're using message
-	}
-	
-	if err := git.CreateTag(options.TagName, gitTagOptions); err != nil {
-		return &errors.GitError{Operation: fmt.Sprintf("create tag '%s'", options.TagName), Err: err}
-	}
-	fmt.Printf("Created tag '%s'\n", options.TagName)
-	return nil
-}
-
-// handleUpdateChildrenStep handles updating child base branches
-func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
-	// Find next child branch to update
-	nextBranch := findNextBranchToUpdate(state)
-
-	// If no more branches to update, move to final step
-	if nextBranch == "" {
-		state.CurrentStep = stepDeleteBranch
-		if err := mergestate.SaveMergeState(state); err != nil {
-			return &errors.GitError{Operation: "save merge state", Err: err}
-		}
-		return nil
-	}
-
-	// Update the next child branch
-	if err := updateChildBranch(cfg, nextBranch, state); err != nil {
-		return err
-	}
-
-	// Mark this branch as updated
-	state.UpdatedBranches = append(state.UpdatedBranches, nextBranch)
-	if err := mergestate.SaveMergeState(state); err != nil {
-		return &errors.GitError{Operation: "save merge state", Err: err}
-	}
-
-	// Continue with next branch
-	return nil
-}
-
-// findNextBranchToUpdate finds the next child branch that needs updating
-func findNextBranchToUpdate(state *mergestate.MergeState) string {
-	for _, branch := range state.ChildBranches {
-		alreadyUpdated := false
-		for _, updated := range state.UpdatedBranches {
-			if branch == updated {
-				alreadyUpdated = true
-				break
-			}
-		}
-		if !alreadyUpdated {
-			return branch
-		}
-	}
-	return ""
-}
-
-// updateChildBranch updates a single child branch
-func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.MergeState) error {
-	fmt.Printf("Updating child base branch '%s' from '%s'...\n", branchName, state.ParentBranch)
-
-	// Get merge strategy for this child branch from provided config
-	childBranchConfig, ok := cfg.Branches[branchName]
-	if !ok {
-		return &errors.GitError{Operation: fmt.Sprintf("get config for branch '%s'", branchName), Err: fmt.Errorf("branch config not found")}
-	}
-
-	// Use the shared update logic
-	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, childBranchConfig.DownstreamStrategy, true, state)
-	if err != nil {
-		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
-			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s'. Resolve conflicts and run 'git flow %s finish --continue %s'\n", branchName, state.BranchType, state.BranchName)
-			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
-			fmt.Println(msg)
-			return err
-		}
-		return err
-	}
-
-	return nil
-}
-
-// handleDeleteBranchStep handles branch deletion
-func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
-	// Ensure we're on the parent branch before deletion
-	if err := git.Checkout(state.ParentBranch); err != nil {
-		return &errors.GitError{Operation: fmt.Sprintf("checkout parent branch '%s'", state.ParentBranch), Err: err}
-	}
-
-	// Apply keep logic: if keep is set, it overrides individual settings
-	keepRemote := resolvedOptions.KeepRemote
-	keepLocal := resolvedOptions.KeepLocal
-	if resolvedOptions.Keep {
-		keepRemote = true
-		keepLocal = true
-	}
-
-	// Delete branches based on settings
-	if err := deleteBranchesIfNeeded(state, keepRemote, keepLocal, resolvedOptions.ForceDelete); err != nil {
-		return err
-	}
-
-	// Clear the merge state
-	if err := mergestate.ClearMergeState(); err != nil {
-		return &errors.GitError{Operation: "clear merge state", Err: err}
-	}
-
-	fmt.Printf("Successfully finished branch '%s' and updated %d child base branches\n", state.FullBranchName, len(state.UpdatedBranches))
-	return nil
-}
-
-
-// deleteBranchesIfNeeded deletes branches based on retention settings
-func deleteBranchesIfNeeded(state *mergestate.MergeState, keepRemote, keepLocal, forceDelete bool) error {
-	// Delete remote branch if not keeping it and if remote branch exists
-	if !keepRemote {
-		// Only attempt to delete if the remote branch actually exists
-		if git.RemoteBranchExists("origin", state.FullBranchName) {
-			remoteBranch := fmt.Sprintf("origin/%s", state.FullBranchName)
-			if err := git.DeleteRemoteBranch("origin", state.FullBranchName); err != nil {
-				return &errors.GitError{Operation: fmt.Sprintf("delete remote branch '%s'", remoteBranch), Err: err}
-			}
-		}
-	}
-
-	// Delete local branch if not keeping it
-	if !keepLocal {
-		if err := git.DeleteBranch(state.FullBranchName, forceDelete); err != nil {
-			return &errors.GitError{Operation: fmt.Sprintf("delete branch '%s'", state.FullBranchName), Err: err}
-		}
-	}
-
-	return nil
-}
-
-// handleMergeStep handles the merge step of the finish operation
-func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
-	// Checkout target branch
-	err := git.Checkout(state.ParentBranch)
-	if err != nil {
-		return &errors.GitError{Operation: fmt.Sprintf("checkout target branch '%s'", state.ParentBranch), Err: err}
-	}
-	fmt.Printf("Switched to branch '%s'\n", state.ParentBranch)
-
-	// Perform merge based on strategy
-	fmt.Printf("Merging using strategy: %v\n", strings.ToLower(branchConfig.UpstreamStrategy))
-	var mergeErr error
-	switch strings.ToLower(branchConfig.UpstreamStrategy) {
-	case strategyRebase:
-		fmt.Printf("Rebase strategy selected\n")
-		// For rebase, we need to:
-		// 1. Stay on feature branch
-		err = git.Checkout(state.FullBranchName)
-		if err != nil {
-			return &errors.GitError{Operation: "checkout feature branch for rebase", Err: err}
-		}
-		// 2. Rebase onto target branch
-		mergeErr = git.Rebase(state.ParentBranch)
-		if mergeErr == nil {
-			// 3. If rebase succeeds, checkout target and merge (should be fast-forward)
-			err = git.Checkout(state.ParentBranch)
-			if err != nil {
-				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
-			}
-			mergeErr = git.Merge(state.FullBranchName)
-		}
-	case strategySquash:
-		mergeErr = git.SquashMerge(state.FullBranchName)
-	case strategyMerge:
-		mergeErr = git.Merge(state.FullBranchName)
-	default:
-		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", strings.ToLower(branchConfig.UpstreamStrategy)), Err: nil}
-	}
-
-	if mergeErr != nil {
-		if strings.Contains(mergeErr.Error(), "conflict") {
-			// Save state before returning conflict error
-			state.CurrentStep = stepMerge
-			if err := mergestate.SaveMergeState(state); err != nil {
-				return &errors.GitError{Operation: "save merge state", Err: err}
-			}
-
-			msg := fmt.Sprintf("Merge conflicts detected. Resolve conflicts and run 'git flow %s finish --continue %s'\n", state.BranchType, state.BranchName)
-			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
-			fmt.Println(msg)
-			return &errors.UnresolvedConflictsError{}
-		}
-		return &errors.GitError{Operation: "merge branch", Err: mergeErr}
-	}
-
-	// Move to next step (tag creation)
-	state.CurrentStep = stepCreateTag
-	if err := mergestate.SaveMergeState(state); err != nil {
-		return &errors.GitError{Operation: "save merge state", Err: err}
-	}
-
-	return nil
-}
+// =============================================================================
+// STATE MACHINE AND CONTROL FLOW
+// =============================================================================
 
 // executeSteps runs the state machine for the finish operation
 func executeSteps(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
@@ -518,3 +279,258 @@ func handleAbort(state *mergestate.MergeState) error {
 	return nil
 }
 
+// =============================================================================
+// STEP HANDLERS (Called by state machine)
+// =============================================================================
+
+// handleMergeStep handles the merge step of the finish operation
+func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
+	// Checkout target branch
+	err := git.Checkout(state.ParentBranch)
+	if err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("checkout target branch '%s'", state.ParentBranch), Err: err}
+	}
+	fmt.Printf("Switched to branch '%s'\n", state.ParentBranch)
+
+	// Perform merge based on strategy
+	fmt.Printf("Merging using strategy: %v\n", strings.ToLower(branchConfig.UpstreamStrategy))
+	var mergeErr error
+	switch strings.ToLower(branchConfig.UpstreamStrategy) {
+	case strategyRebase:
+		fmt.Printf("Rebase strategy selected\n")
+		// For rebase, we need to:
+		// 1. Stay on feature branch
+		err = git.Checkout(state.FullBranchName)
+		if err != nil {
+			return &errors.GitError{Operation: "checkout feature branch for rebase", Err: err}
+		}
+		// 2. Rebase onto target branch
+		mergeErr = git.Rebase(state.ParentBranch)
+		if mergeErr == nil {
+			// 3. If rebase succeeds, checkout target and merge (should be fast-forward)
+			err = git.Checkout(state.ParentBranch)
+			if err != nil {
+				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
+			}
+			mergeErr = git.Merge(state.FullBranchName)
+		}
+	case strategySquash:
+		mergeErr = git.SquashMerge(state.FullBranchName)
+	case strategyMerge:
+		mergeErr = git.Merge(state.FullBranchName)
+	default:
+		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", strings.ToLower(branchConfig.UpstreamStrategy)), Err: nil}
+	}
+
+	if mergeErr != nil {
+		if strings.Contains(mergeErr.Error(), "conflict") {
+			// Save state before returning conflict error
+			state.CurrentStep = stepMerge
+			if err := mergestate.SaveMergeState(state); err != nil {
+				return &errors.GitError{Operation: "save merge state", Err: err}
+			}
+
+			msg := fmt.Sprintf("Merge conflicts detected. Resolve conflicts and run 'git flow %s finish --continue %s'\n", state.BranchType, state.BranchName)
+			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
+			fmt.Println(msg)
+			return &errors.UnresolvedConflictsError{}
+		}
+		return &errors.GitError{Operation: "merge branch", Err: mergeErr}
+	}
+
+	// Move to next step (tag creation)
+	state.CurrentStep = stepCreateTag
+	if err := mergestate.SaveMergeState(state); err != nil {
+		return &errors.GitError{Operation: "save merge state", Err: err}
+	}
+
+	return nil
+}
+
+// handleCreateTagStep handles the tag creation step
+func handleCreateTagStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
+	if resolvedOptions.ShouldTag {
+		if err := createTagForBranchResolved(state, resolvedOptions); err != nil {
+			return err
+		}
+	}
+
+	// Move to next step
+	state.CurrentStep = stepUpdateChildren
+	if err := mergestate.SaveMergeState(state); err != nil {
+		return &errors.GitError{Operation: "save merge state", Err: err}
+	}
+	return nil
+}
+
+// handleUpdateChildrenStep handles updating child base branches
+func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
+	// Find next child branch to update
+	nextBranch := findNextBranchToUpdate(state)
+
+	// If no more branches to update, move to final step
+	if nextBranch == "" {
+		state.CurrentStep = stepDeleteBranch
+		if err := mergestate.SaveMergeState(state); err != nil {
+			return &errors.GitError{Operation: "save merge state", Err: err}
+		}
+		return nil
+	}
+
+	// Update the next child branch
+	if err := updateChildBranch(cfg, nextBranch, state); err != nil {
+		return err
+	}
+
+	// Mark this branch as updated
+	state.UpdatedBranches = append(state.UpdatedBranches, nextBranch)
+	if err := mergestate.SaveMergeState(state); err != nil {
+		return &errors.GitError{Operation: "save merge state", Err: err}
+	}
+
+	// Continue with next branch
+	return nil
+}
+
+// handleDeleteBranchStep handles branch deletion
+func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
+	// Ensure we're on the parent branch before deletion
+	if err := git.Checkout(state.ParentBranch); err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("checkout parent branch '%s'", state.ParentBranch), Err: err}
+	}
+
+	// Apply keep logic: if keep is set, it overrides individual settings
+	keepRemote := resolvedOptions.KeepRemote
+	keepLocal := resolvedOptions.KeepLocal
+	if resolvedOptions.Keep {
+		keepRemote = true
+		keepLocal = true
+	}
+
+	// Delete branches based on settings
+	if err := deleteBranchesIfNeeded(state, keepRemote, keepLocal, resolvedOptions.ForceDelete); err != nil {
+		return err
+	}
+
+	// Clear the merge state
+	if err := mergestate.ClearMergeState(); err != nil {
+		return &errors.GitError{Operation: "clear merge state", Err: err}
+	}
+
+	fmt.Printf("Successfully finished branch '%s' and updated %d child base branches\n", state.FullBranchName, len(state.UpdatedBranches))
+	return nil
+}
+
+// =============================================================================
+// HELPER FUNCTIONS (Called by step handlers and main flow)
+// =============================================================================
+
+// resolveBranchName tries to find the branch name with and without prefix
+func resolveBranchName(name string, branchConfig config.BranchConfig) (string, error) {
+	// Try name as-is first
+	if err := git.BranchExists(name); err == nil {
+		return name, nil
+	}
+
+	// If not found as-is, try with prefix
+	if !strings.HasPrefix(name, branchConfig.Prefix) {
+		fullName := branchConfig.Prefix + name
+		if err := git.BranchExists(fullName); err == nil {
+			return fullName, nil
+		}
+	}
+
+	return "", &errors.BranchNotFoundError{BranchName: name}
+}
+
+// createTagForBranchResolved creates a tag using resolved options
+func createTagForBranchResolved(state *mergestate.MergeState, options *config.ResolvedFinishOptions) error {
+	// Determine if we should use message file
+	useMessageFile := options.MessageFile != ""
+	
+	// Create the tag using the git module
+	gitTagOptions := &git.TagOptions{
+		Message:     options.TagMessage,
+		MessageFile: options.MessageFile,
+		Sign:        options.ShouldSign,
+		SigningKey:  options.SigningKey,
+	}
+	
+	// Use MessageFile if specified, otherwise use Message
+	if useMessageFile {
+		gitTagOptions.Message = "" // Clear message since we're using file
+	} else {
+		gitTagOptions.MessageFile = "" // Clear file since we're using message
+	}
+	
+	if err := git.CreateTag(options.TagName, gitTagOptions); err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("create tag '%s'", options.TagName), Err: err}
+	}
+	fmt.Printf("Created tag '%s'\n", options.TagName)
+	return nil
+}
+
+// findNextBranchToUpdate finds the next child branch that needs updating
+func findNextBranchToUpdate(state *mergestate.MergeState) string {
+	for _, branch := range state.ChildBranches {
+		alreadyUpdated := false
+		for _, updated := range state.UpdatedBranches {
+			if branch == updated {
+				alreadyUpdated = true
+				break
+			}
+		}
+		if !alreadyUpdated {
+			return branch
+		}
+	}
+	return ""
+}
+
+// updateChildBranch updates a single child branch
+func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.MergeState) error {
+	fmt.Printf("Updating child base branch '%s' from '%s'...\n", branchName, state.ParentBranch)
+
+	// Get merge strategy for this child branch from provided config
+	childBranchConfig, ok := cfg.Branches[branchName]
+	if !ok {
+		return &errors.GitError{Operation: fmt.Sprintf("get config for branch '%s'", branchName), Err: fmt.Errorf("branch config not found")}
+	}
+
+	// Use the shared update logic
+	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, childBranchConfig.DownstreamStrategy, true, state)
+	if err != nil {
+		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
+			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s'. Resolve conflicts and run 'git flow %s finish --continue %s'\n", branchName, state.BranchType, state.BranchName)
+			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
+			fmt.Println(msg)
+			return err
+		}
+		return err
+	}
+
+	return nil
+}
+
+// deleteBranchesIfNeeded deletes branches based on retention settings
+func deleteBranchesIfNeeded(state *mergestate.MergeState, keepRemote, keepLocal, forceDelete bool) error {
+	// Delete remote branch if not keeping it and if remote branch exists
+	if !keepRemote {
+		// Only attempt to delete if the remote branch actually exists
+		if git.RemoteBranchExists("origin", state.FullBranchName) {
+			remoteBranch := fmt.Sprintf("origin/%s", state.FullBranchName)
+			if err := git.DeleteRemoteBranch("origin", state.FullBranchName); err != nil {
+				return &errors.GitError{Operation: fmt.Sprintf("delete remote branch '%s'", remoteBranch), Err: err}
+			}
+		}
+	}
+
+	// Delete local branch if not keeping it
+	if !keepLocal {
+		if err := git.DeleteBranch(state.FullBranchName, forceDelete); err != nil {
+			return &errors.GitError{Operation: fmt.Sprintf("delete branch '%s'", state.FullBranchName), Err: err}
+		}
+	}
+
+	return nil
+}
