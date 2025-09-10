@@ -28,12 +28,13 @@ func TestStartWithFetchFlag(t *testing.T)
 
 ## Test Comments and State Documentation
 
-Add a comment above each test function that:
-1. Describes what the test validates
-2. Lists the steps the test will perform
-3. Outlines the expected outcome
+**REQUIRED**: Every test function must have a structured comment that follows this exact pattern:
 
-### Comment Pattern
+1. **First line**: Brief description of what the test validates
+2. **Steps:** section with numbered list of test actions
+3. **Expected outcomes** embedded in the steps
+
+### Comment Pattern (MANDATORY)
 
 ```go
 // TestFinishWithMergeConflict tests the behavior when finishing a branch with merge conflicts.
@@ -46,6 +47,34 @@ Add a comment above each test function that:
 func TestFinishWithMergeConflict(t *testing.T) {
     // Test implementation...
 }
+```
+
+### Additional Comment Guidelines
+
+- **Be specific**: Include exact branch names, commands, and expected results
+- **Number all steps**: Use sequential numbering (1, 2, 3...)  
+- **Include verification**: Always specify what is being verified
+- **Use active voice**: "Creates a branch" not "A branch is created"
+- **Match test structure**: Comments should reflect actual test implementation
+
+### Examples of Good Test Comments
+
+```go
+// TestConfigAddBase tests adding base branch configurations.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Adds various base branches with different configurations  
+// 3. Verifies branches are created and configuration is saved correctly
+// 4. Tests error conditions like duplicate branches and invalid parents
+func TestConfigAddBase(t *testing.T) { ... }
+
+// TestStartFeatureBranch tests the start command for feature branches.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Runs 'git flow feature start my-feature'
+// 3. Verifies feature/my-feature branch is created
+// 4. Verifies branch is based on develop branch
+func TestStartFeatureBranch(t *testing.T) { ... }
 ```
 
 ## Temporary Git Repository Testing
