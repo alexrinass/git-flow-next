@@ -1,0 +1,413 @@
+# GITFLOW-CONFIG(5)
+
+## NAME
+
+gitflow-config - git-flow configuration file format and options reference
+
+## DESCRIPTION
+
+git-flow-next stores all configuration in Git's configuration system under the **gitflow.*** namespace. This manual page describes all available configuration options, their hierarchy, and usage patterns.
+
+Configuration is stored in standard Git config files (**.git/config** for repository-specific, **~/.gitconfig** for user-global, **/etc/gitconfig** for system-wide).
+
+## CONFIGURATION HIERARCHY
+
+git-flow-next follows a strict three-layer configuration hierarchy:
+
+### Layer 1: Branch Type Defaults
+**gitflow.branch.*name*.*property***
+
+Defines default behavior for branch types (base and topic branches).
+
+### Layer 2: Command-Specific Overrides  
+**gitflow.*branchtype*.*command*.*option***
+
+Overrides branch defaults for specific commands and operations.
+
+### Layer 3: Command-Line Flags
+Command-line flags always take the highest precedence and override both configuration layers.
+
+## GLOBAL CONFIGURATION
+
+### Core Settings
+
+**gitflow.version**
+: Internal version marker for compatibility tracking. Set automatically during initialization.
+: *Default*: "1.0"
+
+**gitflow.initialized**  
+: Marks repository as initialized with git-flow.
+: *Default*: false
+
+**gitflow.origin**, **gitflow.remote**
+: Name of the remote repository to use for operations.
+: *Default*: "origin"
+
+## BRANCH CONFIGURATION
+
+Branch configuration uses the pattern: **gitflow.branch.*name*.*property***
+
+### Branch Properties
+
+**type**
+: Branch type. Values: **base**, **topic**
+: *Required for all branches*
+
+**parent**
+: Parent branch name for hierarchical relationships.
+: *Optional for base branches (trunk branches have no parent)*
+
+**startPoint**  
+: Branch to start new branches from (topic branches only).
+: *Default*: Same as parent
+
+**prefix**
+: Prefix for branch names (topic branches only).
+: *Default*: *branchname*/ (e.g., "feature/")
+
+**upstreamStrategy**
+: Merge strategy when merging TO parent branch.
+: *Values*: **none**, **merge**, **rebase**, **squash**
+: *Default*: **merge**
+
+**downstreamStrategy**
+: Merge strategy when merging FROM parent branch.  
+: *Values*: **none**, **merge**, **rebase**
+: *Default*: **merge**
+
+**autoUpdate**
+: Automatically update from parent branch (base branches only).
+: *Default*: false
+
+**tag**
+: Create tags when finishing branches (topic branches only).
+: *Default*: false
+
+**tagprefix**
+: Prefix for created tags.
+: *Default*: "" (no prefix)
+
+## COMMAND OVERRIDES
+
+Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
+
+### Common Commands
+
+**start**, **finish**, **update**, **delete**, **rename**
+
+### Common Options
+
+**merge**
+: Override upstream merge strategy for this command.
+: *Values*: **merge**, **rebase**, **squash**
+
+**fetch**
+: Fetch from remote before operation.
+: *Default*: false
+
+**keep**
+: Keep branch after finishing (finish command only).
+: *Default*: false
+
+**tag**, **notag**
+: Force tag creation or skip tag creation (finish command only).
+
+**sign**
+: Sign tags with GPG (finish command only).
+: *Default*: false
+
+**signingkey**
+: GPG key ID for tag signing.
+
+**message**
+: Custom message for tags.
+
+## EXAMPLE CONFIGURATIONS
+
+### Classic GitFlow
+
+```ini
+[gitflow]
+    version = 1.0
+    initialized = true
+
+[gitflow "branch"]
+    # Base branches
+    main.type = base
+    main.upstreamStrategy = none
+    main.downstreamStrategy = none
+    
+    develop.type = base
+    develop.parent = main
+    develop.autoUpdate = true
+    develop.upstreamStrategy = merge
+    develop.downstreamStrategy = merge
+
+    # Topic branches
+    feature.type = topic
+    feature.parent = develop
+    feature.prefix = feature/
+    feature.upstreamStrategy = merge
+    feature.downstreamStrategy = rebase
+    
+    release.type = topic
+    release.parent = main
+    release.startPoint = develop
+    release.prefix = release/
+    release.upstreamStrategy = merge
+    release.downstreamStrategy = merge
+    release.tag = true
+    release.tagprefix = v
+    
+    hotfix.type = topic
+    hotfix.parent = main
+    hotfix.prefix = hotfix/
+    hotfix.upstreamStrategy = merge
+    hotfix.downstreamStrategy = merge
+    hotfix.tag = true
+    hotfix.tagprefix = v
+```
+
+### GitHub Flow
+
+```ini
+[gitflow]
+    version = 1.0
+    
+[gitflow "branch"]  
+    main.type = base
+    main.upstreamStrategy = none
+    main.downstreamStrategy = none
+    
+    feature.type = topic
+    feature.parent = main
+    feature.prefix = feature/
+    feature.upstreamStrategy = merge
+    feature.downstreamStrategy = rebase
+```
+
+### GitLab Flow
+
+```ini
+[gitflow]
+    version = 1.0
+    
+[gitflow "branch"]
+    production.type = base
+    production.upstreamStrategy = none
+    production.downstreamStrategy = none
+    
+    staging.type = base  
+    staging.parent = production
+    staging.upstreamStrategy = merge
+    staging.downstreamStrategy = merge
+    
+    main.type = base
+    main.parent = staging
+    main.upstreamStrategy = merge
+    main.downstreamStrategy = merge
+    
+    feature.type = topic
+    feature.parent = main
+    feature.prefix = feature/
+    feature.upstreamStrategy = merge
+    feature.downstreamStrategy = rebase
+    
+    hotfix.type = topic
+    hotfix.parent = production
+    hotfix.prefix = hotfix/
+    hotfix.upstreamStrategy = merge
+    hotfix.downstreamStrategy = merge
+    hotfix.tag = true
+```
+
+## COMMAND OVERRIDE EXAMPLES
+
+### Feature Branch Overrides
+
+```ini
+# Always use rebase when finishing features
+[gitflow "feature.finish"]
+    merge = rebase
+    
+# Always fetch before starting features
+[gitflow "feature.start"]  
+    fetch = true
+    
+# Keep feature branches after finishing
+[gitflow "feature.finish"]
+    keep = true
+```
+
+### Release Branch Overrides
+
+```ini
+# Always sign release tags
+[gitflow "release.finish"]
+    sign = true
+    signingkey = ABC123DEF456
+    
+# Use custom tag message pattern
+[gitflow "release.finish"]
+    message = "Release version %s"
+    
+# Always fetch before release operations
+[gitflow "release"]
+    fetch = true
+```
+
+### Hotfix Branch Overrides
+
+```ini
+# Always sign hotfix tags for auditability  
+[gitflow "hotfix.finish"]
+    sign = true
+    signingkey = ABC123DEF456
+    
+# Use squash merge for hotfixes to keep clean history
+[gitflow "hotfix.finish"]
+    merge = squash
+```
+
+## MERGE STRATEGY REFERENCE
+
+### none
+No automatic merging. Manual merge required.
+
+### merge
+Standard Git merge creating merge commit.
+- *Preserves branch history*
+- *Shows clear integration points*
+- *Good for release and hotfix branches*
+
+### rebase  
+Rebase branch onto target creating linear history.
+- *Clean, linear history*
+- *No merge commits*  
+- *Good for feature branch updates*
+
+### squash
+Combine all branch commits into single commit.
+- *Clean target branch history*
+- *Loses individual commit history*
+- *Good for small feature branches*
+
+## GIT-FLOW-AVH COMPATIBILITY
+
+git-flow-next automatically translates git-flow-avh configuration:
+
+| AVH Configuration | git-flow-next Equivalent |
+|-------------------|---------------------------|
+| gitflow.branch.master | gitflow.branch.main.* |
+| gitflow.branch.develop | gitflow.branch.develop.* |
+| gitflow.prefix.feature | gitflow.branch.feature.prefix |
+| gitflow.prefix.release | gitflow.branch.release.prefix |
+| gitflow.prefix.hotfix | gitflow.branch.hotfix.prefix |
+| gitflow.prefix.support | gitflow.branch.support.prefix |
+| gitflow.prefix.versiontag | gitflow.branch.*.tagprefix |
+
+Translation happens at runtime without modifying existing configuration.
+
+## VALIDATION RULES
+
+### Branch Names
+- Must be valid Git reference names
+- Cannot contain spaces or special characters (@, ~, ^, :, ?, *, [)
+- Cannot end with .lock
+- Cannot contain consecutive dots (..)
+
+### Branch Relationships  
+- Parent branches must exist before creating children
+- No circular dependencies allowed
+- Base branches can only have base or topic children
+- Topic branches cannot have children
+
+### Merge Strategies
+- Must be valid strategy names
+- **none** only valid for trunk branches
+- **squash** not recommended for base branches
+
+## PRECEDENCE EXAMPLES
+
+Configuration with multiple layers:
+
+```bash
+# Layer 1: Branch default
+git config gitflow.branch.feature.upstreamStrategy merge
+
+# Layer 2: Command override (takes precedence)
+git config gitflow.feature.finish.merge rebase
+
+# Layer 3: Command flag (highest precedence)  
+git flow feature finish --squash
+```
+
+Final merge strategy: **squash** (from command flag)
+
+## MIGRATION
+
+### From git-flow-avh
+
+git-flow-next automatically imports AVH configuration. No manual migration needed.
+
+### Manual Migration
+
+To migrate manually:
+
+```bash
+# Export AVH config
+git config --get-regexp '^gitflow\.' > avh-config.txt
+
+# Remove AVH config (optional)
+git config --remove-section gitflow
+
+# Initialize git-flow-next
+git flow init --custom
+
+# Recreate configuration using config commands
+git flow config add base main
+git flow config add base develop main --auto-update=true
+git flow config add topic feature develop --prefix=feature/
+```
+
+## SECURITY CONSIDERATIONS
+
+### GPG Signing
+```ini
+# Always sign tags for production workflows
+[gitflow "release.finish"]
+    sign = true
+    signingkey = YOUR-GPG-KEY-ID
+    
+[gitflow "hotfix.finish"]  
+    sign = true
+    signingkey = YOUR-GPG-KEY-ID
+```
+
+### Remote Configuration
+```ini
+# Use specific remote for git-flow operations
+[gitflow]
+    origin = secure-origin
+    
+# Require fetch before operations to ensure latest state
+[gitflow "feature.start"]
+    fetch = true
+[gitflow "release.start"]
+    fetch = true  
+[gitflow "hotfix.start"]
+    fetch = true
+```
+
+## SEE ALSO
+
+**git-flow**(1), **git-flow-config**(1), **git-flow-init**(1), **git-config**(1), **gitignore**(5)
+
+## NOTES
+
+- All configuration is stored in Git's configuration system
+- Changes take effect immediately without restart
+- Configuration is repository-specific by default
+- Use **git config --global** for user-wide defaults
+- Command overrides are more specific than branch defaults
+- Validation occurs when configuration is accessed, not when set

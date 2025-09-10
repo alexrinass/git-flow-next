@@ -1,0 +1,238 @@
+# GIT-FLOW-CONFIG(1)
+
+## NAME
+
+git-flow-config - Manage git-flow configuration
+
+## SYNOPSIS
+
+**git-flow config** *command* [*args*] [*options*]
+
+## DESCRIPTION
+
+Manage git-flow configuration for base branches and topic branch types. The **config** command provides full CRUD operations for customizing your git-flow workflow.
+
+**Base branches** are long-living branches like main, develop, staging, production that form the backbone of your workflow.
+
+**Topic branches** are short-living branches like feature, release, hotfix that represent units of work.
+
+## COMMANDS
+
+### Listing Configuration
+
+**list**
+: Display current git-flow configuration showing branch hierarchy and settings
+
+### Adding Configuration
+
+**add base** *name* [*parent*] [*options*]
+: Add a base branch configuration. Creates the Git branch immediately if it doesn't exist.
+
+**add topic** *name* *parent* [*options*]  
+: Add a topic branch type configuration. Saves configuration for use with start command.
+
+### Editing Configuration
+
+**edit base** *name* [*options*]
+: Edit an existing base branch configuration
+
+**edit topic** *name* [*options*]
+: Edit an existing topic branch type configuration
+
+### Renaming
+
+**rename base** *old-name* *new-name*
+: Rename a base branch in both configuration and Git. Updates all dependent references.
+
+**rename topic** *old-name* *new-name*
+: Rename a topic branch type configuration. Does not affect existing branches.
+
+### Deleting Configuration
+
+**delete base** *name*
+: Delete a base branch configuration. Keeps the Git branch but removes git-flow management.
+
+**delete topic** *name*
+: Delete a topic branch type configuration. Does not affect existing branches of this type.
+
+## BASE BRANCH OPTIONS
+
+**--upstream-strategy**=*strategy*
+: Merge strategy when merging TO parent branch. Values: **merge**, **rebase**, **squash**, **none**
+
+**--downstream-strategy**=*strategy*  
+: Merge strategy when merging FROM parent branch. Values: **merge**, **rebase**, **none**
+
+**--auto-update**[=*bool*]
+: Whether to automatically update this branch from its parent. Default: **false**
+
+## TOPIC BRANCH OPTIONS
+
+**--prefix**=*prefix*
+: Branch name prefix. Default: *name*/ (e.g., "feature/")
+
+**--starting-point**=*branch*
+: Branch to start new branches from. Default: same as parent
+
+**--upstream-strategy**=*strategy*
+: Merge strategy when finishing (merging to parent). Values: **merge**, **rebase**, **squash**
+
+**--downstream-strategy**=*strategy*
+: Merge strategy when updating (merging from parent). Values: **merge**, **rebase**
+
+**--tag**[=*bool*]
+: Whether to create tags when finishing branches of this type. Default: **false**
+
+## MERGE STRATEGIES
+
+**merge**
+: Standard Git merge creating a merge commit
+
+**rebase**
+: Rebase branch onto target, creating linear history
+
+**squash** 
+: Squash all commits into a single commit when merging
+
+**none**
+: No automatic merging (manual merge required)
+
+## EXAMPLES
+
+### Base Branch Management
+
+Add a production trunk branch:
+```bash
+git flow config add base production
+```
+
+Add staging branch that auto-updates from production:
+```bash  
+git flow config add base staging production --auto-update=true
+```
+
+Edit develop branch to disable auto-update:
+```bash
+git flow config edit base develop --auto-update=false
+```
+
+Rename develop branch to integration:
+```bash
+git flow config rename base develop integration
+```
+
+### Topic Branch Management
+
+Add a feature branch type:
+```bash
+git flow config add topic feature develop --prefix=feat/
+```
+
+Add release branch type with tagging:
+```bash
+git flow config add topic release main --starting-point=develop --tag=true
+```
+
+Add bugfix branch type with squash merging:
+```bash
+git flow config add topic bugfix develop --upstream-strategy=squash --prefix=bug/
+```
+
+Edit feature branches to use rebase when finishing:
+```bash
+git flow config edit topic feature --upstream-strategy=rebase
+```
+
+### Complex Workflow Setup
+
+Set up GitLab Flow workflow:
+```bash
+# Base branches
+git flow config add base production
+git flow config add base staging production  
+git flow config add base main staging
+
+# Topic branches  
+git flow config add topic feature main --prefix=feature/
+git flow config add topic hotfix production --starting-point=production --tag=true
+```
+
+## CONFIGURATION HIERARCHY
+
+git-flow-next follows a three-layer configuration hierarchy:
+
+1. **Branch defaults** (gitflow.branch.*) - Default behavior defined here
+2. **Command overrides** (gitflow.*type*.*command*.*) - Override defaults for specific operations
+3. **Command-line flags** - Always take precedence
+
+Example showing precedence:
+```bash  
+# Layer 1: Branch default
+git config gitflow.branch.release.tag true
+
+# Layer 2: Command override (takes precedence over Layer 1)
+git config gitflow.release.finish.notag true  
+
+# Layer 3: Command flag (takes precedence over both)
+git flow release finish --tag  # Forces tag creation
+```
+
+## VALIDATION
+
+The config command performs validation to ensure:
+
+- **Valid Git ref names** - Branch names must be valid Git references
+- **No circular dependencies** - Parent relationships cannot form cycles  
+- **Parent existence** - Parent branches must exist before creating children
+- **Valid strategies** - Merge strategies must be recognized values
+- **No conflicts** - Branch names must be unique across types
+
+## STORAGE
+
+All configuration is stored in **.git/config** under the **gitflow.*** namespace:
+
+```ini
+[gitflow]
+    version = 1.0
+[gitflow "branch"]
+    main.type = base
+    main.upstreamStrategy = none  
+    main.downstreamStrategy = none
+    develop.type = base
+    develop.parent = main
+    develop.autoUpdate = true
+    feature.type = topic
+    feature.parent = develop
+    feature.prefix = feature/
+    feature.upstreamStrategy = merge
+    feature.downstreamStrategy = rebase
+```
+
+## EXIT STATUS
+
+**0**
+: Successful operation
+
+**1**
+: Repository not initialized with git-flow
+
+**2**
+: Branch not found or invalid name
+
+**3**
+: Validation error (circular dependency, invalid strategy, etc.)
+
+**4**
+: Git operation failed
+
+## SEE ALSO
+
+**git-flow**(1), **git-flow-init**(1), **gitflow-config**(5), **git-config**(1)
+
+## NOTES
+
+- Configuration changes take effect immediately
+- Base branches are created automatically when added
+- Topic branch configurations are templates for the **start** command
+- Delete operations preserve Git branches, only removing git-flow management
+- Renaming base branches updates both Git and all configuration references
