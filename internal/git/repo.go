@@ -259,12 +259,8 @@ func RebaseAbort() error {
 
 // RenameBranch renames a branch. If oldBranch is provided, it renames that branch to newBranch.
 // If oldBranch is not provided, it renames the current branch to newBranch.
-func RenameBranch(newBranch string, oldBranch ...string) error {
-	args := []string{"branch", "-m"}
-	if len(oldBranch) > 0 {
-		args = append(args, oldBranch[0])
-	}
-	args = append(args, newBranch)
+func RenameBranch(oldBranch, newBranch string) error {
+	args := []string{"branch", "-m", oldBranch, newBranch}
 
 	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()

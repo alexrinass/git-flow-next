@@ -17,10 +17,19 @@ var initCmd = &cobra.Command{
 	Short: "Initialize git-flow in a repository",
 	Long: `Initialize git-flow in a repository.
 This will set up the necessary configuration for git-flow to work.
+
+You can use presets for common workflows:
+  --preset=classic    Traditional GitFlow with main, develop, feature, release, hotfix
+  --preset=github     GitHub Flow with main and feature branches
+  --preset=gitlab     GitLab Flow with production, staging, main, feature, and hotfix
+
+Use --custom for interactive custom configuration.
 If git-flow-avh configuration exists, it will be imported.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		useDefaults, _ := cmd.Flags().GetBool("defaults")
 		noCreateBranches, _ := cmd.Flags().GetBool("no-create-branches")
+		preset, _ := cmd.Flags().GetString("preset")
+		custom, _ := cmd.Flags().GetBool("custom")
 		mainBranch, _ := cmd.Flags().GetString("main")
 		developBranch, _ := cmd.Flags().GetString("develop")
 		featurePrefix, _ := cmd.Flags().GetString("feature")
@@ -29,13 +38,13 @@ If git-flow-avh configuration exists, it will be imported.`,
 		hotfixPrefix, _ := cmd.Flags().GetString("hotfix")
 		supportPrefix, _ := cmd.Flags().GetString("support")
 		tagPrefix, _ := cmd.Flags().GetString("tag")
-		InitCommand(useDefaults, !noCreateBranches, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix)
+		InitCommand(useDefaults, !noCreateBranches, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix)
 	},
 }
 
 // InitCommand is the implementation of the init command
-func InitCommand(useDefaults, createBranches bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) {
-	if err := initFlow(useDefaults, createBranches, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix); err != nil {
+func InitCommand(useDefaults, createBranches bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) {
+	if err := initFlow(useDefaults, createBranches, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -48,7 +57,7 @@ func InitCommand(useDefaults, createBranches bool, mainBranch, developBranch, fe
 }
 
 // initFlow performs the actual initialization logic and returns any errors
-func initFlow(useDefaults, createBranches bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) error {
+func initFlow(useDefaults, createBranches bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) error {
 	// Check if we're in a git repo
 	if !git.IsGitRepo() {
 		return &errors.GitError{Operation: "check if git repository", Err: fmt.Errorf("not a git repository. Please run 'git init' first")}
@@ -56,8 +65,8 @@ func initFlow(useDefaults, createBranches bool, mainBranch, developBranch, featu
 
 	var cfg *config.Config
 
-	// Check if git-flow-avh config exists
-	if config.CheckGitFlowAVHConfig() {
+	// Check if git-flow-avh config exists and no explicit options are provided
+	if config.CheckGitFlowAVHConfig() && preset == "" && !custom && !useDefaults {
 		fmt.Println("Found existing git-flow-avh configuration, importing...")
 		var err error
 		cfg, err = config.ImportGitFlowAVHConfig()
@@ -66,16 +75,29 @@ func initFlow(useDefaults, createBranches bool, mainBranch, developBranch, featu
 		}
 		fmt.Println("Successfully imported git-flow-avh configuration")
 	} else {
-		// Start with default config
-		message := "Initializing git-flow"
-		if useDefaults {
-			message += " with default settings"
+		// Determine configuration method
+		if preset != "" {
+			// Use preset configuration
+			fmt.Printf("Initializing git-flow with %s preset\n", preset)
+			presetType := config.PresetType(preset)
+			cfg = config.PresetConfig(presetType)
+		} else if custom {
+			// Use custom configuration
+			fmt.Println("Initializing git-flow with custom configuration")
+			cfg = customConfiguration()
+		} else if useDefaults {
+			// Use default configuration
+			fmt.Println("Initializing git-flow with default settings")
+			cfg = config.DefaultConfig()
+		} else {
+			// Interactive mode - use legacy interactive config for backward compatibility
+			cfg = config.DefaultConfig()
+			interactiveOverrides := interactiveConfig()
+			cfg = config.ApplyOverrides(cfg, interactiveOverrides)
 		}
-		fmt.Println(message)
-		cfg = config.DefaultConfig()
 	}
 
-	// Collect overrides from command line flags
+	// Apply command-line overrides
 	overrides := config.ConfigOverrides{
 		MainBranch:    mainBranch,
 		DevelopBranch: developBranch,
@@ -87,13 +109,9 @@ func initFlow(useDefaults, createBranches bool, mainBranch, developBranch, featu
 		TagPrefix:     tagPrefix,
 	}
 
-	// Apply overrides if provided or if using defaults
-	if useDefaults || mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != "" {
+	// Apply overrides if any were provided
+	if mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != "" {
 		cfg = config.ApplyOverrides(cfg, overrides)
-	} else {
-		// Otherwise, prompt for input
-		interactiveOverrides := interactiveConfig()
-		cfg = config.ApplyOverrides(cfg, interactiveOverrides)
 	}
 
 	// Save configuration
@@ -119,18 +137,6 @@ func initFlow(useDefaults, createBranches bool, mainBranch, developBranch, featu
 
 // createGitFlowBranches creates the base branches if they don't exist
 func createGitFlowBranches(cfg *config.Config) error {
-	// Find base branches
-	var mainBranch, developBranch string
-	for name, branch := range cfg.Branches {
-		if branch.Type == string(config.BranchTypeBase) {
-			if branch.Parent == "" {
-				mainBranch = name
-			} else {
-				developBranch = name
-			}
-		}
-	}
-
 	// Check if we have any commits
 	hasCommits, err := git.HasCommits()
 	if err != nil {
@@ -146,38 +152,290 @@ func createGitFlowBranches(cfg *config.Config) error {
 		}
 	}
 
-	// Create main branch if it doesn't exist
-	if err := git.BranchExists(mainBranch); err != nil {
-		// Create main branch
-		err = git.CreateBranch(mainBranch, "")
-		if err != nil {
-			return &errors.GitError{Operation: fmt.Sprintf("create main branch '%s'", mainBranch), Err: err}
+	// Create all base branches
+	for name, branch := range cfg.Branches {
+		if branch.Type == string(config.BranchTypeBase) {
+			// Check if branch exists
+			if err := git.BranchExists(name); err != nil {
+				// Create branch
+				err = git.CreateBranch(name, branch.Parent)
+				if err != nil {
+					return &errors.GitError{Operation: fmt.Sprintf("create base branch '%s'", name), Err: err}
+				}
+				fmt.Printf("Created branch '%s'\n", name)
+			}
 		}
-		fmt.Printf("Created branch '%s'\n", mainBranch)
 	}
 
-	// Create develop branch if it doesn't exist
-	if err := git.BranchExists(developBranch); err != nil {
-		// Create develop branch from main
-		err = git.CreateBranch(developBranch, mainBranch)
-		if err != nil {
-			return &errors.GitError{Operation: fmt.Sprintf("create develop branch '%s'", developBranch), Err: err}
+	// Return to original branch if we had one and it still exists
+	if currentBranch != "" {
+		branchStillExists := false
+		for name, branch := range cfg.Branches {
+			if branch.Type == string(config.BranchTypeBase) && name == currentBranch {
+				branchStillExists = true
+				break
+			}
 		}
-		fmt.Printf("Created branch '%s'\n", developBranch)
-	}
-
-	// Return to original branch if we had one
-	if currentBranch != "" && currentBranch != mainBranch && currentBranch != developBranch {
-		err = git.Checkout(currentBranch)
-		if err != nil {
-			return fmt.Errorf("failed to checkout original branch '%s': %w", currentBranch, err)
+		if !branchStillExists {
+			err = git.Checkout(currentBranch)
+			if err != nil {
+				return fmt.Errorf("failed to checkout original branch '%s': %w", currentBranch, err)
+			}
 		}
 	}
 
 	return nil
 }
 
-// interactiveConfig prompts the user for configuration values
+// interactiveInitialization prompts the user to choose initialization method
+func interactiveInitialization() *config.Config {
+	reader := bufio.NewReader(os.Stdin)
+	
+	fmt.Println("? Choose initialization method:")
+	fmt.Println("  1. Use preset workflow")
+	fmt.Println("  2. Custom configuration")
+	fmt.Print("Enter your choice (1-2): ")
+	
+	choice, _ := reader.ReadString('\n')
+	choice = strings.TrimSpace(choice)
+	
+	switch choice {
+	case "1":
+		return interactivePresetSelection()
+	case "2":
+		return customConfiguration()
+	default:
+		fmt.Println("Invalid choice, using preset workflow")
+		return interactivePresetSelection()
+	}
+}
+
+// interactivePresetSelection prompts the user to choose a preset
+func interactivePresetSelection() *config.Config {
+	reader := bufio.NewReader(os.Stdin)
+	
+	fmt.Println()
+	fmt.Println("? Choose a preset:")
+	fmt.Println("  1. Classic GitFlow (main, develop, feature, release, hotfix)")
+	fmt.Println("  2. GitHub Flow (main, feature)")
+	fmt.Println("  3. GitLab Flow (production, staging, main, feature, hotfix)")
+	fmt.Print("Enter your choice (1-3): ")
+	
+	choice, _ := reader.ReadString('\n')
+	choice = strings.TrimSpace(choice)
+	
+	var preset config.PresetType
+	switch choice {
+	case "2":
+		preset = config.PresetGitHub
+		fmt.Println("✓ Selected GitHub Flow preset")
+	case "3":
+		preset = config.PresetGitLab
+		fmt.Println("✓ Selected GitLab Flow preset")
+	default:
+		preset = config.PresetClassic
+		fmt.Println("✓ Selected Classic GitFlow preset")
+	}
+	
+	cfg := config.PresetConfig(preset)
+	
+	// Allow customization of branch names and prefixes
+	fmt.Println()
+	fmt.Println("You can customize branch names and prefixes (press Enter for defaults):")
+	
+	overrides := config.ConfigOverrides{}
+	
+	// Customize based on preset type
+	if preset == config.PresetClassic {
+		overrides = interactiveClassicCustomization()
+	} else if preset == config.PresetGitHub {
+		overrides = interactiveGitHubCustomization()
+	} else if preset == config.PresetGitLab {
+		overrides = interactiveGitLabCustomization()
+	}
+	
+	return config.ApplyOverrides(cfg, overrides)
+}
+
+// customConfiguration provides custom configuration flow
+func customConfiguration() *config.Config {
+	reader := bufio.NewReader(os.Stdin)
+	
+	fmt.Print("? What's your trunk branch (holds production code)? [main] ")
+	trunkBranch, _ := reader.ReadString('\n')
+	trunkBranch = strings.TrimSpace(trunkBranch)
+	if trunkBranch == "" {
+		trunkBranch = "main"
+	}
+	
+	fmt.Printf("✓ Trunk branch: %s\n", trunkBranch)
+	fmt.Println()
+	fmt.Println("Configuration commands:")
+	fmt.Println("  git-flow config add base <name> [<parent>] [options...]")
+	fmt.Println("  git-flow config add topic <name> <parent> [options...]")
+	fmt.Println("  git-flow config rename base <old-name> <new-name>")
+	fmt.Println("  git-flow config rename topic <old-name> <new-name>")
+	fmt.Println("  git-flow config edit base <name> [options...]")
+	fmt.Println("  git-flow config edit topic <name> [options...]")
+	fmt.Println("  git-flow config delete base <name>")
+	fmt.Println("  git-flow config delete topic <name>")
+	fmt.Println("  git-flow config list")
+	fmt.Println()
+	fmt.Println("Use these commands to configure your workflow after initialization.")
+	
+	// Create minimal config with just the trunk branch
+	cfg := &config.Config{
+		Version:       "1.0",
+		Remote:        "origin",
+		CommandConfig: make(map[string]string),
+		Branches: map[string]config.BranchConfig{
+			trunkBranch: {
+				Type:               string(config.BranchTypeBase),
+				Parent:             "",
+				UpstreamStrategy:   string(config.MergeStrategyNone),
+				DownstreamStrategy: string(config.MergeStrategyNone),
+				AutoUpdate:         false,
+			},
+		},
+	}
+	
+	return cfg
+}
+
+// interactiveClassicCustomization allows customization of Classic GitFlow preset
+func interactiveClassicCustomization() config.ConfigOverrides {
+	reader := bufio.NewReader(os.Stdin)
+	overrides := config.ConfigOverrides{}
+
+	fmt.Print("? Main branch name [main]: ")
+	mainBranch, _ := reader.ReadString('\n')
+	mainBranch = strings.TrimSpace(mainBranch)
+	if mainBranch != "" {
+		overrides.MainBranch = mainBranch
+	}
+
+	fmt.Print("? Develop branch name [develop]: ")
+	developBranch, _ := reader.ReadString('\n')
+	developBranch = strings.TrimSpace(developBranch)
+	if developBranch != "" {
+		overrides.DevelopBranch = developBranch
+	}
+
+	fmt.Print("? Feature prefix [feature/]: ")
+	featurePrefix, _ := reader.ReadString('\n')
+	featurePrefix = strings.TrimSpace(featurePrefix)
+	if featurePrefix != "" {
+		if !strings.HasSuffix(featurePrefix, "/") {
+			featurePrefix += "/"
+		}
+		overrides.FeaturePrefix = featurePrefix
+	}
+
+	fmt.Print("? Release prefix [release/]: ")
+	releasePrefix, _ := reader.ReadString('\n')
+	releasePrefix = strings.TrimSpace(releasePrefix)
+	if releasePrefix != "" {
+		if !strings.HasSuffix(releasePrefix, "/") {
+			releasePrefix += "/"
+		}
+		overrides.ReleasePrefix = releasePrefix
+	}
+
+	fmt.Print("? Hotfix prefix [hotfix/]: ")
+	hotfixPrefix, _ := reader.ReadString('\n')
+	hotfixPrefix = strings.TrimSpace(hotfixPrefix)
+	if hotfixPrefix != "" {
+		if !strings.HasSuffix(hotfixPrefix, "/") {
+			hotfixPrefix += "/"
+		}
+		overrides.HotfixPrefix = hotfixPrefix
+	}
+
+	fmt.Print("? Version tag prefix []: ")
+	tagPrefix, _ := reader.ReadString('\n')
+	tagPrefix = strings.TrimSpace(tagPrefix)
+	if tagPrefix != "" {
+		overrides.TagPrefix = tagPrefix
+	}
+
+	return overrides
+}
+
+// interactiveGitHubCustomization allows customization of GitHub Flow preset
+func interactiveGitHubCustomization() config.ConfigOverrides {
+	reader := bufio.NewReader(os.Stdin)
+	overrides := config.ConfigOverrides{}
+
+	fmt.Print("? Main branch name [main]: ")
+	mainBranch, _ := reader.ReadString('\n')
+	mainBranch = strings.TrimSpace(mainBranch)
+	if mainBranch != "" {
+		overrides.MainBranch = mainBranch
+	}
+
+	fmt.Print("? Feature prefix [feature/]: ")
+	featurePrefix, _ := reader.ReadString('\n')
+	featurePrefix = strings.TrimSpace(featurePrefix)
+	if featurePrefix != "" {
+		if !strings.HasSuffix(featurePrefix, "/") {
+			featurePrefix += "/"
+		}
+		overrides.FeaturePrefix = featurePrefix
+	}
+
+	return overrides
+}
+
+// interactiveGitLabCustomization allows customization of GitLab Flow preset
+func interactiveGitLabCustomization() config.ConfigOverrides {
+	reader := bufio.NewReader(os.Stdin)
+	overrides := config.ConfigOverrides{}
+
+	fmt.Print("? Production branch name [production]: ")
+	productionBranch, _ := reader.ReadString('\n')
+	productionBranch = strings.TrimSpace(productionBranch)
+	if productionBranch != "" {
+		overrides.ProductionBranch = productionBranch
+	}
+
+	fmt.Print("? Staging branch name [staging]: ")
+	stagingBranch, _ := reader.ReadString('\n')
+	stagingBranch = strings.TrimSpace(stagingBranch)
+	if stagingBranch != "" {
+		overrides.StagingBranch = stagingBranch
+	}
+
+	fmt.Print("? Main branch name [main]: ")
+	mainBranch, _ := reader.ReadString('\n')
+	mainBranch = strings.TrimSpace(mainBranch)
+	if mainBranch != "" {
+		overrides.MainBranch = mainBranch
+	}
+
+	fmt.Print("? Feature prefix [feature/]: ")
+	featurePrefix, _ := reader.ReadString('\n')
+	featurePrefix = strings.TrimSpace(featurePrefix)
+	if featurePrefix != "" {
+		if !strings.HasSuffix(featurePrefix, "/") {
+			featurePrefix += "/"
+		}
+		overrides.FeaturePrefix = featurePrefix
+	}
+
+	fmt.Print("? Hotfix prefix [hotfix/]: ")
+	hotfixPrefix, _ := reader.ReadString('\n')
+	hotfixPrefix = strings.TrimSpace(hotfixPrefix)
+	if hotfixPrefix != "" {
+		if !strings.HasSuffix(hotfixPrefix, "/") {
+			hotfixPrefix += "/"
+		}
+		overrides.HotfixPrefix = hotfixPrefix
+	}
+
+	return overrides
+}
+
+// interactiveConfig prompts the user for configuration values (legacy function)
 func interactiveConfig() config.ConfigOverrides {
 	reader := bufio.NewReader(os.Stdin)
 	overrides := config.ConfigOverrides{}
@@ -270,9 +528,11 @@ func init() {
 	// Add flags specific to init command
 	initCmd.Flags().BoolP("defaults", "d", false, "Use default branch naming conventions")
 	initCmd.Flags().Bool("no-create-branches", false, "Don't create branches even if they don't exist")
+	initCmd.Flags().StringP("preset", "p", "", "Use preset configuration (classic|github|gitlab)")
+	initCmd.Flags().Bool("custom", false, "Use custom configuration with interactive setup")
 	initCmd.Flags().StringP("main", "m", "", "Main branch name")
 	initCmd.Flags().StringP("develop", "e", "", "Develop branch name")
-	initCmd.Flags().StringP("feature", "p", "", "Feature branch prefix")
+	initCmd.Flags().String("feature", "", "Feature branch prefix")
 	initCmd.Flags().StringP("bugfix", "b", "", "Bugfix branch prefix")
 	initCmd.Flags().StringP("release", "r", "", "Release branch prefix")
 	initCmd.Flags().StringP("hotfix", "x", "", "Hotfix branch prefix")

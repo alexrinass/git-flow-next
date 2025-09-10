@@ -62,14 +62,16 @@ const (
 
 // ConfigOverrides represents the overrides that can be applied to a Config
 type ConfigOverrides struct {
-	MainBranch    string // Name of the main branch
-	DevelopBranch string // Name of the develop branch
-	FeaturePrefix string // Prefix for feature branches
-	BugfixPrefix  string // Prefix for bugfix branches
-	ReleasePrefix string // Prefix for release branches
-	HotfixPrefix  string // Prefix for hotfix branches
-	SupportPrefix string // Prefix for support branches
-	TagPrefix     string // Prefix for tags
+	MainBranch       string // Name of the main branch (trunk branch)
+	DevelopBranch    string // Name of the develop branch
+	ProductionBranch string // Name of the production branch (for GitLab flow)
+	StagingBranch    string // Name of the staging branch (for GitLab flow)
+	FeaturePrefix    string // Prefix for feature branches
+	BugfixPrefix     string // Prefix for bugfix branches
+	ReleasePrefix    string // Prefix for release branches
+	HotfixPrefix     string // Prefix for hotfix branches
+	SupportPrefix    string // Prefix for support branches
+	TagPrefix        string // Prefix for tags
 }
 
 //
@@ -413,21 +415,62 @@ func ImportGitFlowAVHConfig() (*Config, error) {
 // ApplyOverrides applies the given overrides to the configuration.
 // The overrides specify custom branch names and prefixes to use.
 func ApplyOverrides(cfg *Config, overrides ConfigOverrides) *Config {
+	// Handle production branch override (for GitLab flow)
+	if overrides.ProductionBranch != "" {
+		if productionConfig, exists := cfg.Branches["production"]; exists {
+			delete(cfg.Branches, "production")
+			cfg.Branches[overrides.ProductionBranch] = productionConfig
+
+			// Update all branches that reference production
+			for name, branch := range cfg.Branches {
+				if branch.Parent == "production" {
+					branch.Parent = overrides.ProductionBranch
+					cfg.Branches[name] = branch
+				}
+				if branch.StartPoint == "production" {
+					branch.StartPoint = overrides.ProductionBranch
+					cfg.Branches[name] = branch
+				}
+			}
+		}
+	}
+
+	// Handle staging branch override (for GitLab flow)
+	if overrides.StagingBranch != "" {
+		if stagingConfig, exists := cfg.Branches["staging"]; exists {
+			delete(cfg.Branches, "staging")
+			cfg.Branches[overrides.StagingBranch] = stagingConfig
+
+			// Update all branches that reference staging
+			for name, branch := range cfg.Branches {
+				if branch.Parent == "staging" {
+					branch.Parent = overrides.StagingBranch
+					cfg.Branches[name] = branch
+				}
+				if branch.StartPoint == "staging" {
+					branch.StartPoint = overrides.StagingBranch
+					cfg.Branches[name] = branch
+				}
+			}
+		}
+	}
+
 	// Handle main branch override
 	if overrides.MainBranch != "" {
-		mainConfig := cfg.Branches["main"]
-		delete(cfg.Branches, "main")
-		cfg.Branches[overrides.MainBranch] = mainConfig
+		if mainConfig, exists := cfg.Branches["main"]; exists {
+			delete(cfg.Branches, "main")
+			cfg.Branches[overrides.MainBranch] = mainConfig
 
-		// Update all branches that reference main
-		for name, branch := range cfg.Branches {
-			if branch.Parent == "main" {
-				branch.Parent = overrides.MainBranch
-				cfg.Branches[name] = branch
-			}
-			if branch.StartPoint == "main" {
-				branch.StartPoint = overrides.MainBranch
-				cfg.Branches[name] = branch
+			// Update all branches that reference main
+			for name, branch := range cfg.Branches {
+				if branch.Parent == "main" {
+					branch.Parent = overrides.MainBranch
+					cfg.Branches[name] = branch
+				}
+				if branch.StartPoint == "main" {
+					branch.StartPoint = overrides.MainBranch
+					cfg.Branches[name] = branch
+				}
 			}
 		}
 	}
@@ -623,6 +666,103 @@ func ClearConfig() error {
 	}
 
 	return nil
+}
+
+// PresetType represents the type of workflow preset
+type PresetType string
+
+const (
+	PresetClassic PresetType = "classic"
+	PresetGitHub  PresetType = "github"
+	PresetGitLab  PresetType = "gitlab"
+)
+
+// PresetConfig returns a preset configuration based on the specified type
+func PresetConfig(preset PresetType) *Config {
+	switch preset {
+	case PresetGitHub:
+		return githubFlowConfig()
+	case PresetGitLab:
+		return gitlabFlowConfig()
+	case PresetClassic:
+		fallthrough
+	default:
+		return DefaultConfig()
+	}
+}
+
+// githubFlowConfig returns a GitHub Flow configuration
+func githubFlowConfig() *Config {
+	return &Config{
+		Version:       "1.0",
+		Remote:        "origin",
+		CommandConfig: make(map[string]string),
+		Branches: map[string]BranchConfig{
+			"main": {
+				Type:               string(BranchTypeBase),
+				Parent:             "",
+				UpstreamStrategy:   string(MergeStrategyNone),
+				DownstreamStrategy: string(MergeStrategyNone),
+				AutoUpdate:         false,
+			},
+			"feature": {
+				Type:               string(BranchTypeTopic),
+				Parent:             "main",
+				StartPoint:         "main",
+				UpstreamStrategy:   string(MergeStrategyMerge),
+				DownstreamStrategy: string(MergeStrategyRebase),
+				Prefix:             "feature/",
+			},
+		},
+	}
+}
+
+// gitlabFlowConfig returns a GitLab Flow configuration
+func gitlabFlowConfig() *Config {
+	return &Config{
+		Version:       "1.0",
+		Remote:        "origin",
+		CommandConfig: make(map[string]string),
+		Branches: map[string]BranchConfig{
+			"production": {
+				Type:               string(BranchTypeBase),
+				Parent:             "",
+				UpstreamStrategy:   string(MergeStrategyNone),
+				DownstreamStrategy: string(MergeStrategyNone),
+				AutoUpdate:         false,
+			},
+			"staging": {
+				Type:               string(BranchTypeBase),
+				Parent:             "production",
+				UpstreamStrategy:   string(MergeStrategyMerge),
+				DownstreamStrategy: string(MergeStrategyMerge),
+				AutoUpdate:         false,
+			},
+			"main": {
+				Type:               string(BranchTypeBase),
+				Parent:             "staging",
+				UpstreamStrategy:   string(MergeStrategyMerge),
+				DownstreamStrategy: string(MergeStrategyMerge),
+				AutoUpdate:         false,
+			},
+			"feature": {
+				Type:               string(BranchTypeTopic),
+				Parent:             "main",
+				StartPoint:         "main",
+				UpstreamStrategy:   string(MergeStrategyMerge),
+				DownstreamStrategy: string(MergeStrategyRebase),
+				Prefix:             "feature/",
+			},
+			"hotfix": {
+				Type:               string(BranchTypeTopic),
+				Parent:             "production",
+				StartPoint:         "production",
+				UpstreamStrategy:   string(MergeStrategyMerge),
+				DownstreamStrategy: string(MergeStrategyMerge),
+				Prefix:             "hotfix/",
+			},
+		},
+	}
 }
 
 // loadAllGitflowConfig loads all gitflow.* configuration keys at once

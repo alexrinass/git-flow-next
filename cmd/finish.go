@@ -150,7 +150,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 
 	// Validate inputs
 	if name == "" {
-		return &errors.InvalidBranchNameError{Name: name}
+		return &errors.InvalidBranchNameError{BranchName: name}
 	}
 
 	// Get the short name by removing the prefix if it exists

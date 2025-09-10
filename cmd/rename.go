@@ -65,10 +65,10 @@ func executeRename(branchType string, oldName string, newName string) error {
 
 	// If we're on the branch to be renamed, we need to rename it while on it
 	if currentBranch == oldFullBranchName {
-		err = git.RenameBranch(newFullBranchName)
+		err = git.RenameBranch(oldFullBranchName, newFullBranchName)
 	} else {
 		// Otherwise, rename it while staying on the current branch
-		err = git.RenameBranch(newFullBranchName, oldFullBranchName)
+		err = git.RenameBranch(oldFullBranchName, newFullBranchName)
 	}
 
 	if err != nil {

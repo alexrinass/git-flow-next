@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -53,4 +54,17 @@ func IsValidPrefix(prefix string) bool {
 
 	// Remove the trailing "/" and check if it's a valid branch name
 	return IsValidBranchName(strings.TrimSuffix(prefix, "/"))
+}
+
+// ValidateBranchName validates a branch name and returns an error if invalid
+func ValidateBranchName(name string) error {
+	if name == "" {
+		return fmt.Errorf("branch name cannot be empty")
+	}
+	
+	if !IsValidBranchName(name) {
+		return fmt.Errorf("invalid branch name: %s", name)
+	}
+	
+	return nil
 }

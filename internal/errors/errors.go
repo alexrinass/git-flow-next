@@ -18,6 +18,8 @@ const (
 	ExitCodeBranchExists ExitCode = 4
 	// ExitCodeBranchNotFound indicates a required branch does not exist
 	ExitCodeBranchNotFound ExitCode = 5
+	// ExitCodeValidationError indicates a validation error
+	ExitCodeValidationError ExitCode = 6
 )
 
 // Error is the base interface for all git-flow errors
@@ -136,15 +138,55 @@ func (e *NoMergeInProgressError) ExitCode() uint8 {
 
 // InvalidBranchNameError represents an error when an invalid branch name is provided
 type InvalidBranchNameError struct {
-	Name string
+	BranchName string
 }
 
 func (e *InvalidBranchNameError) Error() string {
-	return fmt.Sprintf("invalid branch name: %s", e.Name)
+	return fmt.Sprintf("invalid branch name: %s", e.BranchName)
 }
 
-func (e *InvalidBranchNameError) ExitCode() uint8 {
-	return 1
+func (e *InvalidBranchNameError) ExitCode() ExitCode {
+	return ExitCodeInvalidInput
+}
+
+// InvalidMergeStrategyError indicates an invalid merge strategy
+type InvalidMergeStrategyError struct {
+	Strategy string
+}
+
+func (e *InvalidMergeStrategyError) Error() string {
+	return fmt.Sprintf("invalid merge strategy: %s (valid options: merge, rebase, squash)", e.Strategy)
+}
+
+func (e *InvalidMergeStrategyError) ExitCode() ExitCode {
+	return ExitCodeInvalidInput
+}
+
+// CircularDependencyError indicates a circular dependency in branch configuration
+type CircularDependencyError struct {
+	BranchName string
+}
+
+func (e *CircularDependencyError) Error() string {
+	return fmt.Sprintf("circular dependency detected for branch '%s'", e.BranchName)
+}
+
+func (e *CircularDependencyError) ExitCode() ExitCode {
+	return ExitCodeValidationError
+}
+
+// BranchHasDependentsError indicates a branch cannot be deleted because it has dependents
+type BranchHasDependentsError struct {
+	BranchName string
+	Dependent  string
+}
+
+func (e *BranchHasDependentsError) Error() string {
+	return fmt.Sprintf("cannot delete branch '%s': branch '%s' depends on it", e.BranchName, e.Dependent)
+}
+
+func (e *BranchHasDependentsError) ExitCode() ExitCode {
+	return ExitCodeValidationError
 }
 
 // UnresolvedConflictsError represents an error when there are unresolved conflicts
