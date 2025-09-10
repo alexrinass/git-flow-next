@@ -136,6 +136,18 @@ git config gitflow.feature.finish.fetch true
 - **support**: Long-term support branches
 - Custom types can be added via configuration
 
+## Documentation Requirements
+
+**⚠️ MANDATORY**: Always update documentation when modifying commands or configuration:
+
+- **New commands**: Create manpage documentation in `docs/`
+- **Modified commands**: Update existing command documentation  
+- **New/changed options**: Update relevant manpage files
+- **Configuration changes**: Update `docs/gitflow-config.5.md`
+- **Behavior changes**: Update descriptions and examples
+
+All documentation follows Unix manpage standards. See `docs/README.md` for details.
+
 ## Development Philosophy
 
 **CRITICAL**: Follow a **pragmatic, anti-over-engineering approach**:

@@ -2,6 +2,37 @@
 
 This document outlines the coding standards and conventions used in the git-flow-next project. Following these guidelines ensures consistency and maintainability across the codebase.
 
+## Documentation Requirements
+
+**⚠️ CRITICAL**: Documentation in `docs/` must be updated whenever making changes to commands, options, or behavior.
+
+### Documentation Update Rules
+
+1. **New Commands**: Create new manpage documentation in `docs/`
+2. **Modified Commands**: Update existing manpage files with current behavior  
+3. **New Options**: Add to relevant command documentation with examples
+4. **Changed Behavior**: Update descriptions, examples, and exit codes
+5. **Configuration Changes**: Update `gitflow-config.5.md` with new keys/values
+
+### Documentation Standards
+
+- Follow Unix manpage conventions (see `docs/README.md`)
+- Include practical examples for all new functionality
+- Update cross-references in SEE ALSO sections
+- Test all examples for accuracy
+- Consider impact on different workflows (Classic, GitHub, GitLab, Custom)
+
+### Before Committing
+
+Always verify documentation is current:
+```bash
+# Check if any command help text changed
+git diff --name-only | grep -E '(cmd/|internal/)' && echo "Review docs/ for updates"
+
+# Ensure examples work
+cd docs && grep -r "git flow" *.md | head -10  # Spot-check examples
+```
+
 ## Development Philosophy
 
 **CRITICAL**: We follow a **pragmatic, anti-over-engineering approach** to software development:
