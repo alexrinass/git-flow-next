@@ -77,6 +77,103 @@ func TestConfigAddBase(t *testing.T) { ... }
 func TestStartFeatureBranch(t *testing.T) { ... }
 ```
 
+## One Test Case Per Function Rule
+
+**CRITICAL**: Each test function must test exactly one scenario or behavior. Never use table-driven tests with multiple test cases in a single function.
+
+### ❌ BAD: Multiple Test Cases in One Function
+
+```go
+func TestMergeStrategyConfigHierarchy(t *testing.T) {
+    testCases := []struct {
+        name           string
+        branchConfig   string
+        commandConfig  string
+        flag           string
+        expectedResult string
+    }{
+        {"branch_default_merge", "merge", "", "", "merge"},
+        {"command_overrides_branch", "merge", "rebase=true", "", "rebase"},
+        {"flag_overrides_config", "merge", "rebase=true", "--no-rebase", "merge"},
+    }
+    
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            // Test implementation...
+        })
+    }
+}
+```
+
+### ✅ GOOD: One Test Case Per Function
+
+```go
+// TestMergeStrategyBranchDefault tests that branch default strategy is used.
+// Steps:
+// 1. Sets up repository with branch configured for merge strategy
+// 2. Runs finish command without overrides
+// 3. Verifies merge strategy was used
+func TestMergeStrategyBranchDefault(t *testing.T) {
+    // Single test scenario implementation...
+}
+
+// TestMergeStrategyCommandConfigOverride tests command config overriding branch default.
+// Steps:
+// 1. Sets up repository with branch configured for merge strategy
+// 2. Sets gitflow.feature.finish.rebase=true in config
+// 3. Runs finish command without flags
+// 4. Verifies rebase strategy was used instead of merge
+func TestMergeStrategyCommandConfigOverride(t *testing.T) {
+    // Single test scenario implementation...
+}
+
+// TestMergeStrategyFlagOverridesConfig tests command flag overriding config.
+// Steps:
+// 1. Sets up repository with rebase configured via command config
+// 2. Runs finish command with --no-rebase flag
+// 3. Verifies merge strategy was used instead of rebase
+func TestMergeStrategyFlagOverridesConfig(t *testing.T) {
+    // Single test scenario implementation...
+}
+```
+
+### Why One Test Case Per Function?
+
+1. **Clear failure identification** - When a test fails, you immediately know which specific scenario failed
+2. **Focused debugging** - Each test tests one thing, making debugging straightforward
+3. **Maintainable test suite** - Easy to modify, disable, or extend individual test scenarios
+4. **Better test names** - Function names clearly describe what is being tested
+5. **Proper test isolation** - Each test sets up exactly what it needs, nothing more
+6. **Follows git-flow-next philosophy** - Explicit and readable over clever and compact
+
+### Exception: Helper Functions
+
+Table-driven tests are acceptable in helper functions that test pure functions with multiple input/output combinations:
+
+```go
+func TestValidateBranchName(t *testing.T) {
+    // This is acceptable for pure validation functions
+    testCases := []struct {
+        name    string
+        input   string
+        isValid bool
+    }{
+        {"valid_name", "feature-branch", true},
+        {"invalid_spaces", "feature branch", false},
+        {"invalid_colon", "feature:branch", false},
+    }
+    
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            result := util.ValidateBranchName(tc.input)
+            assert.Equal(t, tc.isValid, result == nil)
+        })
+    }
+}
+```
+
+**Rule**: Only use table-driven tests for testing pure functions with simple input/output validation, never for complex integration scenarios.
+
 ## Temporary Git Repository Testing
 
 All tests use temporary Git repositories created through test utilities.
