@@ -2410,3 +2410,162 @@ func TestFinishWithConsecutiveConflicts(t *testing.T) {
 		t.Errorf("Expected develop branch to have both release and develop-specific content, got: %s", developContent)
 	}
 }
+
+// TestFinishUsesConfiguredParent tests that finish command uses configured parent branch, not stored base.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch (which stores base as 'develop')
+// 3. Changes the feature branch type configuration to point to main
+// 4. Finishes the feature branch
+// 5. Verifies the feature was merged into main (configured parent) not develop (stored base)
+func TestFinishUsesConfiguredParent(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create feature branch (stores 'develop' as base)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "stored-base-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a change to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Change feature branch type configuration to point to main (should be ignored)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.branch.feature.parent", "main")
+	if err != nil {
+		t.Fatalf("Failed to change feature parent config: %v", err)
+	}
+
+	// Verify stored base is still develop
+	storedBase, err := testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/stored-base-test.base")
+	if err != nil {
+		t.Fatalf("Failed to get stored base: %v", err)
+	}
+	if strings.TrimSpace(storedBase) != "develop" {
+		t.Errorf("Expected stored base to be 'develop', got '%s'", strings.TrimSpace(storedBase))
+	}
+
+	// Get develop commit before merge
+	developBefore, err := testutil.RunGit(t, dir, "rev-parse", "develop")
+	if err != nil {
+		t.Fatalf("Failed to get develop commit: %v", err)
+	}
+
+	// Get main commit before merge
+	mainBefore, err := testutil.RunGit(t, dir, "rev-parse", "main")
+	if err != nil {
+		t.Fatalf("Failed to get main commit: %v", err)
+	}
+
+	// Finish the feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "stored-base-test")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Get develop commit after merge
+	developAfter, err := testutil.RunGit(t, dir, "rev-parse", "develop")
+	if err != nil {
+		t.Fatalf("Failed to get develop commit: %v", err)
+	}
+
+	// Get main commit after merge
+	mainAfter, err := testutil.RunGit(t, dir, "rev-parse", "main")
+	if err != nil {
+		t.Fatalf("Failed to get main commit: %v", err)
+	}
+
+	// Verify main changed (received the merge)
+	if mainBefore == mainAfter {
+		t.Error("Expected main branch to change after merge (should have received the feature)")
+	}
+
+	// Verify develop also changed (should have been auto-updated from main)
+	if developBefore == developAfter {
+		t.Error("Expected develop branch to change after auto-update from main")
+	}
+
+	// Verify the feature file exists in main
+	_, err = testutil.RunGit(t, dir, "checkout", "main")
+	if err != nil {
+		t.Fatalf("Failed to checkout main: %v", err)
+	}
+	content := testutil.ReadFile(t, dir, "feature.txt")
+	if content != "feature content" {
+		t.Errorf("Expected feature.txt content in main to be 'feature content', got '%s'", content)
+	}
+}
+
+// TestFinishCleansUpBaseBranch tests that finish command cleans up base branch config when deleting branch.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch (which stores base config)
+// 3. Adds changes and finishes the feature branch
+// 4. Verifies the base branch config is cleaned up after branch deletion
+func TestFinishCleansUpBaseBranch(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "cleanup-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify base config exists
+	_, err = testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/cleanup-test.base")
+	if err != nil {
+		t.Fatalf("Expected base config to exist after start: %v", err)
+	}
+
+	// Add a change
+	testutil.WriteFile(t, dir, "cleanup.txt", "test content")
+	_, err = testutil.RunGit(t, dir, "add", "cleanup.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add cleanup test file")
+	if err != nil {
+		t.Fatalf("Failed to commit file: %v", err)
+	}
+
+	// Finish the feature branch (should delete branch and clean up config)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "cleanup-test")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify base config is cleaned up
+	_, err = testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/cleanup-test.base")
+	if err == nil {
+		t.Error("Expected base config to be cleaned up after finish, but it still exists")
+	}
+
+	// Verify branch is deleted
+	if testutil.BranchExists(t, dir, "feature/cleanup-test") {
+		t.Error("Expected feature branch to be deleted after finish")
+	}
+}

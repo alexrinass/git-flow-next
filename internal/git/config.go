@@ -73,3 +73,15 @@ func UnsetConfig(key string) error {
 	}
 	return nil
 }
+
+// GetBaseBranch returns the stored base branch for a topic branch
+func GetBaseBranch(branchName string) (string, error) {
+	configKey := fmt.Sprintf("gitflow.branch.%s.base", branchName)
+	return GetConfig(configKey)
+}
+
+// SetBaseBranch stores the base branch for a topic branch
+func SetBaseBranch(branchName, baseBranch string) error {
+	configKey := fmt.Sprintf("gitflow.branch.%s.base", branchName)
+	return SetConfig(configKey, baseBranch)
+}

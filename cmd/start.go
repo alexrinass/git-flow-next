@@ -100,10 +100,8 @@ func start(branchType string, name string, shouldFetch *bool) error {
 	}
 
 	// Store the start point in Git config
-	configKey := fmt.Sprintf("gitflow.branch.%s.base", fullBranchName)
-	err = git.SetConfig(configKey, startPoint)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to store start point in config: %v\n", err)
+	if err := git.SetBaseBranch(fullBranchName, startPoint); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to store base branch: %v\n", err)
 	}
 
 	fmt.Printf("Created branch '%s' from '%s'\n", fullBranchName, startPoint)

@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/config"
@@ -748,4 +749,86 @@ func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 	// Verify changes are in develop branch
 	assert.True(t, testutil.FileExists(t, dir, "main-change.txt"))
 	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
+}
+
+// TestUpdateUsesStoredBaseBranch tests that update command uses stored base instead of config default.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch (which stores 'develop' as base)
+// 3. Changes feature branch type configuration to point to main
+// 4. Makes changes in develop branch
+// 5. Updates the feature branch
+// 6. Verifies the branch is updated from develop (stored base) not main (config parent)
+func TestUpdateUsesStoredBaseBranch(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize git-flow with defaults
+	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a feature branch (stores 'develop' as base)
+	if _, err := testutil.RunGitFlow(t, dir, "feature", "start", "stored-base-update"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change feature branch type configuration to point to main (should be ignored)
+	if _, err := testutil.RunGit(t, dir, "config", "gitflow.branch.feature.parent", "main"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify stored base is still develop
+	storedBase, err := testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/stored-base-update.base")
+	if err != nil {
+		t.Fatalf("Failed to get stored base: %v", err)
+	}
+	assert.Equal(t, "develop", strings.TrimSpace(storedBase))
+
+	// Make changes in develop branch
+	if err := git.Checkout("develop"); err != nil {
+		t.Fatal(err)
+	}
+	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop content"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testutil.RunGit(t, dir, "add", "develop-change.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testutil.RunGit(t, dir, "commit", "-m", "Add develop change"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make different changes in main branch
+	if err := git.Checkout("main"); err != nil {
+		t.Fatal(err)
+	}
+	if err := testutil.WriteFile(t, dir, "main-change.txt", "main content"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testutil.RunGit(t, dir, "add", "main-change.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testutil.RunGit(t, dir, "commit", "-m", "Add main change"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Update the feature branch
+	output, err := testutil.RunGitFlow(t, dir, "update", "feature/stored-base-update")
+	assert.NoError(t, err)
+	assert.Contains(t, output, "Successfully updated branch 'feature/stored-base-update'")
+
+	// Switch to feature branch to verify changes
+	if err := git.Checkout("feature/stored-base-update"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify develop change is in feature branch (updated from stored base)
+	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
+
+	// Verify main change is NOT in feature branch (didn't update from config parent)
+	assert.False(t, testutil.FileExists(t, dir, "main-change.txt"))
 }

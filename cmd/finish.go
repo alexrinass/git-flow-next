@@ -169,7 +169,10 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	}
 
 	// Get target branch (always the parent branch)
-	targetBranch := branchConfig.Parent
+	targetBranch, err := update.GetParentBranch(cfg, name)
+	if err != nil {
+		return &errors.GitError{Operation: "get parent branch", Err: err}
+	}
 
 	// Check if target branch exists
 	if err := git.BranchExists(targetBranch); err != nil {
@@ -410,6 +413,14 @@ func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *confi
 	// Delete branches based on settings
 	if err := deleteBranchesIfNeeded(state, keepRemote, keepLocal, resolvedOptions.ForceDelete); err != nil {
 		return err
+	}
+
+	// Clean up base branch configuration if branch was deleted
+	if !keepLocal {
+		configKey := fmt.Sprintf("gitflow.branch.%s.base", state.FullBranchName)
+		if err := git.UnsetConfig(configKey); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to clean up base config: %v\n", err)
+		}
 	}
 
 	// Clear the merge state

@@ -612,3 +612,51 @@ func TestDeleteFeatureWithNoRemoteOverride(t *testing.T) {
 		t.Errorf("Feature branch should still exist on remote")
 	}
 }
+
+// TestDeleteCleansUpBaseBranchConfig tests that delete command cleans up base branch config.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch (which stores base config)
+// 3. Verifies base config exists
+// 4. Deletes the feature branch
+// 5. Verifies the base branch config is cleaned up after deletion
+func TestDeleteCleansUpBaseBranchConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "config-cleanup-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify base config exists
+	_, err = testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/config-cleanup-test.base")
+	if err != nil {
+		t.Fatalf("Expected base config to exist after start: %v", err)
+	}
+
+	// Delete the feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "delete", "config-cleanup-test")
+	if err != nil {
+		t.Fatalf("Failed to delete feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify base config is cleaned up
+	_, err = testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/config-cleanup-test.base")
+	if err == nil {
+		t.Error("Expected base config to be cleaned up after delete, but it still exists")
+	}
+
+	// Verify branch is deleted
+	if testutil.BranchExists(t, dir, "feature/config-cleanup-test") {
+		t.Error("Expected feature branch to be deleted")
+	}
+}

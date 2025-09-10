@@ -535,3 +535,55 @@ func TestStartWithCustomRemote(t *testing.T) {
 		t.Errorf("Expected fetch operation from custom remote '%s', but output doesn't indicate it: %s", customRemote, output)
 	}
 }
+
+// TestStartStoresBaseBranch tests that the start command stores the base branch in git config.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Runs 'git flow feature start test-base-storage'
+// 3. Verifies that gitflow.branch.feature/test-base-storage.base is set to 'develop'
+// 4. Tests with release branch to verify base is set to 'develop' (start point)
+func TestStartStoresBaseBranch(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-base-storage")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify base branch is stored in config
+	baseConfig, err := testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.feature/test-base-storage.base")
+	if err != nil {
+		t.Fatalf("Failed to get base config: %v", err)
+	}
+	
+	expectedBase := "develop"
+	if strings.TrimSpace(baseConfig) != expectedBase {
+		t.Errorf("Expected base branch to be '%s', got '%s'", expectedBase, strings.TrimSpace(baseConfig))
+	}
+
+	// Test with release branch (should store 'develop' as base, even though parent is 'main')
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to start release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify release base branch is stored as 'develop' (start point)
+	releaseBaseConfig, err := testutil.RunGit(t, dir, "config", "--get", "gitflow.branch.release/1.0.0.base")
+	if err != nil {
+		t.Fatalf("Failed to get release base config: %v", err)
+	}
+	
+	expectedReleaseBase := "develop"
+	if strings.TrimSpace(releaseBaseConfig) != expectedReleaseBase {
+		t.Errorf("Expected release base branch to be '%s', got '%s'", expectedReleaseBase, strings.TrimSpace(releaseBaseConfig))
+	}
+}

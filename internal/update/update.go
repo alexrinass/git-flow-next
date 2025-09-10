@@ -56,8 +56,6 @@ func UpdateBranchFromParent(branchName string, parentBranch string, strategy str
 
 // GetParentBranch returns the parent branch for a given branch name
 func GetParentBranch(cfg *config.Config, branchName string) (string, error) {
-	// Use provided configuration
-
 	// Find the branch type and its configuration
 	var branchConfig *config.BranchConfig
 	// First check if it's a base branch (main or develop)
