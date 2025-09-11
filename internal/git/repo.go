@@ -353,3 +353,74 @@ func CreateTag(tagName string, options *TagOptions) error {
 
 	return nil
 }
+
+// RebaseWithOptions rebases the current branch onto another branch with optional preserve-merges
+func RebaseWithOptions(targetBranch string, preserveMerges bool) error {
+	args := []string{"rebase"}
+	if preserveMerges {
+		args = append(args, "--preserve-merges")
+	}
+	args = append(args, targetBranch)
+
+	cmd := exec.Command("git", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(output), "conflict") {
+			return fmt.Errorf("rebase conflict: %s", string(output))
+		}
+		return fmt.Errorf("failed to rebase branch: %s", string(output))
+	}
+	return nil
+}
+
+// MergeWithOptions merges a branch into current branch with optional no-fast-forward
+func MergeWithOptions(branchName string, noFF bool) error {
+	args := []string{"merge"}
+	if noFF {
+		args = append(args, "--no-ff")
+	}
+	args = append(args, branchName)
+
+	cmd := exec.Command("git", args...)
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Check for merge conflicts - Git returns exit code 1 and specific output patterns
+	if err != nil {
+		// Check if there are unmerged paths (conflicts)
+		conflictCmd := exec.Command("git", "ls-files", "--unmerged")
+		conflictOutput, _ := conflictCmd.Output()
+
+		if len(conflictOutput) > 0 ||
+			strings.Contains(outputStr, "Automatic merge failed") ||
+			strings.Contains(outputStr, "CONFLICT") ||
+			strings.Contains(outputStr, "merge failed") ||
+			strings.Contains(outputStr, "needs merge") {
+			return fmt.Errorf("merge conflict: %s", outputStr)
+		}
+		return fmt.Errorf("failed to merge branch: %s", outputStr)
+	}
+
+	return nil
+}
+
+// MergeSquashWithMessage performs a squash merge with a custom commit message
+func MergeSquashWithMessage(branchName string, message string) error {
+	cmd := exec.Command("git", "merge", "--squash", branchName)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(output), "conflict") {
+			return fmt.Errorf("squash merge conflict: %s", string(output))
+		}
+		return fmt.Errorf("failed to squash merge branch: %s", string(output))
+	}
+
+	// Commit the squashed changes with custom message
+	cmd = exec.Command("git", "commit", "-m", message)
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to commit squashed changes: %s", string(output))
+	}
+
+	return nil
+}

@@ -131,6 +131,16 @@ func registerBranchCommand(branchType string) {
 			forceDelete, _ := cmd.Flags().GetBool("force-delete")
 			noForceDelete, _ := cmd.Flags().GetBool("no-force-delete")
 
+			// Get merge strategy flags
+			rebase, _ := cmd.Flags().GetBool("rebase")
+			noRebase, _ := cmd.Flags().GetBool("no-rebase")
+			preserveMerges, _ := cmd.Flags().GetBool("preserve-merges")
+			noPreserveMerges, _ := cmd.Flags().GetBool("no-preserve-merges")
+			noFF, _ := cmd.Flags().GetBool("no-ff")
+			ff, _ := cmd.Flags().GetBool("ff")
+			squash, _ := cmd.Flags().GetBool("squash")
+			noSquash, _ := cmd.Flags().GetBool("no-squash")
+
 			// Create tag options
 			tagOptions := &config.TagOptions{
 				ShouldTag:   getBoolFlag(tag, noTag),
@@ -149,8 +159,16 @@ func registerBranchCommand(branchType string) {
 				ForceDelete: getBoolFlag(forceDelete, noForceDelete),
 			}
 
+			// Create merge strategy options
+			mergeOptions := &config.MergeStrategyOptions{
+				Rebase:         getBoolFlag(rebase, noRebase),
+				PreserveMerges: getBoolFlag(preserveMerges, noPreserveMerges),
+				NoFF:           getBoolFlag(noFF, ff),
+				Squash:         getBoolFlag(squash, noSquash),
+			}
+
 			// Call the generic finish command with the branch type and name
-			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions)
+			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions)
 		},
 	}
 
@@ -304,6 +322,16 @@ func addFinishFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("no-keeplocal", false, "Delete the local branch after finishing")
 	cmd.Flags().Bool("force-delete", false, "Force delete the branch")
 	cmd.Flags().Bool("no-force-delete", false, "Don't force delete the branch")
+
+	// Merge Strategy Flags
+	cmd.Flags().Bool("rebase", false, "Rebase topic branch before merging")
+	cmd.Flags().Bool("no-rebase", false, "Don't rebase topic branch (use configured strategy)")
+	cmd.Flags().Bool("preserve-merges", false, "Preserve merges during rebase")
+	cmd.Flags().Bool("no-preserve-merges", false, "Flatten merges during rebase")
+	cmd.Flags().Bool("no-ff", false, "Create merge commit even for fast-forward")
+	cmd.Flags().Bool("ff", false, "Allow fast-forward merge when possible")
+	cmd.Flags().Bool("squash", false, "Squash all commits into single commit")
+	cmd.Flags().Bool("no-squash", false, "Keep individual commits (don't squash)")
 }
 
 // getBoolFlag converts two opposite boolean flags into a single *bool value

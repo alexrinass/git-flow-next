@@ -135,7 +135,9 @@ func RegisterShorthandCommands() {
 				KeepLocal:   getBoolPtr(cmd, "keeplocal", "no-keeplocal"),
 				ForceDelete: getBoolPtr(cmd, "force-delete", "no-force-delete"),
 			}
-			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions)
+			// Create empty merge strategy options for shorthand command
+			mergeOptions := &config.MergeStrategyOptions{}
+			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions)
 		},
 	}
 

@@ -32,8 +32,8 @@ const (
 // =============================================================================
 
 // FinishCommand is the implementation of the finish command for topic branches
-func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions) {
-	if err := executeFinish(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions); err != nil {
+func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions) {
+	if err := executeFinish(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -50,7 +50,7 @@ func FinishCommand(branchType string, name string, continueOp bool, abortOp bool
 // =============================================================================
 
 // executeFinish performs the actual branch finishing logic and returns any errors
-func executeFinish(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions) error {
+func executeFinish(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions) error {
 	// Get configuration early
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -82,7 +82,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 
 		if continueOp {
 			// Resolve options for continue operation
-			resolvedOptions := config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, tagOptions, retentionOptions)
+			resolvedOptions := config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, tagOptions, retentionOptions, mergeOptions)
 			return handleContinue(cfg, state, stateBranchConfig, resolvedOptions)
 		}
 
@@ -117,7 +117,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 			fmt.Printf("1. Merge it into '%s' using the %s strategy\n", branchConfig.Parent, branchConfig.UpstreamStrategy)
 
 			// Resolve options early for confirmation dialog
-			resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions)
+			resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions)
 
 			if resolvedOptions.ShouldTag {
 				fmt.Printf("2. Create a tag '%s'\n", resolvedOptions.TagName)
@@ -135,10 +135,10 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 	}
 
 	// Regular finish command flow
-	return finishBranch(cfg, branchType, name, branchConfig, tagOptions, retentionOptions)
+	return finishBranch(cfg, branchType, name, branchConfig, tagOptions, retentionOptions, mergeOptions)
 }
 
-func finishBranch(cfg *config.Config, branchType string, name string, branchConfig config.BranchConfig, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions) error {
+func finishBranch(cfg *config.Config, branchType string, name string, branchConfig config.BranchConfig, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions) error {
 	// Validate that git-flow is initialized
 	initialized, err := config.IsInitialized()
 	if err != nil {
@@ -205,7 +205,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	}
 
 	// Resolve all options once at the beginning
-	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions)
+	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions)
 
 	return executeSteps(cfg, state, branchConfig, resolvedOptions)
 }
@@ -295,10 +295,10 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 	}
 	fmt.Printf("Switched to branch '%s'\n", state.ParentBranch)
 
-	// Perform merge based on strategy
-	fmt.Printf("Merging using strategy: %v\n", strings.ToLower(branchConfig.UpstreamStrategy))
+	// Perform merge based on resolved strategy
+	fmt.Printf("Merging using strategy: %v\n", resolvedOptions.MergeStrategy)
 	var mergeErr error
-	switch strings.ToLower(branchConfig.UpstreamStrategy) {
+	switch resolvedOptions.MergeStrategy {
 	case strategyRebase:
 		fmt.Printf("Rebase strategy selected\n")
 		// For rebase, we need to:
@@ -307,22 +307,24 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 		if err != nil {
 			return &errors.GitError{Operation: "checkout feature branch for rebase", Err: err}
 		}
-		// 2. Rebase onto target branch
-		mergeErr = git.Rebase(state.ParentBranch)
+		// 2. Rebase onto target branch with options
+		mergeErr = git.RebaseWithOptions(state.ParentBranch, resolvedOptions.PreserveMerges)
 		if mergeErr == nil {
-			// 3. If rebase succeeds, checkout target and merge (should be fast-forward)
+			// 3. If rebase succeeds, checkout target and merge
 			err = git.Checkout(state.ParentBranch)
 			if err != nil {
 				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
 			}
-			mergeErr = git.Merge(state.FullBranchName)
+			// Use NoFastForward option for the final merge
+			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 		}
 	case strategySquash:
-		mergeErr = git.SquashMerge(state.FullBranchName)
+		squashMessage := fmt.Sprintf("Squashed commit of branch '%s'", state.FullBranchName)
+		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, squashMessage)
 	case strategyMerge:
-		mergeErr = git.Merge(state.FullBranchName)
+		mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 	default:
-		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", strings.ToLower(branchConfig.UpstreamStrategy)), Err: nil}
+		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", resolvedOptions.MergeStrategy), Err: nil}
 	}
 
 	if mergeErr != nil {

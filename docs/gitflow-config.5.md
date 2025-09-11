@@ -226,9 +226,15 @@ Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
 ### Feature Branch Overrides
 
 ```ini
-# Always use rebase when finishing features
+# Merge strategy configuration for features
 [gitflow "feature.finish"]
-    merge = rebase
+    rebase = true                # Always rebase features
+    preserve-merges = false      # Flatten merges during rebase
+    no-ff = true                 # Always create merge commits
+    
+# Alternative: Use squash merge for features
+[gitflow "feature.finish"]
+    squash = true                # Squash all commits into one
     
 # Always fetch before starting features
 [gitflow "feature.start"]  
@@ -266,7 +272,79 @@ Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
     
 # Use squash merge for hotfixes to keep clean history
 [gitflow "hotfix.finish"]
-    merge = squash
+    squash = true
+    no-ff = false
+```
+
+## FINISH COMMAND CONFIGURATION
+
+The finish command supports extensive merge strategy configuration through command-specific overrides.
+
+### Merge Strategy Options
+
+**gitflow.*type*.finish.rebase**
+: Force rebase strategy for this branch type.
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.no-rebase**
+: Disable rebase strategy for this branch type.
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.squash**
+: Force squash merge strategy for this branch type.
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.no-squash**
+: Disable squash merge strategy for this branch type.
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.preserve-merges**
+: Preserve merges during rebase operations.
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.no-preserve-merges**
+: Flatten merges during rebase operations.
+: *Type*: boolean
+: *Default*: true
+
+**gitflow.*type*.finish.no-ff**
+: Force creation of merge commits (disable fast-forward).
+: *Type*: boolean
+: *Default*: false
+
+**gitflow.*type*.finish.ff**
+: Allow fast-forward merges when possible.
+: *Type*: boolean
+: *Default*: true
+
+### Strategy Precedence
+
+1. **Command-line flags** (highest priority)
+2. **gitflow.*type*.finish.*** configuration
+3. **gitflow.branch.*type*.upstreamstrategy** (lowest priority)
+
+### Examples
+
+```ini
+# Always rebase features with preserved merges
+[gitflow "feature.finish"]
+    rebase = true
+    preserve-merges = true
+
+# Squash merge for small fixes, no fast-forward for visibility
+[gitflow "bugfix.finish"]
+    squash = true
+    no-ff = true
+
+# Clean linear history for experimental branches
+[gitflow "experimental.finish"]
+    rebase = true
+    preserve-merges = false
 ```
 
 ## MERGE STRATEGY REFERENCE
@@ -336,7 +414,7 @@ Configuration with multiple layers:
 git config gitflow.branch.feature.upstreamStrategy merge
 
 # Layer 2: Command override (takes precedence)
-git config gitflow.feature.finish.merge rebase
+git config gitflow.feature.finish.rebase true
 
 # Layer 3: Command flag (highest precedence)  
 git flow feature finish --squash

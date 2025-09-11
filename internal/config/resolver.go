@@ -19,6 +19,13 @@ type ResolvedFinishOptions struct {
 	KeepRemote   bool
 	KeepLocal    bool
 	ForceDelete  bool
+
+	// Merge strategy options
+	MergeStrategy     string  // Final resolved strategy (merge/rebase/squash)
+	UseRebase         bool    // Whether to use rebase
+	PreserveMerges    bool    // Whether to preserve merges during rebase
+	NoFastForward     bool    // Whether to create merge commit for fast-forward
+	UseSquash         bool    // Whether to squash commits
 }
 
 // TagOptions represents command-line tag options
@@ -41,12 +48,25 @@ type BranchRetentionOptions struct {
 	ForceDelete *bool
 }
 
+// MergeStrategyOptions represents command-line merge strategy options
+// Note: This should match the MergeStrategyOptions type in cmd package
+type MergeStrategyOptions struct {
+	Strategy        *string  // Override for entire strategy
+	Rebase          *bool    // --rebase/--no-rebase override
+	PreserveMerges  *bool    // --preserve-merges/--no-preserve-merges
+	NoFF            *bool    // --no-ff/--ff
+	Squash          *bool    // --squash/--no-squash override
+}
+
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
 // Layer 1: Branch configuration defaults
 // Layer 2: Command-specific git config (gitflow.<branchtype>.finish.*)
 // Layer 3: Command-line arguments (highest priority)
-func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions) *ResolvedFinishOptions {
+func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions) *ResolvedFinishOptions {
 	branchConfig := cfg.Branches[branchType]
+
+	// Resolve merge strategy components
+	strategy, useRebase, preserveMerges, noFastForward, useSquash := resolveMergeStrategy(cfg, branchConfig, branchType, mergeOpts)
 
 	return &ResolvedFinishOptions{
 		// Tag resolution
@@ -62,6 +82,13 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 		KeepRemote:   resolveFinishKeepRemote(cfg, branchType, retentionOpts),
 		KeepLocal:    resolveFinishKeepLocal(cfg, branchType, retentionOpts),
 		ForceDelete:  resolveFinishForceDelete(cfg, branchType, retentionOpts),
+
+		// Merge strategy resolution
+		MergeStrategy:     strategy,
+		UseRebase:         useRebase,
+		PreserveMerges:    preserveMerges,
+		NoFastForward:     noFastForward,
+		UseSquash:         useSquash,
 	}
 }
 
@@ -255,4 +282,131 @@ func getCommandConfigString(cfg *Config, configKey string) string {
 		return ""
 	}
 	return value
+}
+
+// resolveMergeStrategy resolves merge strategy using three-layer precedence
+func resolveMergeStrategy(cfg *Config, branchConfig BranchConfig, branchType string, mergeOpts *MergeStrategyOptions) (string, bool, bool, bool, bool) {
+	// Layer 1: Get base strategy from branch configuration
+	baseStrategy := branchConfig.UpstreamStrategy
+	if baseStrategy == "" {
+		baseStrategy = "merge" // Default fallback
+	}
+
+	// Layer 2: Check for command-specific overrides
+	rebase := resolveFinishRebase(cfg, branchType, baseStrategy, mergeOpts)
+	squash := resolveFinishSquash(cfg, branchType, baseStrategy, mergeOpts)
+	preserveMerges := resolveFinishPreserveMerges(cfg, branchType, mergeOpts)
+	noFF := resolveFinishNoFF(cfg, branchType, mergeOpts)
+
+	// Determine final strategy based on precedence: squash > rebase > base strategy
+	var finalStrategy string
+	if squash {
+		finalStrategy = "squash"
+	} else if rebase {
+		finalStrategy = "rebase"
+	} else {
+		finalStrategy = "merge"
+	}
+
+	return finalStrategy, rebase, preserveMerges, noFF, squash
+}
+
+// resolveFinishRebase resolves whether to use rebase strategy
+func resolveFinishRebase(cfg *Config, branchType string, baseStrategy string, mergeOpts *MergeStrategyOptions) bool {
+	// Layer 1: Base strategy determines default
+	useRebase := baseStrategy == "rebase"
+
+	// Layer 2: Command-specific config
+	if rebaseConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.rebase", branchType)); rebaseConfig {
+		useRebase = true
+	}
+	// Check for explicit no-rebase config
+	if noRebaseConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.no-rebase", branchType)); noRebaseConfig {
+		useRebase = false
+	}
+
+	// Layer 3: Command-line flags override config
+	if mergeOpts != nil {
+		if mergeOpts.Rebase != nil {
+			useRebase = *mergeOpts.Rebase
+		}
+		// Strategy override takes precedence
+		if mergeOpts.Strategy != nil {
+			useRebase = *mergeOpts.Strategy == "rebase"
+		}
+	}
+
+	return useRebase
+}
+
+// resolveFinishSquash resolves whether to use squash strategy
+func resolveFinishSquash(cfg *Config, branchType string, baseStrategy string, mergeOpts *MergeStrategyOptions) bool {
+	// Layer 1: Base strategy determines default
+	useSquash := baseStrategy == "squash"
+
+	// Layer 2: Command-specific config
+	if squashConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.squash", branchType)); squashConfig {
+		useSquash = true
+	}
+	// Check for explicit no-squash config
+	if noSquashConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.no-squash", branchType)); noSquashConfig {
+		useSquash = false
+	}
+
+	// Layer 3: Command-line flags override config
+	if mergeOpts != nil {
+		if mergeOpts.Squash != nil {
+			useSquash = *mergeOpts.Squash
+		}
+		// Strategy override takes precedence
+		if mergeOpts.Strategy != nil {
+			useSquash = *mergeOpts.Strategy == "squash"
+		}
+	}
+
+	return useSquash
+}
+
+// resolveFinishPreserveMerges resolves whether to preserve merges during rebase
+func resolveFinishPreserveMerges(cfg *Config, branchType string, mergeOpts *MergeStrategyOptions) bool {
+	// Layer 1: Default is not to preserve merges (flatten)
+	preserveMerges := false
+
+	// Layer 2: Command-specific config
+	if preserveConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.preserve-merges", branchType)); preserveConfig {
+		preserveMerges = true
+	}
+	// Check for explicit no-preserve-merges config
+	if noPreserveConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.no-preserve-merges", branchType)); noPreserveConfig {
+		preserveMerges = false
+	}
+
+	// Layer 3: Command-line flags override config
+	if mergeOpts != nil && mergeOpts.PreserveMerges != nil {
+		preserveMerges = *mergeOpts.PreserveMerges
+	}
+
+	return preserveMerges
+}
+
+// resolveFinishNoFF resolves whether to create merge commit for fast-forward
+func resolveFinishNoFF(cfg *Config, branchType string, mergeOpts *MergeStrategyOptions) bool {
+	// Layer 1: Default is to allow fast-forward (no --no-ff)
+	noFF := false
+
+	// Layer 2: Command-specific config
+	if noFFConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.no-ff", branchType)); noFFConfig {
+		noFF = true
+	}
+	// Check for explicit fast-forward config
+	if ffConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.ff", branchType)); ffConfig {
+		noFF = false
+	}
+
+	// Layer 3: Command-line flags override config
+	if mergeOpts != nil && mergeOpts.NoFF != nil {
+		noFF = *mergeOpts.NoFF
+	}
+
+	return noFF
 }

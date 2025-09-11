@@ -95,9 +95,35 @@ If conflicts occur during merging, the operation can be continued with **--conti
 **--no-force-delete**
 : Don't force delete the branch (default)
 
+### Merge Strategy Control
+
+**--rebase**
+: Rebase topic branch before merging (overrides configured strategy)
+
+**--no-rebase**
+: Don't rebase topic branch (use configured strategy)
+
+**--squash**
+: Squash all commits into single commit (overrides configured strategy)
+
+**--no-squash**
+: Keep individual commits (don't squash)
+
+**--preserve-merges**
+: Preserve merges during rebase operations
+
+**--no-preserve-merges**
+: Flatten merges during rebase (default)
+
+**--no-ff**
+: Create merge commit even for fast-forward cases
+
+**--ff**
+: Allow fast-forward merge when possible (default)
+
 ## MERGE STRATEGIES
 
-The merge strategy used when finishing is determined by configuration, not command-line flags:
+The merge strategy used when finishing follows a three-layer precedence system:
 
 **merge**
 : Standard Git merge creating a merge commit (preserves branch history)
@@ -108,9 +134,21 @@ The merge strategy used when finishing is determined by configuration, not comma
 **squash**
 : Combine all topic branch commits into a single commit
 
-The strategy is configured via:
-1. **Branch defaults**: `gitflow.branch.<type>.upstreamStrategy`
-2. **Command overrides**: `gitflow.<type>.finish.merge`
+### Strategy Precedence
+
+The merge strategy follows a three-layer precedence system (highest to lowest):
+
+1. **Command-line flags**: `--rebase`, `--squash`, `--no-rebase`, `--no-squash` (highest priority)
+2. **Command-specific config**: `gitflow.<type>.finish.rebase`, `gitflow.<type>.finish.squash`
+3. **Branch defaults**: `gitflow.branch.<type>.upstreamstrategy` (lowest priority)
+
+### Additional Options
+
+The following options modify strategy behavior:
+
+- **--preserve-merges**: Only valid with rebase operations
+- **--no-ff**: Forces creation of merge commits, even for fast-forward cases
+- **--ff**: Allows fast-forward merges when possible (default)
 
 ## EXAMPLES
 
@@ -163,6 +201,33 @@ Use specific GPG key:
 git flow release finish 1.2.0 --sign --signingkey ABC123DEF
 ```
 
+### Merge Strategy Examples
+
+Force rebase strategy regardless of configuration:
+```bash
+git flow feature finish my-feature --rebase
+```
+
+Squash all commits into single commit:
+```bash
+git flow feature finish my-feature --squash
+```
+
+Rebase with preserved merges:
+```bash
+git flow feature finish my-feature --rebase --preserve-merges
+```
+
+Create merge commit even for fast-forward:
+```bash
+git flow feature finish my-feature --no-ff
+```
+
+Override configured squash with regular merge:
+```bash
+git flow feature finish my-feature --no-squash
+```
+
 ### Branch Retention
 
 Keep branch for backporting:
@@ -199,7 +264,13 @@ git config gitflow.branch.<type>.tag true
 
 ### Command-Level Overrides
 ```bash
-git config gitflow.<type>.finish.merge rebase
+# Merge strategy overrides
+git config gitflow.<type>.finish.rebase true
+git config gitflow.<type>.finish.squash false
+git config gitflow.<type>.finish.preserve-merges true
+git config gitflow.<type>.finish.no-ff true
+
+# Tag creation overrides
 git config gitflow.<type>.finish.sign true
 git config gitflow.<type>.finish.signingkey ABC123DEF
 ```
@@ -233,9 +304,12 @@ git config gitflow.<type>.finish.signingkey ABC123DEF
 
 ## NOTES
 
-- Merge strategy is determined by configuration, not command-line flags
+- Merge strategy follows three-layer precedence: CLI flags > config > branch defaults
+- Command-line flags always override any configuration settings
+- **--preserve-merges** flag only applies to rebase operations
+- **--squash** and **--rebase** flags are mutually exclusive when both set explicitly
 - Use **--continue** and **--abort** for conflict resolution
-- Tag creation behavior varies by topic branch type configuration
+- Tag creation behavior varies by topic branch type configuration  
 - The **git-flow finish** shorthand automatically detects current topic branch type
 - Child branches are automatically updated when their parent changes
 - Some topic branch types (like releases and hotfixes) may create tags by default
