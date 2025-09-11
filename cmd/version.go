@@ -19,8 +19,12 @@ var versionCmd = &cobra.Command{
 	Long:  `Display version information for git-flow-next.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("git-flow-next version %s\n", Version)
-		fmt.Printf("Build date: %s\n", BuildDate)
-		fmt.Printf("Git commit: %s\n", GitCommit)
+		if BuildDate != "unknown" {
+			fmt.Printf("Build date: %s\n", BuildDate)
+		}
+		if GitCommit != "unknown" {
+			fmt.Printf("Git commit: %s\n", GitCommit)
+		}
 	},
 }
 
