@@ -283,38 +283,102 @@ Available in `test/testutil/git.go`:
 
 ## Creating Git Scenarios for Tests
 
-### Merge Conflicts
+### Merge and Rebase Conflicts
 
-To create merge conflicts for testing:
+To create merge/rebase conflicts for testing, **sequence matters**:
 
-1. **Both Modified Conflict (Preferred)**:
-   - Create a file with initial content on the base branch
-   - Create a new branch and modify the file
-   - Switch back to base branch and modify the same file differently
-   - Attempting to merge will create a conflict
+#### ✅ Correct Sequence for Conflict Generation
+
+1. **Create branches BEFORE adding conflicting content**:
+   - Start with clean base branch
+   - Create topic branch from clean base
+   - Add content to topic branch first
+   - Switch back to base branch and add different content to same file
+   - Attempting to merge/rebase will create conflict
 
 ```go
-// Create feature branch
+// CORRECT: Create branch first, then add conflicting content
 output, err := testutil.RunGitFlow(t, dir, "feature", "start", "conflict-test")
+if err != nil {
+    t.Fatalf("Failed to create feature branch: %v", err)
+}
 
-// Create file in feature branch
+// Add content to feature branch
 testutil.WriteFile(t, dir, "test.txt", "feature content")
 _, err = testutil.RunGit(t, dir, "add", "test.txt")
 _, err = testutil.RunGit(t, dir, "commit", "-m", "Add test.txt in feature")
 
-// Switch to develop and create conflicting content
+// Switch to base branch and add conflicting content
 _, err = testutil.RunGit(t, dir, "checkout", "develop")
 testutil.WriteFile(t, dir, "test.txt", "develop content")
 _, err = testutil.RunGit(t, dir, "add", "test.txt")
 _, err = testutil.RunGit(t, dir, "commit", "-m", "Add test.txt in develop")
 
-// Attempt to finish - should fail with conflict
+// Now finish will create conflict
 output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "conflict-test")
 ```
 
-2. **Multiple Rebase Conflicts**:
-   - Repeat the above scenario with additional commits and files
-   - Each conflicting commit will create a separate rebase step
+#### ❌ Incorrect Sequence (Won't Create Conflicts)
+
+```go
+// WRONG: Adding file to base first, then branching
+testutil.WriteFile(t, dir, "test.txt", "develop content")
+_, err = testutil.RunGit(t, dir, "add", "test.txt")
+_, err = testutil.RunGit(t, dir, "commit", "-m", "Add test.txt in develop")
+
+// Branch inherits the file - no conflict will occur
+output, err := testutil.RunGitFlow(t, dir, "feature", "start", "conflict-test")
+testutil.WriteFile(t, dir, "test.txt", "feature content") // Modifying existing file
+```
+
+### Verifying Git Conflict States
+
+Different Git operations create different internal states that require specific verification:
+
+#### Rebase Conflict Verification
+
+During rebase conflicts, standard Git commands show misleading information:
+
+```go
+// ❌ WRONG: Current branch shows "HEAD" during rebase conflict
+currentBranch := testutil.GetCurrentBranch(t, dir) // Returns "HEAD"
+if currentBranch != "feature/branch-name" { // This will always fail
+    t.Error("Not on expected branch")
+}
+
+// ✅ CORRECT: Check rebase state via Git internal files
+rebaseMergeDir := filepath.Join(dir, ".git", "rebase-merge")
+if _, err := os.Stat(rebaseMergeDir); os.IsNotExist(err) {
+    t.Error("Expected to be in rebase conflict state")
+}
+
+// Verify which branch is being rebased
+headNameFile := filepath.Join(rebaseMergeDir, "head-name")
+if headNameBytes, err := os.ReadFile(headNameFile); err != nil {
+    t.Errorf("Failed to read head-name file: %v", err)
+} else {
+    headName := strings.TrimSpace(string(headNameBytes))
+    expectedBranch := "refs/heads/feature/branch-name" // Full ref path
+    if headName != expectedBranch {
+        t.Errorf("Expected rebasing %s, got %s", expectedBranch, headName)
+    }
+}
+```
+
+#### Merge Conflict Verification
+
+```go
+// Check for merge conflict state
+if _, err := os.Stat(filepath.Join(dir, ".git", "MERGE_HEAD")); os.IsNotExist(err) {
+    t.Error("Expected to be in merge conflict state")
+}
+```
+
+### Multiple Rebase Conflicts
+
+For testing complex rebase scenarios:
+- Repeat the conflict generation pattern with additional commits and files
+- Each conflicting commit will create a separate rebase step that requires resolution
 
 ### Using Remotes
 
@@ -390,3 +454,84 @@ if state.Action != "finish" {
 4. **Check intermediate state** - Don't just test final outcomes
 5. **Use descriptive assertions** - Include context in error messages
 6. **Test with remotes when relevant** - Many Git operations behave differently with remotes
+7. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
+8. **Create conflicts correctly** - Branch first, then add conflicting content (see conflict generation guidelines above)
+9. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
+
+## Test Implementation Anti-Patterns
+
+### ❌ Common Testing Mistakes
+
+1. **Trusting Placeholder Functions**:
+   ```go
+   // BAD: Helper function that doesn't actually test anything
+   func captureConfigAddBase(name string) error {
+       defer func() {
+           if r := recover(); r != nil {
+               // Convert panic to error for testing
+           }
+       }()
+       return nil // Placeholder - doesn't actually call git-flow
+   }
+   ```
+
+2. **Wrong Conflict Generation Sequence**:
+   ```go
+   // BAD: Creates file on base, then branches (inherits file - no conflict)
+   testutil.WriteFile(t, dir, "test.txt", "base content")
+   testutil.RunGit(t, dir, "add", ".")
+   testutil.RunGit(t, dir, "commit", "-m", "Add file to base")
+   testutil.RunGitFlow(t, dir, "feature", "start", "test")
+   testutil.WriteFile(t, dir, "test.txt", "feature content") // Modifying, not conflicting
+   ```
+
+3. **Incorrect Rebase State Verification**:
+   ```go
+   // BAD: Expects branch name during rebase conflict (always returns "HEAD")
+   currentBranch := testutil.GetCurrentBranch(t, dir)
+   if currentBranch != "feature/branch-name" {
+       t.Error("Not on expected branch") // Will always fail
+   }
+   ```
+
+### ✅ Correct Implementations
+
+1. **Proper Helper Functions**:
+   ```go
+   // GOOD: Actually calls the command being tested
+   func captureConfigAddBase(t *testing.T, dir, name, parent string) error {
+       args := []string{"config", "add", "base", name, parent}
+       _, err := testutil.RunGitFlow(t, dir, args...)
+       return err
+   }
+   ```
+
+2. **Proper Conflict Generation**:
+   ```go
+   // GOOD: Creates branch first, adds content to both branches independently
+   testutil.RunGitFlow(t, dir, "feature", "start", "test")
+   testutil.WriteFile(t, dir, "test.txt", "feature content")
+   // ... commit to feature
+   testutil.RunGit(t, dir, "checkout", "develop")
+   testutil.WriteFile(t, dir, "test.txt", "develop content")
+   // ... commit to develop - now merge/rebase will conflict
+   ```
+
+3. **Proper State Verification**:
+   ```go
+   // GOOD: Check actual Git internal state
+   rebaseMergeDir := filepath.Join(dir, ".git", "rebase-merge")
+   if _, err := os.Stat(rebaseMergeDir); os.IsNotExist(err) {
+       t.Error("Expected rebase conflict state")
+   }
+   ```
+
+## Debugging Test Failures
+
+When tests fail, follow this systematic approach:
+
+1. **Check Helper Function Implementations** - Ensure they actually call the intended commands
+2. **Verify Conflict Setup** - Confirm branches and files are created in correct sequence
+3. **Inspect Git State** - Use `.git/` directory contents to understand actual repository state
+4. **Test Configuration Persistence** - Verify that config changes are actually saved and old entries removed
+5. **Check Command Flag Logic** - Ensure flag detection properly influences command behavior

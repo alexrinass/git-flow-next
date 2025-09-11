@@ -490,6 +490,86 @@ func Checkout(branch string) error {
 - Handle common Git errors appropriately
 - Use consistent parameter validation
 
+### Git Configuration Management
+
+When modifying Git configuration, always clean up old entries to prevent stale configuration:
+
+```go
+// ❌ BAD: Only adds new config, leaves old entries
+func RenameBaseBranch(oldName, newName string) error {
+    cfg.Branches[newName] = cfg.Branches[oldName]
+    delete(cfg.Branches, oldName)
+    return config.SaveConfig(cfg)
+}
+
+// ✅ GOOD: Removes old config before saving new config
+func RenameBaseBranch(oldName, newName string) error {
+    // Remove old git config section first
+    if err := git.UnsetConfigSection(fmt.Sprintf("gitflow.branch.%s", oldName)); err != nil {
+        return fmt.Errorf("failed to remove old branch config: %w", err)
+    }
+    
+    // Update in-memory configuration
+    cfg.Branches[newName] = cfg.Branches[oldName]
+    delete(cfg.Branches, oldName)
+    
+    // Save new configuration
+    return config.SaveConfig(cfg)
+}
+```
+
+#### UnsetConfigSection Implementation
+
+```go
+// UnsetConfigSection removes all Git config values matching a pattern
+func UnsetConfigSection(pattern string) error {
+    cmd := exec.Command("git", "config", "--remove-section", pattern)
+    _, err := cmd.Output()
+    if err != nil {
+        // Don't treat "section not found" as an error  
+        if strings.Contains(err.Error(), "exit status 128") {
+            return nil
+        }
+        return fmt.Errorf("failed to unset git config section %s: %w", pattern, err)
+    }
+    return nil
+}
+```
+
+**Configuration Management Guidelines:**
+- **Always remove old config** before saving new config during rename/delete operations
+- **Handle missing sections gracefully** - `git config --remove-section` returns exit status 128 if section doesn't exist
+- **Use complete section patterns** - `gitflow.branch.branchname` removes all keys under that branch
+- **Clean up atomically** - Remove old config before saving new to avoid inconsistent state
+
+### Command-Line Interface Design
+
+When implementing CLI commands that can operate in different modes:
+
+```go
+// Detect configuration flags to determine command mode
+hasConfigFlags := mainBranch != "" || developBranch != "" || featurePrefix != "" || 
+                  releasePrefix != "" || hotfixPrefix != "" || supportPrefix != ""
+
+if hasConfigFlags {
+    // Non-interactive mode with provided configuration
+    cfg = config.DefaultConfig()
+    // Apply flag overrides...
+} else if useDefaults {
+    // Non-interactive mode with defaults
+    cfg = config.DefaultConfig()
+} else {
+    // Interactive mode
+    cfg = interactiveConfig()
+}
+```
+
+**CLI Design Guidelines:**
+- **Detect explicit configuration** - Any provided config flags should prevent interactive mode
+- **Three-layer precedence** - Defaults → Git config → Command flags (highest priority)
+- **Clear mode determination** - Make it obvious when interactive vs non-interactive mode is used
+- **Consistent flag handling** - Similar patterns across all commands that accept configuration
+
 ## State Management
 
 ### Persistent State
