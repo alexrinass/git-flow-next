@@ -37,6 +37,20 @@ func SetConfig(key string, value string) error {
 	return nil
 }
 
+// UnsetConfigSection removes all Git config values matching a pattern
+func UnsetConfigSection(pattern string) error {
+	cmd := exec.Command("git", "config", "--remove-section", pattern)
+	_, err := cmd.Output()
+	if err != nil {
+		// Don't treat "section not found" as an error  
+		if strings.Contains(err.Error(), "exit status 128") {
+			return nil
+		}
+		return fmt.Errorf("failed to unset git config section %s: %w", pattern, err)
+	}
+	return nil
+}
+
 // GetAllConfig gets all Git config values matching a pattern
 func GetAllConfig(pattern string) (map[string]string, error) {
 	cmd := exec.Command("git", "config", "--get-regexp", pattern)
