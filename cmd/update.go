@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/gittower/git-flow-next/internal/config"
@@ -10,81 +9,12 @@ import (
 	"github.com/gittower/git-flow-next/internal/git"
 	"github.com/gittower/git-flow-next/internal/mergestate"
 	"github.com/gittower/git-flow-next/internal/update"
-	"github.com/spf13/cobra"
 )
 
-var updateCmd = &cobra.Command{
-	Use:   "update [branch]",
-	Short: "Update a branch with changes from its parent branch",
-	Long: `Update a branch with changes from its parent branch.
-This command will update the specified branch (or current branch if none specified)
-with changes from its parent branch using the configured downstream strategy (merge or rebase).
-If merge conflicts occur, they will be handled according to the configured merge state handling.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var branchName string
-		if len(args) > 0 {
-			branchName = args[0]
-		}
-		useRebase, _ := cmd.Flags().GetBool("rebase")
-		if err := executeUpdate("", branchName, useRebase); err != nil {
-			var exitCode errors.ExitCode
-			if flowErr, ok := err.(errors.Error); ok {
-				exitCode = flowErr.ExitCode()
-			} else {
-				exitCode = errors.ExitCodeGitError
-			}
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(int(exitCode))
-		}
-		return nil
-	},
-}
-
-// createUpdateCommand creates a new update command for a specific branch type
-func createUpdateCommand(branchType string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "update [name]",
-		Short: fmt.Sprintf("Update a %s branch with changes from its parent branch", branchType),
-		Long: fmt.Sprintf(`Update a %s branch with changes from its parent branch.
-This command will update the specified %s branch (or current branch if none specified)
-with changes from its parent branch using the configured downstream strategy (merge or rebase).
-If merge conflicts occur, they will be handled according to the configured merge state handling.`, branchType, branchType),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var name string
-			if len(args) > 0 {
-				name = args[0]
-			}
-			useRebase, _ := cmd.Flags().GetBool("rebase")
-			if err := executeUpdate(branchType, name, useRebase); err != nil {
-				var exitCode errors.ExitCode
-				if flowErr, ok := err.(errors.Error); ok {
-					exitCode = flowErr.ExitCode()
-				} else {
-					exitCode = errors.ExitCodeGitError
-				}
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(int(exitCode))
-			}
-			return nil
-		},
-	}
-	
-	// Add --rebase flag to the command
-	cmd.Flags().Bool("rebase", false, "Force rebase strategy instead of configured strategy")
-	
-	return cmd
-}
-
-func init() {
-	// Add --rebase flag to the root update command
-	updateCmd.Flags().Bool("rebase", false, "Force rebase strategy instead of configured strategy")
-	rootCmd.AddCommand(updateCmd)
-}
-
-// AddUpdateCommand adds the update command to a topic branch command
-func AddUpdateCommand(parentCmd *cobra.Command) {
-	parentCmd.AddCommand(createUpdateCommand(parentCmd.Name()))
-}
+// Note: The update command is registered in two places:
+// 1. As a shorthand command in shorthand.go for "git flow update"
+// 2. As subcommands of topic branches in topicbranch.go for "git flow <topic> update"
+// This file only contains the shared executeUpdate function used by both.
 
 // executeUpdate updates a branch with changes from its parent branch
 func executeUpdate(branchType string, name string, useRebase bool) error {
