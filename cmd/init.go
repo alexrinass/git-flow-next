@@ -65,8 +65,11 @@ func initFlow(useDefaults, createBranches bool, preset string, custom bool, main
 
 	var cfg *config.Config
 
+	// Check if any configuration options are provided
+	hasConfigFlags := mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != ""
+	
 	// Check if git-flow-avh config exists and no explicit options are provided
-	if config.CheckGitFlowAVHConfig() && preset == "" && !custom && !useDefaults {
+	if config.CheckGitFlowAVHConfig() && preset == "" && !custom && !useDefaults && !hasConfigFlags {
 		fmt.Println("Found existing git-flow-avh configuration, importing...")
 		var err error
 		cfg, err = config.ImportGitFlowAVHConfig()
@@ -88,6 +91,10 @@ func initFlow(useDefaults, createBranches bool, preset string, custom bool, main
 		} else if useDefaults {
 			// Use default configuration
 			fmt.Println("Initializing git-flow with default settings")
+			cfg = config.DefaultConfig()
+		} else if hasConfigFlags {
+			// Use default configuration with command-line overrides
+			fmt.Println("Initializing git-flow")
 			cfg = config.DefaultConfig()
 		} else {
 			// Interactive mode - use legacy interactive config for backward compatibility
