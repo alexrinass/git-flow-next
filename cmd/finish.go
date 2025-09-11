@@ -168,11 +168,8 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		return &errors.BranchNotFoundError{BranchName: name}
 	}
 
-	// Get target branch (always the parent branch)
-	targetBranch, err := update.GetParentBranch(cfg, name)
-	if err != nil {
-		return &errors.GitError{Operation: "get parent branch", Err: err}
-	}
+	// Get target branch (always the parent branch for finishing)
+	targetBranch := branchConfig.Parent
 
 	// Check if target branch exists
 	if err := git.BranchExists(targetBranch); err != nil {

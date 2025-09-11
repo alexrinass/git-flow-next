@@ -2,8 +2,6 @@ package cmd_test
 
 import (
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/config"
@@ -27,7 +25,11 @@ func TestConfigAddBase(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Initialize git-flow with defaults
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 
 	tests := []struct {
 		name           string
@@ -98,7 +100,11 @@ func TestConfigAddTopic(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Initialize git-flow with defaults
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 
 	tests := []struct {
 		name           string
@@ -175,10 +181,14 @@ func TestConfigRenameBase(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Initialize git-flow with defaults
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 
 	// Rename develop to integration
-	err := captureConfigRenameBase("develop", "integration")
+	err = captureConfigRenameBase("develop", "integration")
 	if err != nil {
 		t.Fatalf("Failed to rename base branch: %v", err)
 	}
@@ -243,7 +253,11 @@ func TestConfigDeleteBase(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Initialize git-flow with defaults and add staging branch
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 	captureConfigAddBase("staging", "main", "", "", false)
 
 	// Try to delete main branch (should fail because develop depends on it)
@@ -308,7 +322,11 @@ func TestConfigList(t *testing.T) {
 	})
 
 	// Initialize git-flow
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 
 	// Add some custom configuration
 	captureConfigAddBase("staging", "main", "", "", false)
@@ -353,7 +371,11 @@ func TestPresetConfigurations(t *testing.T) {
 			defer os.Chdir(oldDir)
 
 			// Initialize git-flow with preset
-			runGitFlowCommand(t, tempDir, "init", "--preset="+tt.preset)
+			var err error
+			_, err = testutil.RunGitFlow(t, tempDir, "init", "--preset="+tt.preset)
+			if err != nil {
+				t.Fatalf("Failed to initialize git-flow with preset %s: %v", tt.preset, err)
+			}
 
 			// Verify configuration
 			cfg, err := config.LoadConfig()
@@ -388,7 +410,11 @@ func TestCircularDependencyValidation(t *testing.T) {
 	defer os.Chdir(oldDir)
 
 	// Initialize git-flow with defaults
-	runGitFlowCommand(t, tempDir, "init", "--defaults")
+	var err error
+	_, err = testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
 
 	// Add staging branch
 	captureConfigAddBase("staging", "main", "", "", false)
@@ -468,23 +494,5 @@ func captureConfigList() error {
 	return nil // Placeholder - real implementation would test the execute functions
 }
 
-func runGitFlowCommand(t *testing.T, dir string, args ...string) {
-	// Build the binary first
-	buildCmd := exec.Command("go", "build", "-o", "git-flow-test", "main.go")
-	buildCmd.Dir = filepath.Join(dir, "../..")
-	if err := buildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build git-flow binary: %v", err)
-	}
-
-	// Run the git-flow command
-	cmd := exec.Command(filepath.Join(dir, "../..", "git-flow-test"), args...)
-	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
-	
-	if err != nil {
-		t.Logf("Command output: %s", string(output))
-		t.Fatalf("git-flow command failed: %v", err)
-	}
-}
 
 
