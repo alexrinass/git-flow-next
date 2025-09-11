@@ -192,37 +192,3 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 	// Update the branch using shared logic
 	return update.UpdateBranchFromParent(branchName, parentBranch, strategy, true, state)
 }
-
-func updateWithMerge(branchName, parentBranch string) error {
-	// Merge parent branch
-	if err := git.Merge(parentBranch); err != nil {
-		if strings.Contains(err.Error(), "merge conflict") {
-			fmt.Printf("Merge conflicts detected. Please resolve them and then:\n")
-			fmt.Printf("1. git add <resolved-files>\n")
-			fmt.Printf("2. git commit\n")
-			fmt.Printf("Or to abort: git merge --abort\n")
-			return &errors.UnresolvedConflictsError{}
-		}
-		if strings.Contains(err.Error(), "Already up to date") {
-			// Not an error, just no changes to merge
-			return nil
-		}
-		return &errors.GitError{Operation: fmt.Sprintf("merge %s into %s", parentBranch, branchName), Err: err}
-	}
-	return nil
-}
-
-func updateWithRebase(branchName, parentBranch string) error {
-	// Rebase onto parent branch
-	if err := git.Rebase(parentBranch); err != nil {
-		if strings.Contains(err.Error(), "rebase conflict") {
-			fmt.Printf("Rebase conflicts detected. Please resolve them and then:\n")
-			fmt.Printf("1. git add <resolved-files>\n")
-			fmt.Printf("2. git rebase --continue\n")
-			fmt.Printf("Or to abort: git rebase --abort\n")
-			return &errors.UnresolvedConflictsError{}
-		}
-		return &errors.GitError{Operation: fmt.Sprintf("rebase %s onto %s", branchName, parentBranch), Err: err}
-	}
-	return nil
-}
