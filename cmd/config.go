@@ -701,6 +701,11 @@ func executeConfigRenameBase(oldName, newName string) error {
 		fmt.Printf("✓ Renamed Git branch: %s → %s\n", oldName, newName)
 	}
 
+	// Remove old branch config from git config
+	if err := git.UnsetConfigSection(fmt.Sprintf("gitflow.branch.%s", oldName)); err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("remove old branch config for '%s'", oldName), Err: err}
+	}
+
 	// Update configuration
 	delete(cfg.Branches, oldName)
 	cfg.Branches[newName] = branchConfig
@@ -811,6 +816,11 @@ func executeConfigDeleteBase(name string) error {
 		if branch.StartPoint == name {
 			return &errors.BranchHasDependentsError{BranchName: name, Dependent: branchName}
 		}
+	}
+
+	// Remove branch config from git config  
+	if err := git.UnsetConfigSection(fmt.Sprintf("gitflow.branch.%s", name)); err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("remove branch config for '%s'", name), Err: err}
 	}
 
 	// Remove from configuration
