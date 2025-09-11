@@ -591,7 +591,32 @@ func TestFinishWithRebaseConflict(t *testing.T) {
 		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
 	}
 
-	// Create a file in develop
+	// Create and switch to feature branch (from clean develop)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "rebase-feature")
+	if err != nil {
+		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Create a file in feature branch
+	testutil.WriteFile(t, dir, "test.txt", "feature content")
+
+	// Commit the changes in feature branch
+	_, err = testutil.RunGit(t, dir, "add", "test.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add test.txt in feature")
+	if err != nil {
+		t.Fatalf("Failed to commit file: %v", err)
+	}
+
+	// Switch back to develop and create conflicting content
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Create the same file with different content in develop
 	testutil.WriteFile(t, dir, "test.txt", "develop content")
 
 	// Commit the file in develop
@@ -604,25 +629,6 @@ func TestFinishWithRebaseConflict(t *testing.T) {
 		t.Fatalf("Failed to commit file: %v", err)
 	}
 
-	// Create and switch to feature branch
-	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "rebase-feature")
-	if err != nil {
-		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
-	}
-
-	// Modify the same file in feature branch
-	testutil.WriteFile(t, dir, "test.txt", "feature content")
-
-	// Commit the changes in feature branch
-	_, err = testutil.RunGit(t, dir, "add", "test.txt")
-	if err != nil {
-		t.Fatalf("Failed to add file: %v", err)
-	}
-	_, err = testutil.RunGit(t, dir, "commit", "-m", "Modify test.txt in feature")
-	if err != nil {
-		t.Fatalf("Failed to commit file: %v", err)
-	}
-
 	// Try to finish the feature branch with rebase
 	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--rebase", "rebase-feature")
 	if err == nil {
@@ -630,9 +636,21 @@ func TestFinishWithRebaseConflict(t *testing.T) {
 	}
 
 	// Verify that we're in a rebase conflict state
-	currentBranch := testutil.GetCurrentBranch(t, dir)
-	if !strings.Contains(currentBranch, "rebase-feature") {
-		t.Errorf("Expected to be on feature branch during rebase conflict, got %s", currentBranch)
+	rebaseMergeDir := filepath.Join(dir, ".git", "rebase-merge")
+	if _, err := os.Stat(rebaseMergeDir); os.IsNotExist(err) {
+		t.Error("Expected to be in rebase conflict state, but rebase-merge directory does not exist")
+	}
+	
+	// Check that the correct branch is being rebased
+	headNameFile := filepath.Join(rebaseMergeDir, "head-name")
+	if headNameBytes, err := os.ReadFile(headNameFile); err != nil {
+		t.Errorf("Failed to read head-name file: %v", err)
+	} else {
+		headName := strings.TrimSpace(string(headNameBytes))
+		expectedBranch := "refs/heads/feature/rebase-feature"
+		if headName != expectedBranch {
+			t.Errorf("Expected to be rebasing branch %s, got %s", expectedBranch, headName)
+		}
 	}
 }
 
