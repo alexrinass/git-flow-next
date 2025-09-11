@@ -11,8 +11,9 @@ import (
 
 // StartCommand is the implementation of the start command for topic branches
 // If shouldFetch is nil, the function will check config for fetch preference
-func StartCommand(branchType string, name string, shouldFetch *bool) {
-	if err := start(branchType, name, shouldFetch); err != nil {
+// If base is empty, the function will use the configured starting point
+func StartCommand(branchType string, name string, base string, shouldFetch *bool) {
+	if err := start(branchType, name, base, shouldFetch); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -25,7 +26,7 @@ func StartCommand(branchType string, name string, shouldFetch *bool) {
 }
 
 // start performs the actual branch creation logic with optional fetch and returns any errors
-func start(branchType string, name string, shouldFetch *bool) error {
+func start(branchType string, name string, base string, shouldFetch *bool) error {
 	// Validate that git-flow is initialized
 	initialized, err := config.IsInitialized()
 	if err != nil {
@@ -84,12 +85,16 @@ func start(branchType string, name string, shouldFetch *bool) error {
 	// Get start point
 	startPoint := branchConfig.Parent
 	if branchConfig.StartPoint != "" {
-		// If start point is specified, use it instead of parent
+		// If start point is specified in config, use it instead of parent
 		startPoint = branchConfig.StartPoint
 	}
+	if base != "" {
+		// If base argument is provided, it overrides the configured starting point
+		startPoint = base
+	}
 
-	// Check if start point exists
-	if err := git.BranchExists(startPoint); err != nil {
+	// Check if start point exists (can be branch, tag, or commit)
+	if err := git.BranchOrCommitExists(startPoint); err != nil {
 		return &errors.BranchNotFoundError{BranchName: startPoint}
 	}
 

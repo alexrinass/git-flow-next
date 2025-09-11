@@ -67,11 +67,11 @@ func registerBranchCommand(branchType string) {
 
 	// Add start subcommand
 	startCmd := &cobra.Command{
-		Use:     "start [name]",
+		Use:     "start [name] [base]",
 		Short:   fmt.Sprintf("Start a new %s branch", branchType),
-		Long:    fmt.Sprintf("Start a new %s branch from the appropriate base branch", branchType),
-		Example: fmt.Sprintf("  git flow %s start my-new-feature", branchType),
-		Args:    cobra.ExactArgs(1),
+		Long:    fmt.Sprintf("Start a new %s branch from the appropriate base branch or specified base", branchType),
+		Example: fmt.Sprintf("  git flow %s start my-new-feature\n  git flow %s start emergency-fix abc123def", branchType, branchType),
+		Args:    cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Get fetch flag values
 			fetch, _ := cmd.Flags().GetBool("fetch")
@@ -87,8 +87,14 @@ func registerBranchCommand(branchType string) {
 				shouldFetch = &f
 			}
 
-			// Call the generic start command with the branch type, name, and fetch flags
-			StartCommand(branchType, args[0], shouldFetch)
+			// Get base argument if provided
+			var base string
+			if len(args) > 1 {
+				base = args[1]
+			}
+
+			// Call the generic start command with the branch type, name, base, and fetch flags
+			StartCommand(branchType, args[0], base, shouldFetch)
 		},
 	}
 

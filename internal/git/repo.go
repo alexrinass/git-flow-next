@@ -44,6 +44,15 @@ func BranchExists(branch string) error {
 	return nil
 }
 
+// BranchOrCommitExists checks if a branch, tag, or commit exists
+func BranchOrCommitExists(ref string) error {
+	cmd := exec.Command("git", "rev-parse", "--verify", "--quiet", ref)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("reference '%s' does not exist", ref)
+	}
+	return nil
+}
+
 // CreateBranch creates a new branch
 func CreateBranch(name string, startPoint string) error {
 	// Check if we have any commits
