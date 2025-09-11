@@ -55,33 +55,53 @@ Manage git-flow configuration for base branches and topic branch types. The **co
 **delete topic** *name*
 : Delete a topic branch type configuration. Does not affect existing branches of this type.
 
-## BASE BRANCH OPTIONS
+## COMMAND OPTIONS
+
+### Add Base Branch (`add base`)
 
 **--upstream-strategy**=*strategy*
-: Merge strategy when merging TO parent branch. Values: **merge**, **rebase**, **squash**, **none**
+: Merge strategy when merging to parent. Values: **merge**, **rebase**, **squash**
 
-**--downstream-strategy**=*strategy*  
-: Merge strategy when merging FROM parent branch. Values: **merge**, **rebase**, **none**
+**--downstream-strategy**=*strategy*
+: Merge strategy when updating from parent. Values: **merge**, **rebase**
 
 **--auto-update**[=*bool*]
-: Whether to automatically update this branch from its parent. Default: **false**
+: Auto-update from parent on finish. Default: **false**
 
-## TOPIC BRANCH OPTIONS
+### Add Topic Branch (`add topic`)
 
 **--prefix**=*prefix*
 : Branch name prefix. Default: *name*/ (e.g., "feature/")
 
 **--starting-point**=*branch*
-: Branch to start new branches from. Default: same as parent
+: Branch to create from (defaults to parent)
 
 **--upstream-strategy**=*strategy*
-: Merge strategy when finishing (merging to parent). Values: **merge**, **rebase**, **squash**
+: Merge strategy when merging to parent. Values: **merge**, **rebase**, **squash**
 
 **--downstream-strategy**=*strategy*
-: Merge strategy when updating (merging from parent). Values: **merge**, **rebase**
+: Merge strategy when updating from parent. Values: **merge**, **rebase**
 
 **--tag**[=*bool*]
-: Whether to create tags when finishing branches of this type. Default: **false**
+: Create tags on finish. Default: **false**
+
+### Edit Base Branch (`edit base`)
+
+Same options as `add base`:
+- **--upstream-strategy**, **--downstream-strategy**, **--auto-update**
+
+### Edit Topic Branch (`edit topic`)
+
+Same options as `add topic`:
+- **--prefix**, **--starting-point**, **--upstream-strategy**, **--downstream-strategy**, **--tag**
+
+### Rename and Delete Commands
+
+The following commands take only positional arguments and have no options:
+- **`rename base`** *old-name* *new-name*
+- **`rename topic`** *old-name* *new-name*  
+- **`delete base`** *name*
+- **`delete topic`** *name*
 
 ## MERGE STRATEGIES
 
@@ -194,18 +214,21 @@ All configuration is stored in **.git/config** under the **gitflow.*** namespace
 ```ini
 [gitflow]
     version = 1.0
-[gitflow "branch"]
-    main.type = base
-    main.upstreamStrategy = none  
-    main.downstreamStrategy = none
-    develop.type = base
-    develop.parent = main
-    develop.autoUpdate = true
-    feature.type = topic
-    feature.parent = develop
-    feature.prefix = feature/
-    feature.upstreamStrategy = merge
-    feature.downstreamStrategy = rebase
+    initialized = true
+[gitflow "branch.main"]
+    type = base
+    upstreamstrategy = none  
+    downstreamstrategy = none
+[gitflow "branch.develop"]
+    type = base
+    parent = main
+    autoupdate = true
+[gitflow "branch.feature"]
+    type = topic
+    parent = develop
+    prefix = feature/
+    upstreamstrategy = merge
+    downstreamstrategy = rebase
 ```
 
 ## EXIT STATUS

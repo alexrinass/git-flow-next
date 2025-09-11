@@ -6,7 +6,7 @@ git-flow-init - Initialize git-flow in a repository
 
 ## SYNOPSIS
 
-**git-flow init** [**--preset**=*preset*] [**--custom**] [*options*]
+**git-flow init** [**--preset**=*preset*] [**--custom**] [**--defaults**] [*options*]
 
 ## DESCRIPTION
 
@@ -28,6 +28,12 @@ Initialize git-flow configuration in the current Git repository. This command se
 **--custom**
 : Enable custom configuration mode. Prompts for trunk branch and displays configuration commands.
 
+**--defaults**, **-d**
+: Use default branch naming conventions without prompting for customization.
+
+**--no-create-branches**
+: Don't create branches even if they don't exist in the repository.
+
 ### Branch Name Overrides
 
 **--main**=*name*
@@ -44,22 +50,22 @@ Initialize git-flow configuration in the current Git repository. This command se
 
 ### Prefix Overrides
 
-**--feature-prefix**=*prefix*
+**--feature**=*prefix*
 : Override feature branch prefix (default: feature/)
 
-**--bugfix-prefix**=*prefix*
+**--bugfix**=*prefix*, **-b** *prefix*
 : Override bugfix branch prefix (default: bugfix/)
 
-**--release-prefix**=*prefix*
+**--release**=*prefix*, **-r** *prefix*
 : Override release branch prefix (default: release/)
 
-**--hotfix-prefix**=*prefix*
+**--hotfix**=*prefix*, **-x** *prefix*
 : Override hotfix branch prefix (default: hotfix/)
 
-**--support-prefix**=*prefix*
+**--support**=*prefix*, **-s** *prefix*
 : Override support branch prefix (default: support/)
 
-**--tag-prefix**=*prefix*
+**--tag**=*prefix*, **-t** *prefix*
 : Override version tag prefix (default: v)
 
 ## PRESETS
@@ -130,6 +136,16 @@ Initialize with Classic GitFlow using defaults:
 git flow init --preset=classic
 ```
 
+Initialize with defaults without prompting:
+```bash
+git flow init --defaults
+```
+
+Initialize with preset and defaults:
+```bash
+git flow init --preset=classic --defaults
+```
+
 Initialize GitHub Flow with custom main branch:
 ```bash
 git flow init --preset=github --main=master
@@ -137,7 +153,12 @@ git flow init --preset=github --main=master
 
 Initialize Classic GitFlow with custom branch names:
 ```bash
-git flow init --preset=classic --main=master --develop=dev --feature-prefix=feat/
+git flow init --preset=classic --main=master --develop=dev --feature=feat/
+```
+
+Initialize with short flags:
+```bash
+git flow init -p classic -d -m master -b bug/ -r rel/
 ```
 
 Custom configuration mode:
@@ -158,14 +179,16 @@ After initialization, git-flow stores configuration in **.git/config** under the
 [gitflow]
     version = 1.0
     initialized = true
-[gitflow "branch"]
-    main.type = base
-    develop.type = base
-    develop.parent = main
-    develop.autoUpdate = true
-    feature.type = topic
-    feature.parent = develop
-    feature.prefix = feature/
+[gitflow "branch.main"]
+    type = base
+[gitflow "branch.develop"]
+    type = base
+    parent = main
+    autoupdate = true
+[gitflow "branch.feature"]
+    type = topic
+    parent = develop
+    prefix = feature/
 ```
 
 ## EXIT STATUS

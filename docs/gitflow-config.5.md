@@ -131,41 +131,45 @@ Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
     version = 1.0
     initialized = true
 
-[gitflow "branch"]
-    # Base branches
-    main.type = base
-    main.upstreamStrategy = none
-    main.downstreamStrategy = none
+# Base branches
+[gitflow "branch.main"]
+    type = base
+    upstreamstrategy = none
+    downstreamstrategy = none
     
-    develop.type = base
-    develop.parent = main
-    develop.autoUpdate = true
-    develop.upstreamStrategy = merge
-    develop.downstreamStrategy = merge
+[gitflow "branch.develop"]
+    type = base
+    parent = main
+    autoupdate = true
+    upstreamstrategy = merge
+    downstreamstrategy = merge
 
-    # Topic branches
-    feature.type = topic
-    feature.parent = develop
-    feature.prefix = feature/
-    feature.upstreamStrategy = merge
-    feature.downstreamStrategy = rebase
+# Topic branches
+[gitflow "branch.feature"]
+    type = topic
+    parent = develop
+    prefix = feature/
+    upstreamstrategy = merge
+    downstreamstrategy = rebase
     
-    release.type = topic
-    release.parent = main
-    release.startPoint = develop
-    release.prefix = release/
-    release.upstreamStrategy = merge
-    release.downstreamStrategy = merge
-    release.tag = true
-    release.tagprefix = v
+[gitflow "branch.release"]
+    type = topic
+    parent = main
+    startpoint = develop
+    prefix = release/
+    upstreamstrategy = merge
+    downstreamstrategy = merge
+    tag = true
+    tagprefix = v
     
-    hotfix.type = topic
-    hotfix.parent = main
-    hotfix.prefix = hotfix/
-    hotfix.upstreamStrategy = merge
-    hotfix.downstreamStrategy = merge
-    hotfix.tag = true
-    hotfix.tagprefix = v
+[gitflow "branch.hotfix"]
+    type = topic
+    parent = main
+    prefix = hotfix/
+    upstreamstrategy = merge
+    downstreamstrategy = merge
+    tag = true
+    tagprefix = v
 ```
 
 ### GitHub Flow
@@ -174,16 +178,17 @@ Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
 [gitflow]
     version = 1.0
     
-[gitflow "branch"]  
-    main.type = base
-    main.upstreamStrategy = none
-    main.downstreamStrategy = none
+[gitflow "branch.main"]
+    type = base
+    upstreamstrategy = none
+    downstreamstrategy = none
     
-    feature.type = topic
-    feature.parent = main
-    feature.prefix = feature/
-    feature.upstreamStrategy = merge
-    feature.downstreamStrategy = rebase
+[gitflow "branch.feature"]
+    type = topic
+    parent = main
+    prefix = feature/
+    upstreamstrategy = merge
+    downstreamstrategy = rebase
 ```
 
 ### GitLab Flow
@@ -192,33 +197,37 @@ Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
 [gitflow]
     version = 1.0
     
-[gitflow "branch"]
-    production.type = base
-    production.upstreamStrategy = none
-    production.downstreamStrategy = none
+[gitflow "branch.production"]
+    type = base
+    upstreamstrategy = none
+    downstreamstrategy = none
     
-    staging.type = base  
-    staging.parent = production
-    staging.upstreamStrategy = merge
-    staging.downstreamStrategy = merge
+[gitflow "branch.staging"]
+    type = base
+    parent = production
+    upstreamstrategy = merge
+    downstreamstrategy = merge
     
-    main.type = base
-    main.parent = staging
-    main.upstreamStrategy = merge
-    main.downstreamStrategy = merge
+[gitflow "branch.main"]
+    type = base
+    parent = staging
+    upstreamstrategy = merge
+    downstreamstrategy = merge
     
-    feature.type = topic
-    feature.parent = main
-    feature.prefix = feature/
-    feature.upstreamStrategy = merge
-    feature.downstreamStrategy = rebase
+[gitflow "branch.feature"]
+    type = topic
+    parent = main
+    prefix = feature/
+    upstreamstrategy = merge
+    downstreamstrategy = rebase
     
-    hotfix.type = topic
-    hotfix.parent = production
-    hotfix.prefix = hotfix/
-    hotfix.upstreamStrategy = merge
-    hotfix.downstreamStrategy = merge
-    hotfix.tag = true
+[gitflow "branch.hotfix"]
+    type = topic
+    parent = production
+    prefix = hotfix/
+    upstreamstrategy = merge
+    downstreamstrategy = merge
+    tag = true
 ```
 
 ## COMMAND OVERRIDE EXAMPLES
