@@ -305,32 +305,32 @@ func addFinishFlags(cmd *cobra.Command) {
 
 	// Tag-related Flags
 	cmd.Flags().Bool("tag", false, "Create a tag for the finished branch")
-	cmd.Flags().Bool("notag", false, "Don't create a tag for the finished branch")
-	cmd.Flags().Bool("sign", false, "Sign the tag cryptographically")
+	cmd.Flags().BoolP("notag", "n", false, "Don't create a tag for the finished branch")
+	cmd.Flags().BoolP("sign", "s", false, "Sign the tag cryptographically")
 	cmd.Flags().Bool("no-sign", false, "Don't sign the tag cryptographically")
-	cmd.Flags().String("signingkey", "", "Use the given GPG key for the digital signature")
+	cmd.Flags().StringP("signingkey", "u", "", "Use the given GPG key for the digital signature")
 	cmd.Flags().StringP("message", "m", "", "Use the given message for the tag")
 	cmd.Flags().String("messagefile", "", "Use contents of the given file as tag message")
-	cmd.Flags().String("tagname", "", "Use the given tag name instead of the default")
+	cmd.Flags().StringP("tagname", "T", "", "Use the given tag name instead of the default")
 
 	// Branch Retention Flags
-	cmd.Flags().Bool("keep", false, "Keep the branch after finishing")
+	cmd.Flags().BoolP("keep", "k", false, "Keep the branch after finishing")
 	cmd.Flags().Bool("no-keep", false, "Delete the branch after finishing")
 	cmd.Flags().Bool("keepremote", false, "Keep the remote branch after finishing")
 	cmd.Flags().Bool("no-keepremote", false, "Delete the remote branch after finishing")
 	cmd.Flags().Bool("keeplocal", false, "Keep the local branch after finishing")
 	cmd.Flags().Bool("no-keeplocal", false, "Delete the local branch after finishing")
-	cmd.Flags().Bool("force-delete", false, "Force delete the branch")
+	cmd.Flags().BoolP("force-delete", "D", false, "Force delete the branch")
 	cmd.Flags().Bool("no-force-delete", false, "Don't force delete the branch")
 
 	// Merge Strategy Flags
-	cmd.Flags().Bool("rebase", false, "Rebase topic branch before merging")
+	cmd.Flags().BoolP("rebase", "r", false, "Rebase topic branch before merging")
 	cmd.Flags().Bool("no-rebase", false, "Don't rebase topic branch (use configured strategy)")
-	cmd.Flags().Bool("preserve-merges", false, "Preserve merges during rebase")
+	cmd.Flags().BoolP("preserve-merges", "p", false, "Preserve merges during rebase")
 	cmd.Flags().Bool("no-preserve-merges", false, "Flatten merges during rebase")
 	cmd.Flags().Bool("no-ff", false, "Create merge commit even for fast-forward")
 	cmd.Flags().Bool("ff", false, "Allow fast-forward merge when possible")
-	cmd.Flags().Bool("squash", false, "Squash all commits into single commit")
+	cmd.Flags().BoolP("squash", "S", false, "Squash all commits into single commit")
 	cmd.Flags().Bool("no-squash", false, "Keep individual commits (don't squash)")
 }
 
