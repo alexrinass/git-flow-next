@@ -751,15 +751,16 @@ func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
 }
 
-// TestUpdateUsesStoredBaseBranch tests that update command uses stored base instead of config default.
+// TestUpdateDoesNotUseStoredBaseBranch tests that update command does NOT use stored base branch.
+// Instead it uses the current branch type configuration.
 // Steps:
 // 1. Sets up a test repository and initializes git-flow with defaults
 // 2. Creates a feature branch (which stores 'develop' as base)
 // 3. Changes feature branch type configuration to point to main
-// 4. Makes changes in develop branch
+// 4. Makes changes in both develop and main branches
 // 5. Updates the feature branch
-// 6. Verifies the branch is updated from develop (stored base) not main (config parent)
-func TestUpdateUsesStoredBaseBranch(t *testing.T) {
+// 6. Verifies the branch is updated from main (config parent) not develop (stored base)
+func TestUpdateDoesNotUseStoredBaseBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
 	if err := os.Chdir(dir); err != nil {
@@ -826,9 +827,9 @@ func TestUpdateUsesStoredBaseBranch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Verify develop change is in feature branch (updated from stored base)
-	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
+	// Verify main change is in feature branch (updated from config parent)
+	assert.True(t, testutil.FileExists(t, dir, "main-change.txt"))
 
-	// Verify main change is NOT in feature branch (didn't update from config parent)
-	assert.False(t, testutil.FileExists(t, dir, "main-change.txt"))
+	// Verify develop change is NOT in feature branch (didn't update from stored base)
+	assert.False(t, testutil.FileExists(t, dir, "develop-change.txt"))
 }
