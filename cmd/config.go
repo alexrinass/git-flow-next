@@ -398,7 +398,7 @@ func executeConfigAddBase(name, parent, upstreamStrategy, downstreamStrategy str
 		if _, exists := cfg.Branches[parent]; !exists {
 			return &errors.BranchNotFoundError{BranchName: parent}
 		}
-		
+
 		// Check for circular dependencies
 		if err := validateNoCycle(cfg, name, parent); err != nil {
 			return err
@@ -818,7 +818,7 @@ func executeConfigDeleteBase(name string) error {
 		}
 	}
 
-	// Remove branch config from git config  
+	// Remove branch config from git config
 	if err := git.UnsetConfigSection(fmt.Sprintf("gitflow.branch.%s", name)); err != nil {
 		return &errors.GitError{Operation: fmt.Sprintf("remove branch config for '%s'", name), Err: err}
 	}
@@ -933,8 +933,8 @@ func executeConfigList() error {
 		for _, name := range baseBranches {
 			branch := cfg.Branches[name]
 			fmt.Printf("  • %s (parent: %s)\n", name, branch.Parent)
-			fmt.Printf("    ↑ %s from %s, ↓ %s to %s\n", 
-				branch.UpstreamStrategy, branch.Parent, 
+			fmt.Printf("    ↑ %s from %s, ↓ %s to %s\n",
+				branch.UpstreamStrategy, branch.Parent,
 				branch.DownstreamStrategy, branch.Parent)
 			fmt.Printf("    Auto-update: %t\n", branch.AutoUpdate)
 			fmt.Println()
@@ -949,8 +949,8 @@ func executeConfigList() error {
 			fmt.Printf("  • %s (parent: %s)\n", name, branch.Parent)
 			fmt.Printf("    Prefix: %s\n", branch.Prefix)
 			fmt.Printf("    Start point: %s\n", branch.StartPoint)
-			fmt.Printf("    ↑ %s to %s, ↓ %s from %s\n", 
-				branch.UpstreamStrategy, branch.Parent, 
+			fmt.Printf("    ↑ %s to %s, ↓ %s from %s\n",
+				branch.UpstreamStrategy, branch.Parent,
 				branch.DownstreamStrategy, branch.Parent)
 			if branch.Tag {
 				fmt.Printf("    Creates tags: yes\n")
@@ -967,9 +967,9 @@ func executeConfigList() error {
 func isValidMergeStrategy(strategy string) bool {
 	switch strategy {
 	case string(config.MergeStrategyNone),
-		 string(config.MergeStrategyMerge),
-		 string(config.MergeStrategyRebase),
-		 string(config.MergeStrategySquash):
+		string(config.MergeStrategyMerge),
+		string(config.MergeStrategyRebase),
+		string(config.MergeStrategySquash):
 		return true
 	}
 	return false
@@ -977,7 +977,7 @@ func isValidMergeStrategy(strategy string) bool {
 
 func validateNoCycle(cfg *config.Config, name, parent string) error {
 	visited := make(map[string]bool)
-	
+
 	current := parent
 	for current != "" {
 		if visited[current] {
@@ -986,16 +986,16 @@ func validateNoCycle(cfg *config.Config, name, parent string) error {
 		if current == name {
 			return &errors.CircularDependencyError{BranchName: name}
 		}
-		
+
 		visited[current] = true
-		
+
 		if branch, exists := cfg.Branches[current]; exists {
 			current = branch.Parent
 		} else {
 			break
 		}
 	}
-	
+
 	return nil
 }
 

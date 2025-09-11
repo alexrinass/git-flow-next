@@ -362,7 +362,7 @@ func TestUpdateWithRebaseFlag(t *testing.T) {
 	if err := git.Checkout("feature/test-rebase-flag"); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Both files should exist
 	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
 	assert.True(t, testutil.FileExists(t, dir, "feature-change.txt"))
@@ -435,7 +435,7 @@ func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 	if err := git.Checkout("feature/test-rebase-override"); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Both files should exist
 	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"))
 	assert.True(t, testutil.FileExists(t, dir, "feature-change.txt"))

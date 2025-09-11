@@ -564,7 +564,7 @@ func TestStartStoresBaseBranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get base config: %v", err)
 	}
-	
+
 	expectedBase := "develop"
 	if strings.TrimSpace(baseConfig) != expectedBase {
 		t.Errorf("Expected base branch to be '%s', got '%s'", expectedBase, strings.TrimSpace(baseConfig))
@@ -581,7 +581,7 @@ func TestStartStoresBaseBranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get release base config: %v", err)
 	}
-	
+
 	expectedReleaseBase := "develop"
 	if strings.TrimSpace(releaseBaseConfig) != expectedReleaseBase {
 		t.Errorf("Expected release base branch to be '%s', got '%s'", expectedReleaseBase, strings.TrimSpace(releaseBaseConfig))

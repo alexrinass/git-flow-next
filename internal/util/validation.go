@@ -61,10 +61,10 @@ func ValidateBranchName(name string) error {
 	if name == "" {
 		return fmt.Errorf("branch name cannot be empty")
 	}
-	
+
 	if !IsValidBranchName(name) {
 		return fmt.Errorf("invalid branch name: %s", name)
 	}
-	
+
 	return nil
 }

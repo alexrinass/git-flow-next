@@ -7,25 +7,25 @@ import (
 // ResolvedFinishOptions contains all resolved configuration options for the finish command
 type ResolvedFinishOptions struct {
 	// Tag options
-	ShouldTag    bool
-	TagName      string
-	ShouldSign   bool
-	SigningKey   string
-	TagMessage   string
-	MessageFile  string
+	ShouldTag   bool
+	TagName     string
+	ShouldSign  bool
+	SigningKey  string
+	TagMessage  string
+	MessageFile string
 
 	// Branch retention options
-	Keep         bool
-	KeepRemote   bool
-	KeepLocal    bool
-	ForceDelete  bool
+	Keep        bool
+	KeepRemote  bool
+	KeepLocal   bool
+	ForceDelete bool
 
 	// Merge strategy options
-	MergeStrategy     string  // Final resolved strategy (merge/rebase/squash)
-	UseRebase         bool    // Whether to use rebase
-	PreserveMerges    bool    // Whether to preserve merges during rebase
-	NoFastForward     bool    // Whether to create merge commit for fast-forward
-	UseSquash         bool    // Whether to squash commits
+	MergeStrategy  string // Final resolved strategy (merge/rebase/squash)
+	UseRebase      bool   // Whether to use rebase
+	PreserveMerges bool   // Whether to preserve merges during rebase
+	NoFastForward  bool   // Whether to create merge commit for fast-forward
+	UseSquash      bool   // Whether to squash commits
 }
 
 // TagOptions represents command-line tag options
@@ -39,7 +39,7 @@ type TagOptions struct {
 	TagName     string
 }
 
-// BranchRetentionOptions represents command-line retention options  
+// BranchRetentionOptions represents command-line retention options
 // Note: This should match the BranchRetentionOptions type in cmd package
 type BranchRetentionOptions struct {
 	Keep        *bool
@@ -51,11 +51,11 @@ type BranchRetentionOptions struct {
 // MergeStrategyOptions represents command-line merge strategy options
 // Note: This should match the MergeStrategyOptions type in cmd package
 type MergeStrategyOptions struct {
-	Strategy        *string  // Override for entire strategy
-	Rebase          *bool    // --rebase/--no-rebase override
-	PreserveMerges  *bool    // --preserve-merges/--no-preserve-merges
-	NoFF            *bool    // --no-ff/--ff
-	Squash          *bool    // --squash/--no-squash override
+	Strategy       *string // Override for entire strategy
+	Rebase         *bool   // --rebase/--no-rebase override
+	PreserveMerges *bool   // --preserve-merges/--no-preserve-merges
+	NoFF           *bool   // --no-ff/--ff
+	Squash         *bool   // --squash/--no-squash override
 }
 
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
@@ -70,25 +70,25 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 
 	return &ResolvedFinishOptions{
 		// Tag resolution
-		ShouldTag:    resolveFinishShouldTag(cfg, branchConfig, branchType, tagOpts),
-		TagName:      resolveFinishTagName(branchConfig, branchType, branchName, tagOpts),
-		ShouldSign:   resolveFinishShouldSign(cfg, branchType, tagOpts),
-		SigningKey:   resolveFinishSigningKey(cfg, branchType, tagOpts),
-		TagMessage:   resolveFinishTagMessage(branchName, tagOpts),
-		MessageFile:  resolveFinishMessageFile(cfg, branchType, tagOpts),
+		ShouldTag:   resolveFinishShouldTag(cfg, branchConfig, branchType, tagOpts),
+		TagName:     resolveFinishTagName(branchConfig, branchType, branchName, tagOpts),
+		ShouldSign:  resolveFinishShouldSign(cfg, branchType, tagOpts),
+		SigningKey:  resolveFinishSigningKey(cfg, branchType, tagOpts),
+		TagMessage:  resolveFinishTagMessage(branchName, tagOpts),
+		MessageFile: resolveFinishMessageFile(cfg, branchType, tagOpts),
 
 		// Retention resolution
-		Keep:         resolveFinishKeep(cfg, branchType, retentionOpts),
-		KeepRemote:   resolveFinishKeepRemote(cfg, branchType, retentionOpts),
-		KeepLocal:    resolveFinishKeepLocal(cfg, branchType, retentionOpts),
-		ForceDelete:  resolveFinishForceDelete(cfg, branchType, retentionOpts),
+		Keep:        resolveFinishKeep(cfg, branchType, retentionOpts),
+		KeepRemote:  resolveFinishKeepRemote(cfg, branchType, retentionOpts),
+		KeepLocal:   resolveFinishKeepLocal(cfg, branchType, retentionOpts),
+		ForceDelete: resolveFinishForceDelete(cfg, branchType, retentionOpts),
 
 		// Merge strategy resolution
-		MergeStrategy:     strategy,
-		UseRebase:         useRebase,
-		PreserveMerges:    preserveMerges,
-		NoFastForward:     noFastForward,
-		UseSquash:         useSquash,
+		MergeStrategy:  strategy,
+		UseRebase:      useRebase,
+		PreserveMerges: preserveMerges,
+		NoFastForward:  noFastForward,
+		UseSquash:      useSquash,
 	}
 }
 
@@ -275,7 +275,7 @@ func getCommandConfigBool(cfg *Config, configKey string) bool {
 	return exists && value == "true"
 }
 
-// getCommandConfigString gets a string config value from preloaded config  
+// getCommandConfigString gets a string config value from preloaded config
 func getCommandConfigString(cfg *Config, configKey string) string {
 	value, exists := cfg.CommandConfig[configKey]
 	if !exists {

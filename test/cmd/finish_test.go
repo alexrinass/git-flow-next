@@ -640,7 +640,7 @@ func TestFinishWithRebaseConflict(t *testing.T) {
 	if _, err := os.Stat(rebaseMergeDir); os.IsNotExist(err) {
 		t.Error("Expected to be in rebase conflict state, but rebase-merge directory does not exist")
 	}
-	
+
 	// Check that the correct branch is being rebased
 	headNameFile := filepath.Join(rebaseMergeDir, "head-name")
 	if headNameBytes, err := os.ReadFile(headNameFile); err != nil {
@@ -2229,7 +2229,7 @@ func TestFinishFeatureBranchKeepRemote(t *testing.T) {
 // 2. Develop branch conflicts with main during auto-update (second conflict)
 // Steps:
 // 1. Initialize git-flow with defaults (creates main, develop branches)
-// 2. Add conflicting content to main branch  
+// 2. Add conflicting content to main branch
 // 3. Add different conflicting content to develop branch
 // 4. Create release branch from develop with additional changes
 // 5. Attempt release finish - should fail with merge conflict (release vs main)
@@ -2329,7 +2329,7 @@ func TestFinishWithConsecutiveConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to stage resolved file: %v", err)
 	}
-	
+
 	// Commit the resolved merge
 	_, err = testutil.RunGit(t, dir, "commit", "--no-edit")
 	if err != nil {
@@ -2805,6 +2805,7 @@ func TestFinishWithNoFFFlag(t *testing.T) {
 		t.Error("Expected feature.txt to exist in develop branch")
 	}
 }
+
 // TestMergeStrategyFlagOverridesConfig tests that command-line flags override configuration.
 // Steps:
 // 1. Sets up a test repository and initializes git-flow with defaults

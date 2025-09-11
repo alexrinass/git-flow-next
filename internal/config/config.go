@@ -82,7 +82,7 @@ type ConfigOverrides struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Version:       "1.0",
-		Remote:        "origin", // Default remote name
+		Remote:        "origin",                // Default remote name
 		CommandConfig: make(map[string]string), // Initialize command config map
 		Branches: map[string]BranchConfig{
 			"main": {
@@ -191,7 +191,7 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to load gitflow config: %w", err)
 	}
 	config.CommandConfig = allGitflowConfig
-	
+
 	// Get custom remote name if set
 	remote, ok := allGitflowConfig["gitflow.origin"]
 	if ok && remote != "" {
@@ -770,9 +770,9 @@ func loadAllGitflowConfig(currentDir string) (map[string]string, error) {
 	cmd := exec.Command("git", "config", "--get-regexp", "gitflow\\.")
 	cmd.Dir = currentDir
 	output, err := cmd.Output()
-	
+
 	result := make(map[string]string)
-	
+
 	if err != nil {
 		// If no config values match, don't treat it as an error
 		if strings.Contains(err.Error(), "exit status 1") {
@@ -780,13 +780,13 @@ func loadAllGitflowConfig(currentDir string) (map[string]string, error) {
 		}
 		return nil, fmt.Errorf("failed to get gitflow config: %w", err)
 	}
-	
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.SplitN(line, " ", 2)
 		if len(parts) == 2 {
 			result[parts[0]] = parts[1]
@@ -795,6 +795,6 @@ func loadAllGitflowConfig(currentDir string) (map[string]string, error) {
 			result[parts[0]] = ""
 		}
 	}
-	
+
 	return result, nil
 }

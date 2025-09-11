@@ -457,7 +457,7 @@ func resolveBranchName(name string, branchConfig config.BranchConfig) (string, e
 func createTagForBranchResolved(state *mergestate.MergeState, options *config.ResolvedFinishOptions) error {
 	// Determine if we should use message file
 	useMessageFile := options.MessageFile != ""
-	
+
 	// Create the tag using the git module
 	gitTagOptions := &git.TagOptions{
 		Message:     options.TagMessage,
@@ -465,14 +465,14 @@ func createTagForBranchResolved(state *mergestate.MergeState, options *config.Re
 		Sign:        options.ShouldSign,
 		SigningKey:  options.SigningKey,
 	}
-	
+
 	// Use MessageFile if specified, otherwise use Message
 	if useMessageFile {
 		gitTagOptions.Message = "" // Clear message since we're using file
 	} else {
 		gitTagOptions.MessageFile = "" // Clear file since we're using message
 	}
-	
+
 	if err := git.CreateTag(options.TagName, gitTagOptions); err != nil {
 		return &errors.GitError{Operation: fmt.Sprintf("create tag '%s'", options.TagName), Err: err}
 	}

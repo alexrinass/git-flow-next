@@ -14,7 +14,6 @@ import (
 	"github.com/gittower/git-flow-next/test/testutil"
 )
 
-
 // setupGitFlowAVH sets up git-flow-avh configuration in the test repository
 func setupGitFlowAVH(t *testing.T, dir string) {
 	// Set git-flow-avh configuration

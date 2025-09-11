@@ -32,13 +32,13 @@ func TestConfigAddBase(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		branchName     string
-		parent         string
-		upstreamStrat  string
+		name            string
+		branchName      string
+		parent          string
+		upstreamStrat   string
 		downstreamStrat string
-		autoUpdate     bool
-		expectError    bool
+		autoUpdate      bool
+		expectError     bool
 	}{
 		{"Add staging branch", "staging", "main", "merge", "merge", false, false},
 		{"Add production branch", "production", "", "none", "none", false, false},
@@ -51,7 +51,7 @@ func TestConfigAddBase(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture stderr to check for errors
 			err := captureConfigAddBase(t, tempDir, tt.branchName, tt.parent, tt.upstreamStrat, tt.downstreamStrat, tt.autoUpdate)
-			
+
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
 			}
@@ -107,15 +107,15 @@ func TestConfigAddTopic(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		branchName     string
-		parent         string
-		prefix         string
-		startingPoint  string
-		upstreamStrat  string
+		name            string
+		branchName      string
+		parent          string
+		prefix          string
+		startingPoint   string
+		upstreamStrat   string
 		downstreamStrat string
-		tag            bool
-		expectError    bool
+		tag             bool
+		expectError     bool
 	}{
 		{"Add epic branch type", "epic", "develop", "epic/", "develop", "squash", "merge", false, false},
 		{"Add experiment branch type", "experiment", "main", "exp/", "main", "merge", "none", true, false},
@@ -127,7 +127,7 @@ func TestConfigAddTopic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := captureConfigAddTopic(t, tempDir, tt.branchName, tt.parent, tt.prefix, tt.startingPoint, tt.upstreamStrat, tt.downstreamStrat, tt.tag)
-			
+
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
 			}
@@ -349,8 +349,8 @@ func TestConfigList(t *testing.T) {
 // 4. Validates that preset-specific configurations are applied correctly
 func TestPresetConfigurations(t *testing.T) {
 	tests := []struct {
-		name   string
-		preset string
+		name             string
+		preset           string
 		expectedBranches []string
 	}{
 		{"Classic GitFlow", "classic", []string{"main", "develop", "feature", "bugfix", "release", "hotfix", "support"}},
@@ -446,7 +446,7 @@ func captureConfigAddBase(t *testing.T, dir string, name, parent, upstreamStrate
 	if autoUpdate {
 		args = append(args, "--auto-update")
 	}
-	
+
 	// Run the command
 	_, err := testutil.RunGitFlow(t, dir, args...)
 	return err
@@ -470,7 +470,7 @@ func captureConfigAddTopic(t *testing.T, dir string, name, parent, prefix, start
 	if tag {
 		args = append(args, "--tag")
 	}
-	
+
 	// Run the command
 	_, err := testutil.RunGitFlow(t, dir, args...)
 	return err
@@ -479,7 +479,7 @@ func captureConfigAddTopic(t *testing.T, dir string, name, parent, prefix, start
 func captureConfigRenameBase(t *testing.T, dir string, oldName, newName string) error {
 	// Build command arguments
 	args := []string{"config", "rename", "base", oldName, newName}
-	
+
 	// Run the command
 	_, err := testutil.RunGitFlow(t, dir, args...)
 	return err
@@ -488,7 +488,7 @@ func captureConfigRenameBase(t *testing.T, dir string, oldName, newName string) 
 func captureConfigDeleteBase(t *testing.T, dir string, name string) error {
 	// Build command arguments
 	args := []string{"config", "delete", "base", name}
-	
+
 	// Run the command
 	_, err := testutil.RunGitFlow(t, dir, args...)
 	return err
@@ -506,7 +506,7 @@ func captureConfigEditBase(t *testing.T, dir string, name, upstreamStrategy, dow
 	if autoUpdate {
 		args = append(args, "--auto-update")
 	}
-	
+
 	// Run the command
 	_, err := testutil.RunGitFlow(t, dir, args...)
 	return err
@@ -515,10 +515,7 @@ func captureConfigEditBase(t *testing.T, dir string, name, upstreamStrategy, dow
 func captureConfigList(t *testing.T, dir string) (string, error) {
 	// Build command arguments
 	args := []string{"config", "list"}
-	
+
 	// Run the command
 	return testutil.RunGitFlow(t, dir, args...)
 }
-
-
-

@@ -234,7 +234,7 @@ func TestRebaseAlias(t *testing.T) {
 			if branchType == "hotfix" || branchType == "release" {
 				parentBranch = "main"
 			}
-			
+
 			testutil.RunGit(t, dir, "checkout", parentBranch)
 			testutil.WriteFile(t, dir, "parent-change.txt", "parent update")
 			testutil.RunGit(t, dir, "add", "parent-change.txt")
@@ -298,12 +298,12 @@ func TestRebaseNonTopicBranchErrorHandling(t *testing.T) {
 
 	// Test base branches - should work since executeUpdate handles them
 	baseBranches := []string{"main", "develop"}
-	
+
 	for _, branch := range baseBranches {
 		t.Run(branch, func(t *testing.T) {
 			// Execute rebase command on base branch
 			output, err := testutil.RunGitFlow(t, dir, "rebase")
-			
+
 			// Should succeed since executeUpdate handles base branches
 			assert.NoError(t, err)
 			assert.Contains(t, output, "Successfully updated branch")
@@ -314,10 +314,10 @@ func TestRebaseNonTopicBranchErrorHandling(t *testing.T) {
 	t.Run("invalid-branch", func(t *testing.T) {
 		// Create and checkout invalid branch
 		testutil.RunGit(t, dir, "checkout", "-b", "invalid/branch")
-		
+
 		// Execute rebase command
 		output, err := testutil.RunGitFlow(t, dir, "rebase")
-		
+
 		// Should fail with appropriate error
 		assert.Error(t, err)
 		assert.Contains(t, output, "unknown branch type")

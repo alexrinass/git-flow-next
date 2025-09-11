@@ -42,7 +42,7 @@ func UnsetConfigSection(pattern string) error {
 	cmd := exec.Command("git", "config", "--remove-section", pattern)
 	_, err := cmd.Output()
 	if err != nil {
-		// Don't treat "section not found" as an error  
+		// Don't treat "section not found" as an error
 		if strings.Contains(err.Error(), "exit status 128") {
 			return nil
 		}

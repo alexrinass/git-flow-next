@@ -67,7 +67,7 @@ func initFlow(useDefaults, createBranches bool, preset string, custom bool, main
 
 	// Check if any configuration options are provided
 	hasConfigFlags := mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != ""
-	
+
 	// Check if git-flow-avh config exists and no explicit options are provided
 	if config.CheckGitFlowAVHConfig() && preset == "" && !custom && !useDefaults && !hasConfigFlags {
 		fmt.Println("Found existing git-flow-avh configuration, importing...")
@@ -197,15 +197,15 @@ func createGitFlowBranches(cfg *config.Config) error {
 // interactiveInitialization prompts the user to choose initialization method
 func interactiveInitialization() *config.Config {
 	reader := bufio.NewReader(os.Stdin)
-	
+
 	fmt.Println("? Choose initialization method:")
 	fmt.Println("  1. Use preset workflow")
 	fmt.Println("  2. Custom configuration")
 	fmt.Print("Enter your choice (1-2): ")
-	
+
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
-	
+
 	switch choice {
 	case "1":
 		return interactivePresetSelection()
@@ -220,17 +220,17 @@ func interactiveInitialization() *config.Config {
 // interactivePresetSelection prompts the user to choose a preset
 func interactivePresetSelection() *config.Config {
 	reader := bufio.NewReader(os.Stdin)
-	
+
 	fmt.Println()
 	fmt.Println("? Choose a preset:")
 	fmt.Println("  1. Classic GitFlow (main, develop, feature, release, hotfix)")
 	fmt.Println("  2. GitHub Flow (main, feature)")
 	fmt.Println("  3. GitLab Flow (production, staging, main, feature, hotfix)")
 	fmt.Print("Enter your choice (1-3): ")
-	
+
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
-	
+
 	var preset config.PresetType
 	switch choice {
 	case "2":
@@ -243,15 +243,15 @@ func interactivePresetSelection() *config.Config {
 		preset = config.PresetClassic
 		fmt.Println("✓ Selected Classic GitFlow preset")
 	}
-	
+
 	cfg := config.PresetConfig(preset)
-	
+
 	// Allow customization of branch names and prefixes
 	fmt.Println()
 	fmt.Println("You can customize branch names and prefixes (press Enter for defaults):")
-	
+
 	overrides := config.ConfigOverrides{}
-	
+
 	// Customize based on preset type
 	if preset == config.PresetClassic {
 		overrides = interactiveClassicCustomization()
@@ -260,21 +260,21 @@ func interactivePresetSelection() *config.Config {
 	} else if preset == config.PresetGitLab {
 		overrides = interactiveGitLabCustomization()
 	}
-	
+
 	return config.ApplyOverrides(cfg, overrides)
 }
 
 // customConfiguration provides custom configuration flow
 func customConfiguration() *config.Config {
 	reader := bufio.NewReader(os.Stdin)
-	
+
 	fmt.Print("? What's your trunk branch (holds production code)? [main] ")
 	trunkBranch, _ := reader.ReadString('\n')
 	trunkBranch = strings.TrimSpace(trunkBranch)
 	if trunkBranch == "" {
 		trunkBranch = "main"
 	}
-	
+
 	fmt.Printf("✓ Trunk branch: %s\n", trunkBranch)
 	fmt.Println()
 	fmt.Println("Configuration commands:")
@@ -289,7 +289,7 @@ func customConfiguration() *config.Config {
 	fmt.Println("  git-flow config list")
 	fmt.Println()
 	fmt.Println("Use these commands to configure your workflow after initialization.")
-	
+
 	// Create minimal config with just the trunk branch
 	cfg := &config.Config{
 		Version:       "1.0",
@@ -305,7 +305,7 @@ func customConfiguration() *config.Config {
 			},
 		},
 	}
-	
+
 	return cfg
 }
 
