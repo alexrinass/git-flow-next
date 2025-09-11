@@ -50,7 +50,7 @@ func TestConfigAddBase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Capture stderr to check for errors
-			err := captureConfigAddBase(tt.branchName, tt.parent, tt.upstreamStrat, tt.downstreamStrat, tt.autoUpdate)
+			err := captureConfigAddBase(t, tempDir, tt.branchName, tt.parent, tt.upstreamStrat, tt.downstreamStrat, tt.autoUpdate)
 			
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -118,7 +118,7 @@ func TestConfigAddTopic(t *testing.T) {
 		expectError    bool
 	}{
 		{"Add epic branch type", "epic", "develop", "epic/", "develop", "squash", "merge", false, false},
-		{"Add support branch type", "support", "main", "support/", "main", "merge", "none", true, false},
+		{"Add experiment branch type", "experiment", "main", "exp/", "main", "merge", "none", true, false},
 		{"Add duplicate branch type", "feature", "develop", "", "", "", "", false, true},
 		{"Add with invalid parent", "test", "nonexistent", "", "", "", "", false, true},
 		{"Add with invalid starting point", "test2", "develop", "", "nonexistent", "", "", false, true},
@@ -126,7 +126,7 @@ func TestConfigAddTopic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := captureConfigAddTopic(tt.branchName, tt.parent, tt.prefix, tt.startingPoint, tt.upstreamStrat, tt.downstreamStrat, tt.tag)
+			err := captureConfigAddTopic(t, tempDir, tt.branchName, tt.parent, tt.prefix, tt.startingPoint, tt.upstreamStrat, tt.downstreamStrat, tt.tag)
 			
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -188,11 +188,10 @@ func TestConfigRenameBase(t *testing.T) {
 	}
 
 	// Rename develop to integration
-	err = captureConfigRenameBase("develop", "integration")
+	err = captureConfigRenameBase(t, tempDir, "develop", "integration")
 	if err != nil {
 		t.Fatalf("Failed to rename base branch: %v", err)
 	}
-
 	// Verify configuration was updated
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -221,14 +220,14 @@ func TestConfigRenameBase(t *testing.T) {
 
 	// Test error cases
 	t.Run("Rename nonexistent branch", func(t *testing.T) {
-		err := captureConfigRenameBase("nonexistent", "newname")
+		err := captureConfigRenameBase(t, tempDir, "nonexistent", "newname")
 		if err == nil {
 			t.Errorf("Expected error when renaming nonexistent branch")
 		}
 	})
 
 	t.Run("Rename to existing name", func(t *testing.T) {
-		err := captureConfigRenameBase("integration", "main")
+		err := captureConfigRenameBase(t, tempDir, "integration", "main")
 		if err == nil {
 			t.Errorf("Expected error when renaming to existing branch name")
 		}
@@ -258,11 +257,11 @@ func TestConfigDeleteBase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to initialize git-flow: %v", err)
 	}
-	captureConfigAddBase("staging", "main", "", "", false)
+	captureConfigAddBase(t, tempDir, "staging", "main", "", "", false)
 
 	// Try to delete main branch (should fail because develop depends on it)
 	t.Run("Delete branch with dependents", func(t *testing.T) {
-		err := captureConfigDeleteBase("main")
+		err := captureConfigDeleteBase(t, tempDir, "main")
 		if err == nil {
 			t.Errorf("Expected error when deleting branch with dependents")
 		}
@@ -270,7 +269,7 @@ func TestConfigDeleteBase(t *testing.T) {
 
 	// Delete staging branch (should succeed)
 	t.Run("Delete branch without dependents", func(t *testing.T) {
-		err := captureConfigDeleteBase("staging")
+		err := captureConfigDeleteBase(t, tempDir, "staging")
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -288,7 +287,7 @@ func TestConfigDeleteBase(t *testing.T) {
 
 	// Test error case
 	t.Run("Delete nonexistent branch", func(t *testing.T) {
-		err := captureConfigDeleteBase("nonexistent")
+		err := captureConfigDeleteBase(t, tempDir, "nonexistent")
 		if err == nil {
 			t.Errorf("Expected error when deleting nonexistent branch")
 		}
@@ -314,7 +313,7 @@ func TestConfigList(t *testing.T) {
 
 	// Test list with no configuration
 	t.Run("List uninitialized", func(t *testing.T) {
-		err := captureConfigList()
+		_, err := captureConfigList(t, tempDir)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -329,12 +328,12 @@ func TestConfigList(t *testing.T) {
 	}
 
 	// Add some custom configuration
-	captureConfigAddBase("staging", "main", "", "", false)
-	captureConfigAddTopic("epic", "develop", "epic/", "", "", "", false)
+	captureConfigAddBase(t, tempDir, "staging", "main", "", "", false)
+	captureConfigAddTopic(t, tempDir, "epic", "develop", "epic/", "", "", "", false)
 
 	// Test list with configuration
 	t.Run("List with configuration", func(t *testing.T) {
-		err := captureConfigList()
+		_, err := captureConfigList(t, tempDir)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -417,11 +416,11 @@ func TestCircularDependencyValidation(t *testing.T) {
 	}
 
 	// Add staging branch
-	captureConfigAddBase("staging", "main", "", "", false)
+	captureConfigAddBase(t, tempDir, "staging", "main", "", "", false)
 
 	// Try to make main depend on staging (should fail)
 	t.Run("Create circular dependency", func(t *testing.T) {
-		err := captureConfigEditBase("main", "", "", false)
+		err := captureConfigEditBase(t, tempDir, "main", "", "", false)
 		// This test needs to be more specific about what constitutes a circular dependency
 		// For now, just ensure the system doesn't crash
 		if err != nil {
@@ -432,66 +431,93 @@ func TestCircularDependencyValidation(t *testing.T) {
 
 // Helper functions to capture command execution without exiting
 
-func captureConfigAddBase(name, parent, upstreamStrategy, downstreamStrategy string, autoUpdate bool) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigAddBase(t *testing.T, dir string, name, parent, upstreamStrategy, downstreamStrategy string, autoUpdate bool) error {
+	// Build command arguments
+	args := []string{"config", "add", "base", name}
+	if parent != "" {
+		args = append(args, parent)
+	}
+	if upstreamStrategy != "" {
+		args = append(args, "--upstream-strategy="+upstreamStrategy)
+	}
+	if downstreamStrategy != "" {
+		args = append(args, "--downstream-strategy="+downstreamStrategy)
+	}
+	if autoUpdate {
+		args = append(args, "--auto-update")
+	}
 	
-	// This would normally call cmd.ConfigAddBaseCommand but we need to handle the os.Exit
-	// For now, we'll test the underlying functions directly
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }
 
-func captureConfigAddTopic(name, parent, prefix, startingPoint, upstreamStrategy, downstreamStrategy string, tag bool) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigAddTopic(t *testing.T, dir string, name, parent, prefix, startingPoint, upstreamStrategy, downstreamStrategy string, tag bool) error {
+	// Build command arguments
+	args := []string{"config", "add", "topic", name, parent}
+	if prefix != "" {
+		args = append(args, "--prefix="+prefix)
+	}
+	if startingPoint != "" {
+		args = append(args, "--starting-point="+startingPoint)
+	}
+	if upstreamStrategy != "" {
+		args = append(args, "--upstream-strategy="+upstreamStrategy)
+	}
+	if downstreamStrategy != "" {
+		args = append(args, "--downstream-strategy="+downstreamStrategy)
+	}
+	if tag {
+		args = append(args, "--tag")
+	}
 	
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }
 
-func captureConfigRenameBase(oldName, newName string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigRenameBase(t *testing.T, dir string, oldName, newName string) error {
+	// Build command arguments
+	args := []string{"config", "rename", "base", oldName, newName}
 	
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }
 
-func captureConfigDeleteBase(name string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigDeleteBase(t *testing.T, dir string, name string) error {
+	// Build command arguments
+	args := []string{"config", "delete", "base", name}
 	
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }
 
-func captureConfigEditBase(name, upstreamStrategy, downstreamStrategy string, autoUpdate bool) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigEditBase(t *testing.T, dir string, name, upstreamStrategy, downstreamStrategy string, autoUpdate bool) error {
+	// Build command arguments
+	args := []string{"config", "edit", "base", name}
+	if upstreamStrategy != "" {
+		args = append(args, "--upstream-strategy="+upstreamStrategy)
+	}
+	if downstreamStrategy != "" {
+		args = append(args, "--downstream-strategy="+downstreamStrategy)
+	}
+	if autoUpdate {
+		args = append(args, "--auto-update")
+	}
 	
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }
 
-func captureConfigList() error {
-	defer func() {
-		if r := recover(); r != nil {
-			// Convert panic to error for testing
-		}
-	}()
+func captureConfigList(t *testing.T, dir string) (string, error) {
+	// Build command arguments
+	args := []string{"config", "list"}
 	
-	return nil // Placeholder - real implementation would test the execute functions
+	// Run the command
+	return testutil.RunGitFlow(t, dir, args...)
 }
 
 
