@@ -3,6 +3,8 @@ package cmd_test
 import (
 	"strings"
 	"testing"
+
+	"github.com/gittower/git-flow-next/test/testutil"
 )
 
 // TestListFeatureBranches tests the listing of feature branches.
@@ -13,29 +15,29 @@ import (
 // 4. Verifies the output contains all created feature branches
 func TestListFeatureBranches(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Initialize git-flow with defaults
-	output, err := runGitFlow(t, dir, "init", "--defaults")
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
 	if err != nil {
 		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
 	}
 
 	// Create a feature branch
-	output, err = runGitFlow(t, dir, "feature", "start", "my-feature")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "my-feature")
 	if err != nil {
 		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
 	}
 
 	// Create another feature branch
-	output, err = runGitFlow(t, dir, "feature", "start", "another-feature")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "another-feature")
 	if err != nil {
 		t.Fatalf("Failed to create another feature branch: %v\nOutput: %s", err, output)
 	}
 
 	// List feature branches
-	output, err = runGitFlow(t, dir, "feature", "list")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "list")
 	if err != nil {
 		t.Fatalf("Failed to list feature branches: %v\nOutput: %s", err, output)
 	}
@@ -62,29 +64,29 @@ func TestListFeatureBranches(t *testing.T) {
 // 4. Verifies the output contains the created branches
 func TestListReleaseAndHotfixBranches(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Initialize git-flow with defaults
-	output, err := runGitFlow(t, dir, "init", "--defaults")
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
 	if err != nil {
 		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
 	}
 
 	// Create a release branch
-	output, err = runGitFlow(t, dir, "release", "start", "1.0.0")
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
 	if err != nil {
 		t.Fatalf("Failed to create release branch: %v\nOutput: %s", err, output)
 	}
 
 	// Create a hotfix branch
-	output, err = runGitFlow(t, dir, "hotfix", "start", "1.0.1")
+	output, err = testutil.RunGitFlow(t, dir, "hotfix", "start", "1.0.1")
 	if err != nil {
 		t.Fatalf("Failed to create hotfix branch: %v\nOutput: %s", err, output)
 	}
 
 	// List release branches
-	output, err = runGitFlow(t, dir, "release", "list")
+	output, err = testutil.RunGitFlow(t, dir, "release", "list")
 	if err != nil {
 		t.Fatalf("Failed to list release branches: %v\nOutput: %s", err, output)
 	}
@@ -99,7 +101,7 @@ func TestListReleaseAndHotfixBranches(t *testing.T) {
 	}
 
 	// List hotfix branches
-	output, err = runGitFlow(t, dir, "hotfix", "list")
+	output, err = testutil.RunGitFlow(t, dir, "hotfix", "list")
 	if err != nil {
 		t.Fatalf("Failed to list hotfix branches: %v\nOutput: %s", err, output)
 	}
@@ -122,24 +124,24 @@ func TestListReleaseAndHotfixBranches(t *testing.T) {
 // 4. Verifies the output contains the branch with custom prefix
 func TestListWithCustomConfig(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Initialize git-flow with custom configuration
 	input := "custom-main\ncustom-dev\nf/\nr/\nh/\ns/\n"
-	output, err := runGitFlowWithInput(t, dir, input, "init")
+	output, err := testutil.RunGitFlowWithInput(t, dir, input, "init")
 	if err != nil {
 		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
 	}
 
 	// Create a feature branch
-	output, err = runGitFlow(t, dir, "feature", "start", "my-feature")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "my-feature")
 	if err != nil {
 		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
 	}
 
 	// List feature branches
-	output, err = runGitFlow(t, dir, "feature", "list")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "list")
 	if err != nil {
 		t.Fatalf("Failed to list feature branches: %v\nOutput: %s", err, output)
 	}
@@ -161,17 +163,17 @@ func TestListWithCustomConfig(t *testing.T) {
 // 3. Verifies the output indicates no branches found
 func TestListEmptyBranches(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Initialize git-flow with defaults
-	output, err := runGitFlow(t, dir, "init", "--defaults")
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
 	if err != nil {
 		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
 	}
 
 	// List feature branches (should be empty)
-	output, err = runGitFlow(t, dir, "feature", "list")
+	output, err = testutil.RunGitFlow(t, dir, "feature", "list")
 	if err != nil {
 		t.Fatalf("Failed to list feature branches: %v\nOutput: %s", err, output)
 	}

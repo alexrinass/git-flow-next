@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/config"
+	"github.com/gittower/git-flow-next/test/testutil"
 )
 
 // TestConfigAddBase tests adding base branch configurations.
@@ -17,8 +18,8 @@ import (
 // 4. Tests error conditions like duplicate branches and invalid parents
 func TestConfigAddBase(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -88,8 +89,8 @@ func TestConfigAddBase(t *testing.T) {
 // 4. Tests error conditions like invalid parents and duplicate types
 func TestConfigAddTopic(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -165,8 +166,8 @@ func TestConfigAddTopic(t *testing.T) {
 // 5. Tests error conditions like renaming nonexistent branches
 func TestConfigRenameBase(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -233,8 +234,8 @@ func TestConfigRenameBase(t *testing.T) {
 // 5. Verifies configuration is removed but Git branch remains
 func TestConfigDeleteBase(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -289,8 +290,8 @@ func TestConfigDeleteBase(t *testing.T) {
 // 5. Verifies all branch types and hierarchies are displayed correctly
 func TestConfigList(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -343,8 +344,8 @@ func TestPresetConfigurations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test repository
-			tempDir := setupTestRepo(t)
-			defer cleanupTestRepo(t, tempDir)
+			tempDir := testutil.SetupTestRepo(t)
+			defer testutil.CleanupTestRepo(t, tempDir)
 
 			// Change to test directory
 			oldDir, _ := os.Getwd()
@@ -378,8 +379,8 @@ func TestPresetConfigurations(t *testing.T) {
 // 5. Ensures the system remains stable after validation failures
 func TestCircularDependencyValidation(t *testing.T) {
 	// Setup test repository
-	tempDir := setupTestRepo(t)
-	defer cleanupTestRepo(t, tempDir)
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
 
 	// Change to test directory
 	oldDir, _ := os.Getwd()
@@ -486,43 +487,4 @@ func runGitFlowCommand(t *testing.T, dir string, args ...string) {
 	}
 }
 
-// These functions are copied from init_test.go for consistency
 
-func setupTestRepo(t *testing.T) string {
-	// Create a temporary directory
-	tempDir, err := os.MkdirTemp("", "git-flow-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-
-	// Initialize Git repository
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to initialize Git repository: %v", err)
-	}
-
-	// Set Git user configuration for the test repository
-	cmd = exec.Command("git", "config", "user.name", "Test User")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to set Git user.name: %v", err)
-	}
-
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to set Git user.email: %v", err)
-	}
-
-	return tempDir
-}
-
-func cleanupTestRepo(t *testing.T, tempDir string) {
-	if err := os.RemoveAll(tempDir); err != nil {
-		t.Logf("Warning: Failed to cleanup test directory %s: %v", tempDir, err)
-	}
-}

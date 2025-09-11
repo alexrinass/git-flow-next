@@ -11,48 +11,9 @@ import (
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/config"
+	"github.com/gittower/git-flow-next/test/testutil"
 )
 
-// setupTestRepo creates a temporary Git repository for testing
-func setupTestRepo(t *testing.T) string {
-	// Create a temporary directory
-	tempDir, err := os.MkdirTemp("", "git-flow-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-
-	// Initialize Git repository
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to initialize Git repository: %v", err)
-	}
-
-	// Set Git user configuration for the test repository
-	cmd = exec.Command("git", "config", "user.name", "Test User")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to set Git user.name: %v", err)
-	}
-
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to set Git user.email: %v", err)
-	}
-
-	return tempDir
-}
-
-// cleanupTestRepo removes the temporary Git repository
-func cleanupTestRepo(t *testing.T, dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		t.Fatalf("Failed to remove temp directory: %v", err)
-	}
-}
 
 // setupGitFlowAVH sets up git-flow-avh configuration in the test repository
 func setupGitFlowAVH(t *testing.T, dir string) {
@@ -171,8 +132,8 @@ func branchExists(t *testing.T, dir string, branch string) bool {
 // TestInitWithDefaults tests the init command with --defaults flag
 func TestInitWithDefaults(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Run git-flow init --defaults
 	output, err := runGitFlow(t, dir, "init", "--defaults")
@@ -232,8 +193,8 @@ func TestInitWithDefaults(t *testing.T) {
 // TestInitWithAVHConfig tests the init command with existing git-flow-avh configuration
 func TestInitWithAVHConfig(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Setup git-flow-avh configuration
 	setupGitFlowAVH(t, dir)
@@ -305,8 +266,8 @@ func TestInitWithAVHConfig(t *testing.T) {
 // TestInitInteractive tests the interactive init command
 func TestInitInteractive(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Run git-flow init with input
 	input := "custom-main\ncustom-dev\nf/\nr/\nh/\ns/\n"
@@ -346,8 +307,8 @@ func TestInitInteractive(t *testing.T) {
 // TestInitWithBranchCreation tests the init command with branch creation
 func TestInitWithBranchCreation(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Run git-flow init --defaults
 	output, err := runGitFlow(t, dir, "init", "--defaults")
@@ -373,8 +334,8 @@ func TestInitWithBranchCreation(t *testing.T) {
 // TestInitInteractiveWithBranchCreation tests the init command with interactive input and branch creation
 func TestInitInteractiveWithBranchCreation(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Get the git-flow binary path
 	gitFlowPath, err := filepath.Abs(filepath.Join("..", "..", "git-flow"))
@@ -414,8 +375,8 @@ func TestInitInteractiveWithBranchCreation(t *testing.T) {
 // TestInitWithFlags tests the init command with custom branch prefixes
 func TestInitWithFlags(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Run git-flow init with custom prefixes and base branch names
 	output, err := runGitFlow(t, dir, "init",
@@ -494,8 +455,8 @@ func TestInitWithFlags(t *testing.T) {
 // TestInitWithFlagsAndBranches tests the init command with custom prefixes and branch creation
 func TestInitWithFlagsAndBranches(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Run git-flow init with custom prefixes and branch creation
 	output, err := runGitFlow(t, dir, "init",
@@ -533,8 +494,8 @@ func TestInitWithFlagsAndBranches(t *testing.T) {
 // TestInitWithDefaultsAndOverrides tests initializing with defaults but overriding specific branch configs
 func TestInitWithDefaultsAndOverrides(t *testing.T) {
 	// Setup
-	dir := setupTestRepo(t)
-	defer cleanupTestRepo(t, dir)
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
 
 	// Initialize git-flow with defaults but override specific configs
 	output, err := runGitFlow(t, dir, "init", "--defaults",
