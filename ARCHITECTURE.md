@@ -165,9 +165,11 @@ hotfix/         ← Emergency fixes
 
 | Branch Type | Default Tagging | Tag Prefix | When Tagged |
 |-------------|-----------------|------------|-------------|
-| Feature | ❌ Disabled | (none) | Never by default |
-| Release | ✅ Enabled | (none) | On finish |
-| Hotfix | ✅ Enabled | (none) | On finish |
+| Feature | ❌ Disabled | (configurable) | Never by default |
+| Bugfix | ❌ Disabled | (configurable) | Never by default |
+| Release | ✅ Enabled | v (during init) | On finish |
+| Hotfix | ✅ Enabled | v (during init) | On finish |
+| Support | ❌ Disabled | (configurable) | Never by default |
 
 #### Branch Retention (After Finish)
 

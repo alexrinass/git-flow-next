@@ -106,6 +106,8 @@ func DefaultConfig() *Config {
 				UpstreamStrategy:   string(MergeStrategyMerge),
 				DownstreamStrategy: string(MergeStrategyRebase),
 				Prefix:             "feature/",
+				Tag:                false, // Feature branches typically don't create tags by default
+				TagPrefix:          "",    // No default tag prefix
 			},
 			"bugfix": {
 				Type:               string(BranchTypeTopic),
@@ -114,6 +116,8 @@ func DefaultConfig() *Config {
 				UpstreamStrategy:   string(MergeStrategyMerge),
 				DownstreamStrategy: string(MergeStrategyRebase),
 				Prefix:             "bugfix/",
+				Tag:                false, // Bugfix branches typically don't create tags by default
+				TagPrefix:          "",    // No default tag prefix
 			},
 			"release": {
 				Type:               string(BranchTypeTopic),
@@ -123,7 +127,7 @@ func DefaultConfig() *Config {
 				DownstreamStrategy: string(MergeStrategyMerge),
 				Prefix:             "release/",
 				Tag:                true, // Enable tagging by default
-				TagPrefix:          "",   // No default prefix, will be asked during init
+				TagPrefix:          "",   // No default prefix, will be set during init
 			},
 			"hotfix": {
 				Type:               string(BranchTypeTopic),
@@ -133,7 +137,7 @@ func DefaultConfig() *Config {
 				DownstreamStrategy: string(MergeStrategyRebase),
 				Prefix:             "hotfix/",
 				Tag:                true, // Enable tagging by default
-				TagPrefix:          "",   // No default prefix, will be asked during init
+				TagPrefix:          "",   // No default prefix, will be set during init
 			},
 			"support": {
 				Type:               string(BranchTypeTopic),
@@ -142,6 +146,8 @@ func DefaultConfig() *Config {
 				UpstreamStrategy:   string(MergeStrategyNone),
 				DownstreamStrategy: string(MergeStrategyNone),
 				Prefix:             "support/",
+				Tag:                false, // Support branches typically don't create tags by default
+				TagPrefix:          "",    // No default tag prefix
 			},
 		},
 	}
