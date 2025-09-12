@@ -121,6 +121,7 @@ Adds comprehensive documentation about git-flow default branches and settings to
 - **Don't include file lists**: Git tracks files automatically
 - **Don't use hard line breaks**: Let text flow naturally in paragraphs
 - **Don't commit broken code**: Each commit should represent a working state
+- **Don't include AI attribution**: Avoid "Generated with Claude Code" or similar AI-generated footers
 
 ## Special Cases
 
