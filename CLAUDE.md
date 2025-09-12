@@ -8,6 +8,15 @@ git-flow-next is a modern Go implementation of the git-flow branching model. It'
 
 ## Development Commands
 
+### Version Updates
+
+When updating version information, ensure both locations are updated:
+
+- `version/version.go` - Core version constant used by the application
+- `cmd/version.go` - Version variable used by the version command
+
+Both files must have matching version numbers to maintain consistency.
+
 ### Building
 ```bash
 go build -o git-flow main.go              # Build local binary

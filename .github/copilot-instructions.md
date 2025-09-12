@@ -21,6 +21,13 @@ go test ./...                             # Run all tests
 ./scripts/build.sh                        # Multi-platform build
 ```
 
+### Version Updates
+When updating version information, ensure both locations are updated:
+- `version/version.go` - Core version constant used by the application
+- `cmd/version.go` - Version variable used by the version command
+
+Both files must have matching version numbers to maintain consistency.
+
 ### Command Structure (Universal Pattern)
 ```go
 // Layer 1: Cobra Command Handler
