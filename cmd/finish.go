@@ -235,16 +235,84 @@ func executeSteps(cfg *config.Config, state *mergestate.MergeState, branchConfig
 }
 
 func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
-	// For merge step continuation, check if conflicts are resolved
-	if state.CurrentStep == stepMerge {
+	// Handle continuation based on current step
+	switch state.CurrentStep {
+	case stepMerge:
+		// For merge step continuation, check if conflicts are resolved
 		if git.HasConflicts() {
 			return &errors.UnresolvedConflictsError{}
 		}
-		// Move to next step since merge conflicts are resolved
+
+		// Complete the merge/rebase operation based on strategy
+		var err error
+		switch state.MergeStrategy {
+		case strategyRebase:
+			// Continue the rebase operation
+			err = git.RebaseContinue()
+			if err != nil {
+				// Check if rebase is complete or if there are more commits to rebase
+				if strings.Contains(err.Error(), "No rebase in progress") {
+					// Rebase is already complete, proceed
+				} else if strings.Contains(err.Error(), "conflict") {
+					// More conflicts in subsequent commits
+					return &errors.UnresolvedConflictsError{}
+				} else {
+					return &errors.GitError{Operation: "continue rebase", Err: err}
+				}
+			}
+
+			// After successful rebase, checkout target and merge
+			err = git.Checkout(state.ParentBranch)
+			if err != nil {
+				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
+			}
+			// Use NoFastForward option for the final merge
+			err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			if err != nil {
+				return &errors.GitError{Operation: "merge rebased branch", Err: err}
+			}
+
+		case strategySquash:
+			// For squash merge, commit the staged changes
+			squashMessage := fmt.Sprintf("Squashed commit of branch '%s'", state.FullBranchName)
+			err = git.Commit(squashMessage)
+			if err != nil {
+				return &errors.GitError{Operation: "commit squashed changes", Err: err}
+			}
+
+		case strategyMerge:
+			// Complete the merge by committing
+			mergeMessage := fmt.Sprintf("Merge branch '%s' into %s", state.FullBranchName, state.ParentBranch)
+			err = git.Commit(mergeMessage)
+			if err != nil {
+				return &errors.GitError{Operation: "commit merge", Err: err}
+			}
+
+		default:
+			return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", state.MergeStrategy), Err: nil}
+		}
+
+		// Move to next step since merge conflicts are resolved and committed
 		state.CurrentStep = stepCreateTag
 		if err := mergestate.SaveMergeState(state); err != nil {
 			return &errors.GitError{Operation: "save merge state", Err: err}
 		}
+
+	case stepUpdateChildren:
+		// For child branch update continuation, check if conflicts are resolved
+		if git.HasConflicts() {
+			return &errors.UnresolvedConflictsError{}
+		}
+
+		// Complete the merge for the child branch update
+		mergeMessage := fmt.Sprintf("Merge branch '%s' into child branch", state.ParentBranch)
+		err := git.Commit(mergeMessage)
+		if err != nil {
+			return &errors.GitError{Operation: "commit child branch update", Err: err}
+		}
+
+		// The current branch should already be marked as updated in state
+		// Continue with the next steps
 	}
 
 	return executeSteps(cfg, state, branchConfig, resolvedOptions)
@@ -410,7 +478,9 @@ func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *confi
 	}
 
 	// Delete branches based on settings
-	if err := deleteBranchesIfNeeded(state, keepRemote, keepLocal, resolvedOptions.ForceDelete); err != nil {
+	// Use force delete since we've already merged the branch
+	forceDelete := true
+	if err := deleteBranchesIfNeeded(state, keepRemote, keepLocal, forceDelete); err != nil {
 		return err
 	}
 

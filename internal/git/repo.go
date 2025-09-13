@@ -413,6 +413,34 @@ func MergeWithOptions(branchName string, noFF bool) error {
 	return nil
 }
 
+// Commit creates a commit with the given message
+func Commit(message string) error {
+	cmd := exec.Command("git", "commit", "-m", message)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to commit: %s", string(output))
+	}
+	return nil
+}
+
+// RebaseContinue continues an ongoing rebase operation after conflicts are resolved
+func RebaseContinue() error {
+	cmd := exec.Command("git", "rebase", "--continue")
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	if err != nil {
+		if strings.Contains(outputStr, "No rebase in progress") {
+			// Not an error - rebase is already complete
+			return nil
+		}
+		if strings.Contains(outputStr, "conflict") || strings.Contains(outputStr, "CONFLICT") {
+			return fmt.Errorf("rebase conflict: %s", outputStr)
+		}
+		return fmt.Errorf("failed to continue rebase: %s", outputStr)
+	}
+	return nil
+}
+
 // MergeSquashWithMessage performs a squash merge with a custom commit message
 func MergeSquashWithMessage(branchName string, message string) error {
 	cmd := exec.Command("git", "merge", "--squash", branchName)

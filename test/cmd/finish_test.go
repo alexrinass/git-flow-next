@@ -730,13 +730,7 @@ func TestFinishWithMergeContinue(t *testing.T) {
 		t.Fatalf("Failed to add resolved file: %v", err)
 	}
 
-	// Commit the merge resolution
-	_, err = testutil.RunGit(t, dir, "commit", "-m", "Merge resolved")
-	if err != nil {
-		t.Fatalf("Failed to commit merge resolution: %v", err)
-	}
-
-	// Continue the finish operation
+	// Continue the finish operation - should complete the merge automatically
 	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--continue", "continue-test")
 	if err != nil {
 		t.Fatalf("Failed to continue finish operation: %v\nOutput: %s", err, output)
@@ -880,13 +874,7 @@ func TestFinishWithChildBranchConflict(t *testing.T) {
 		t.Fatalf("Failed to add resolved file: %v", err)
 	}
 
-	// Commit the merge resolution
-	_, err = testutil.RunGit(t, dir, "commit", "-m", "Merge resolved")
-	if err != nil {
-		t.Fatalf("Failed to commit merge resolution: %v", err)
-	}
-
-	// Continue the finish operation
+	// Continue the finish operation - should complete the merge automatically
 	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "--continue", "1.0.0")
 	if err != nil {
 		t.Fatalf("Failed to continue finish operation: %v\nOutput: %s", err, output)
@@ -1004,13 +992,7 @@ func TestFinishReleaseWithMergeContinue(t *testing.T) {
 		t.Fatalf("Failed to add resolved file: %v", err)
 	}
 
-	// Commit the merge resolution
-	_, err = testutil.RunGit(t, dir, "commit", "-m", "Merge resolved")
-	if err != nil {
-		t.Fatalf("Failed to commit merge resolution: %v", err)
-	}
-
-	// Continue the finish operation
+	// Continue the finish operation - should complete the merge automatically
 	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "--continue", "1.0.0")
 	if err != nil {
 		t.Fatalf("Failed to continue finish operation: %v\nOutput: %s", err, output)
@@ -2330,13 +2312,7 @@ func TestFinishWithConsecutiveConflicts(t *testing.T) {
 		t.Fatalf("Failed to stage resolved file: %v", err)
 	}
 
-	// Commit the resolved merge
-	_, err = testutil.RunGit(t, dir, "commit", "--no-edit")
-	if err != nil {
-		t.Fatalf("Failed to commit resolved merge: %v", err)
-	}
-
-	// Continue the finish operation - this should proceed to develop auto-update and cause second conflict
+	// Continue the finish operation - this should complete the merge and proceed to develop auto-update and cause second conflict
 	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "--continue", "v1.1.0")
 	if err == nil {
 		t.Fatal("Expected release finish --continue to fail due to develop auto-update conflict, but it succeeded")
@@ -2363,13 +2339,7 @@ func TestFinishWithConsecutiveConflicts(t *testing.T) {
 		t.Fatalf("Failed to stage resolved develop conflict: %v", err)
 	}
 
-	// Commit the resolved develop auto-update conflict
-	_, err = testutil.RunGit(t, dir, "commit", "--no-edit")
-	if err != nil {
-		t.Fatalf("Failed to commit resolved develop conflict: %v", err)
-	}
-
-	// Continue again - this should complete successfully
+	// Continue again - this should complete the merge and finish successfully
 	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "--continue", "v1.1.0")
 	if err != nil {
 		t.Fatalf("Expected release finish --continue to succeed after resolving all conflicts: %v\nOutput: %s", err, output)
