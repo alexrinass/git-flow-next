@@ -1,3 +1,49 @@
+// Package cmd implements the finish command for completing topic branches.
+//
+// FINISH COMMAND STATE MACHINE
+// =============================
+//
+// The finish command follows a strict state machine to ensure safe and consistent
+// branch completion, even in the presence of merge conflicts. The state is persisted
+// to disk to allow continuation after conflict resolution.
+//
+// State Flow:
+// 1. MERGE STATE
+//    - Creates merge state file with current step "merge"
+//    - Executes merge into parent branch using topic branch's merge strategy
+//    - On conflict: Saves state and exits for user to resolve
+//    - On success: Advances to CREATE_TAG state
+//
+// 2. CREATE_TAG STATE
+//    - Creates tag if configured (should not fail)
+//    - Advances to UPDATE_CHILDREN state
+//
+// 3. UPDATE_CHILDREN STATE
+//    - Identifies child branches with AutoUpdate=true
+//    - For each child branch:
+//      * Checks out child branch
+//      * Merges parent branch using child's downstream strategy
+//      * On conflict: Saves state (including which child) and exits
+//      * On success: Marks child as updated, continues with next
+//    - When all children updated: Advances to DELETE_BRANCH state
+//
+// 4. DELETE_BRANCH STATE
+//    - Deletes topic branch (local/remote based on settings)
+//    - Clears merge state file
+//    - Operation complete
+//
+// Conflict Resolution:
+// - User resolves conflicts manually
+// - Runs 'git flow <type> finish --continue <name>' to resume
+// - State machine continues from saved position
+// - Can abort with 'git flow <type> finish --abort <name>'
+//
+// Critical Requirements:
+// - State must ALWAYS be saved before exiting on conflicts
+// - State must accurately reflect current branch and step
+// - Child branch updates must track which child is being processed
+// - All operations must be idempotent for safe continuation
+
 package cmd
 
 import (

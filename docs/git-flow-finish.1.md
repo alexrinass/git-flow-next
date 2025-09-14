@@ -14,13 +14,13 @@ git-flow-finish - Complete and merge topic branches
 
 Complete a topic branch by merging it to its parent branch according to the configured merge strategy. This command works with any topic branch type (feature, release, hotfix, support, or custom types).
 
-The finish operation performs several steps:
-1. Merges the topic branch to its parent branch using the configured upstream strategy
-2. Optionally creates and signs tags
-3. Updates any child branches that depend on the parent
-4. Optionally deletes the topic branch (local and/or remote)
+The finish operation follows a strict state machine with these steps:
+1. **Merge**: Merges the topic branch to its parent branch using the configured upstream strategy
+2. **Create Tag**: Optionally creates and signs tags (if configured)
+3. **Update Children**: Updates any child branches that have `autoUpdate=true` using their downstream strategies
+4. **Delete Branch**: Optionally deletes the topic branch (local and/or remote)
 
-If conflicts occur during merging, the operation can be continued with **--continue** or aborted with **--abort**.
+The operation maintains a persistent state file that allows it to resume after conflicts. If conflicts occur during any merge operation (main merge or child updates), the state is saved and the operation can be continued with **--continue** or aborted with **--abort**.
 
 ## ARGUMENTS
 
@@ -250,7 +250,18 @@ For release and hotfix branches, finish typically performs dual merges:
 
 ### Child Branch Updates
 
-After merging to the parent, any child branches configured to auto-update will be updated with the new changes.
+After merging to the parent, any child branches configured with `autoUpdate=true` will be automatically updated with the new changes from their parent branch. Each child branch uses its own configured downstream strategy for receiving updates.
+
+The update process:
+1. Checks out each child branch in sequence
+2. Merges the parent branch using the child's downstream strategy
+3. If conflicts occur, saves state and prompts for resolution
+4. Continues with next child branch after successful update
+
+Only branches with `autoUpdate=true` are updated:
+```bash
+git config gitflow.branch.develop.autoUpdate true
+```
 
 ## CONFIGURATION
 
