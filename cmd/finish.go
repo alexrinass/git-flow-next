@@ -225,8 +225,8 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	// Find child base branches that need to be updated
 	childBranches := []string{}
 	for branchName, branch := range cfg.Branches {
-		if branch.Type == string(config.BranchTypeBase) && branch.Parent == targetBranch {
-			fmt.Printf("Found child base branch '%s' to update\n", branchName)
+		if branch.Type == string(config.BranchTypeBase) && branch.Parent == targetBranch && branch.AutoUpdate {
+			fmt.Printf("Found child base branch '%s' with auto-update enabled\n", branchName)
 			childBranches = append(childBranches, branchName)
 		}
 	}
