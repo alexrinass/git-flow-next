@@ -222,12 +222,15 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		return &errors.BranchNotFoundError{BranchName: targetBranch}
 	}
 
-	// Find child base branches that need to be updated
+	// Find child base branches that need to be updated and collect their strategies
 	childBranches := []string{}
+	childStrategies := make(map[string]string)
 	for branchName, branch := range cfg.Branches {
 		if branch.Type == string(config.BranchTypeBase) && branch.Parent == targetBranch && branch.AutoUpdate {
 			fmt.Printf("Found child base branch '%s' with auto-update enabled\n", branchName)
 			childBranches = append(childBranches, branchName)
+			// Store the downstream strategy for this child branch
+			childStrategies[branchName] = branch.DownstreamStrategy
 		}
 	}
 
@@ -242,6 +245,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		FullBranchName:  name,
 		ChildBranches:   childBranches,
 		UpdatedBranches: []string{},
+		ChildStrategies: childStrategies,
 	}
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
@@ -350,15 +354,79 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			return &errors.UnresolvedConflictsError{}
 		}
 
-		// Complete the merge for the child branch update
-		mergeMessage := fmt.Sprintf("Merge branch '%s' into child branch", state.ParentBranch)
-		err := git.Commit(mergeMessage)
-		if err != nil {
-			return &errors.GitError{Operation: "commit child branch update", Err: err}
+		// Determine which child branch we're updating
+		currentChild := state.CurrentChildBranch
+		if currentChild == "" {
+			// Try to determine from current branch
+			currentBranch, err := git.GetCurrentBranch()
+			if err != nil {
+				return &errors.GitError{Operation: "get current branch", Err: err}
+			}
+			currentChild = currentBranch
 		}
 
-		// The current branch should already be marked as updated in state
-		// Continue with the next steps
+		// Get the strategy for this child branch
+		strategy := ""
+		if state.ChildStrategies != nil {
+			strategy = state.ChildStrategies[currentChild]
+		}
+		if strategy == "" {
+			// Fallback: try to get from config
+			if childConfig, ok := cfg.Branches[currentChild]; ok {
+				strategy = childConfig.DownstreamStrategy
+			} else {
+				// Default to merge if we can't determine
+				strategy = "merge"
+			}
+		}
+
+		// Complete the operation based on strategy
+		var err error
+		switch strategy {
+		case "rebase":
+			// Continue the rebase operation
+			err = git.RebaseContinue()
+			if err != nil {
+				if strings.Contains(err.Error(), "No rebase in progress") {
+					// Rebase might be complete, try to proceed
+					err = nil
+				} else if strings.Contains(err.Error(), "conflict") {
+					// More conflicts in subsequent commits
+					return &errors.UnresolvedConflictsError{}
+				} else {
+					return &errors.GitError{Operation: "continue rebase for child update", Err: err}
+				}
+			}
+
+		case "squash":
+			// Commit the squashed changes
+			squashMessage := fmt.Sprintf("Update %s: squashed changes from %s",
+				currentChild, state.ParentBranch)
+			err = git.Commit(squashMessage)
+			if err != nil {
+				return &errors.GitError{Operation: "commit squashed child update", Err: err}
+			}
+
+		default: // "merge" or unknown
+			// Complete the merge
+			mergeMessage := fmt.Sprintf("Merge branch '%s' into %s",
+				state.ParentBranch, currentChild)
+			err = git.Commit(mergeMessage)
+			if err != nil {
+				return &errors.GitError{Operation: "commit child branch update", Err: err}
+			}
+		}
+
+		// Mark this child as updated if not already done
+		if !isChildUpdated(state, currentChild) {
+			state.UpdatedBranches = append(state.UpdatedBranches, currentChild)
+		}
+		state.CurrentChildBranch = "" // Clear current child
+
+		// Save state and continue
+		if err := mergestate.SaveMergeState(state); err != nil {
+			return &errors.GitError{Operation: "save merge state", Err: err}
+		}
 	}
 
 	return executeSteps(cfg, state, branchConfig, resolvedOptions)
@@ -498,8 +566,9 @@ func handleUpdateChildrenStep(cfg *config.Config, state *mergestate.MergeState, 
 		return err
 	}
 
-	// Mark this branch as updated
+	// Mark this branch as updated and clear current child
 	state.UpdatedBranches = append(state.UpdatedBranches, nextBranch)
+	state.CurrentChildBranch = "" // Clear after successful update
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
@@ -617,17 +686,34 @@ func findNextBranchToUpdate(state *mergestate.MergeState) string {
 func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.MergeState) error {
 	fmt.Printf("Updating child base branch '%s' from '%s'...\n", branchName, state.ParentBranch)
 
-	// Get merge strategy for this child branch from provided config
-	childBranchConfig, ok := cfg.Branches[branchName]
-	if !ok {
-		return &errors.GitError{Operation: fmt.Sprintf("get config for branch '%s'", branchName), Err: fmt.Errorf("branch config not found")}
+	// Track which child branch we're updating
+	state.CurrentChildBranch = branchName
+	if err := mergestate.SaveMergeState(state); err != nil {
+		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
 
-	// Use the shared update logic
-	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, childBranchConfig.DownstreamStrategy, true, state)
+	// Get strategy from saved state if available, fallback to config
+	strategy := ""
+	if state.ChildStrategies != nil {
+		strategy = state.ChildStrategies[branchName]
+	}
+
+	if strategy == "" {
+		// Fallback to current config if not in state
+		childBranchConfig, ok := cfg.Branches[branchName]
+		if !ok {
+			return &errors.GitError{Operation: fmt.Sprintf("get config for branch '%s'", branchName), Err: fmt.Errorf("branch config not found")}
+		}
+		strategy = childBranchConfig.DownstreamStrategy
+	}
+
+	// Use the shared update logic with the determined strategy
+	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, strategy, true, state)
 	if err != nil {
 		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
-			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s'. Resolve conflicts and run 'git flow %s finish --continue %s'\n", branchName, state.BranchType, state.BranchName)
+			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s' from '%s'.\n", branchName, state.ParentBranch)
+			msg += fmt.Sprintf("Strategy: %s\n", strategy)
+			msg += fmt.Sprintf("Resolve conflicts and run 'git flow %s finish --continue %s'\n", state.BranchType, state.BranchName)
 			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
 			fmt.Println(msg)
 			return err
@@ -659,4 +745,14 @@ func deleteBranchesIfNeeded(state *mergestate.MergeState, keepRemote, keepLocal,
 	}
 
 	return nil
+}
+
+// isChildUpdated checks if a child branch has already been marked as updated
+func isChildUpdated(state *mergestate.MergeState, childName string) bool {
+	for _, updated := range state.UpdatedBranches {
+		if updated == childName {
+			return true
+		}
+	}
+	return false
 }
