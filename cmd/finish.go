@@ -474,6 +474,9 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 	}
 	fmt.Printf("Switched to branch '%s'\n", state.ParentBranch)
 
+	// Update state with the resolved strategy (might be different from branch default)
+	state.MergeStrategy = resolvedOptions.MergeStrategy
+
 	// Perform merge based on resolved strategy
 	fmt.Printf("Merging using strategy: %v\n", resolvedOptions.MergeStrategy)
 	var mergeErr error
