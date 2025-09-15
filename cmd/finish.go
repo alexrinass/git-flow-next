@@ -517,8 +517,8 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 				return &errors.GitError{Operation: "save merge state", Err: err}
 			}
 
-			msg := fmt.Sprintf("Merge conflicts detected. Resolve conflicts and run 'git flow %s finish --continue %s'\n", state.BranchType, state.BranchName)
-			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
+			// Generate and print detailed conflict message
+			msg := generateConflictMessage(state, cfg, resolvedOptions)
 			fmt.Println(msg)
 			return &errors.UnresolvedConflictsError{}
 		}
@@ -714,10 +714,15 @@ func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.
 	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, strategy, true, state)
 	if err != nil {
 		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
-			msg := fmt.Sprintf("Merge conflicts detected while updating base branch '%s' from '%s'.\n", branchName, state.ParentBranch)
-			msg += fmt.Sprintf("Strategy: %s\n", strategy)
-			msg += fmt.Sprintf("Resolve conflicts and run 'git flow %s finish --continue %s'\n", state.BranchType, state.BranchName)
-			msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'", state.BranchType, state.BranchName)
+			// Get resolved options for the message (might be nil, but generateConflictMessage handles that)
+			var resolvedOptions *config.ResolvedFinishOptions
+			if cfg != nil {
+				// Try to resolve options for better tag information in message
+				resolvedOptions = config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, nil, nil, nil)
+			}
+
+			// Generate and print detailed conflict message
+			msg := generateConflictMessage(state, cfg, resolvedOptions)
 			fmt.Println(msg)
 			return err
 		}
@@ -758,4 +763,77 @@ func isChildUpdated(state *mergestate.MergeState, childName string) bool {
 		}
 	}
 	return false
+}
+
+// generateConflictMessage generates a human-readable conflict message with progress information
+func generateConflictMessage(state *mergestate.MergeState, cfg *config.Config, resolvedOptions *config.ResolvedFinishOptions) string {
+	var msg strings.Builder
+
+	// Header
+	msg.WriteString(fmt.Sprintf("Merge conflict detected while finishing %s/%s\n\n", state.BranchType, state.BranchName))
+
+	// What happened section
+	msg.WriteString("What happened:\n")
+	if state.CurrentStep == stepMerge {
+		msg.WriteString(fmt.Sprintf("  Trying to merge '%s' into '%s' using %s strategy\n", state.FullBranchName, state.ParentBranch, state.MergeStrategy))
+	} else if state.CurrentStep == stepUpdateChildren && state.CurrentChildBranch != "" {
+		msg.WriteString(fmt.Sprintf("  Successfully merged '%s' into '%s'\n", state.FullBranchName, state.ParentBranch))
+		strategy := "merge"
+		if state.ChildStrategies != nil && state.ChildStrategies[state.CurrentChildBranch] != "" {
+			strategy = state.ChildStrategies[state.CurrentChildBranch]
+		}
+		msg.WriteString(fmt.Sprintf("  Now updating '%s' from '%s' using %s strategy\n", state.CurrentChildBranch, state.ParentBranch, strategy))
+	}
+
+	// Where we are section - show all steps as natural progression
+	msg.WriteString("\nWhere we are:\n")
+	msg.WriteString("  ✓ Started finish operation\n")
+
+	// Merge step
+	if state.CurrentStep == stepMerge {
+		msg.WriteString(fmt.Sprintf("  ✗ Merge into %s (conflict here)\n", state.ParentBranch))
+	} else {
+		msg.WriteString(fmt.Sprintf("  ✓ Merged into %s\n", state.ParentBranch))
+	}
+
+	// Tag step (only show if tags will be created)
+	if state.CurrentStep == stepCreateTag || state.CurrentStep == stepUpdateChildren || state.CurrentStep == stepDeleteBranch {
+		if resolvedOptions != nil && resolvedOptions.ShouldTag {
+			msg.WriteString(fmt.Sprintf("  ✓ Created tag '%s'\n", resolvedOptions.TagName))
+		}
+	} else if resolvedOptions != nil && resolvedOptions.ShouldTag {
+		msg.WriteString(fmt.Sprintf("  ⧖ Create tag '%s'\n", resolvedOptions.TagName))
+	}
+
+	// Child branch updates - show each as individual step
+	if len(state.ChildBranches) > 0 {
+		for _, child := range state.ChildBranches {
+			isUpdated := isChildUpdated(state, child)
+			isCurrentConflict := state.CurrentStep == stepUpdateChildren && state.CurrentChildBranch == child
+
+			if isUpdated {
+				msg.WriteString(fmt.Sprintf("  ✓ Update %s from %s\n", child, state.ParentBranch))
+			} else if isCurrentConflict {
+				msg.WriteString(fmt.Sprintf("  ✗ Update %s from %s (conflict here)\n", child, state.ParentBranch))
+			} else {
+				msg.WriteString(fmt.Sprintf("  ⧖ Update %s from %s\n", child, state.ParentBranch))
+			}
+		}
+	}
+
+	// Delete branch step
+	if state.CurrentStep == stepDeleteBranch {
+		msg.WriteString(fmt.Sprintf("  ✓ Delete %s branch\n", state.BranchType))
+	} else {
+		msg.WriteString(fmt.Sprintf("  ⧖ Delete %s branch\n", state.BranchType))
+	}
+
+	// Resolution instructions
+	msg.WriteString("\nTo continue:\n")
+	msg.WriteString("  1. Resolve the conflicts in your files\n")
+	msg.WriteString("  2. Stage resolved files: git add <files>\n")
+	msg.WriteString(fmt.Sprintf("  3. Continue: git flow %s finish --continue %s\n", state.BranchType, state.BranchName))
+	msg.WriteString(fmt.Sprintf("\nTo abort: git flow %s finish --abort %s", state.BranchType, state.BranchName))
+
+	return msg.String()
 }

@@ -148,7 +148,7 @@ func TestFinishStateTracksCurrentChild(t *testing.T) {
 	output, _ = testutil.RunGitFlow(t, dir, "hotfix", "finish", "child-track")
 
 	// If we hit a conflict during child update, check the state
-	if strings.Contains(output, "Merge conflicts detected while updating") {
+	if strings.Contains(output, "Merge conflict detected") && strings.Contains(output, "Now updating") {
 		state, err := testutil.LoadMergeState(t, dir)
 		if err != nil {
 			t.Fatalf("Failed to load merge state: %v", err)
