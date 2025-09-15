@@ -898,13 +898,14 @@ func executeConfigList() error {
 		return nil
 	}
 
-	fmt.Println("Current Configuration:")
+	fmt.Println("Git-flow Configuration")
+	fmt.Println("======================")
 	fmt.Println()
 
-	// Find and display trunk branch
-	trunkBranches := []string{}
-	baseBranches := []string{}
-	topicBranches := []string{}
+	// Find and categorize branches
+	var trunkBranches []string
+	var baseBranches []string
+	var topicBranches []string
 
 	for name, branch := range cfg.Branches {
 		if branch.Type == string(config.BranchTypeBase) {
@@ -918,46 +919,78 @@ func executeConfigList() error {
 		}
 	}
 
+	// Display base branches
+	fmt.Println("Base branches:")
+	fmt.Println("--------------")
+
 	// Display trunk branches
-	if len(trunkBranches) > 0 {
-		fmt.Println("Trunk Branch:")
-		for _, name := range trunkBranches {
-			fmt.Printf("  • %s\n", name)
+	for _, name := range trunkBranches {
+		fmt.Printf("  %s → (root)\n", name)
+		fmt.Println("    Upstream: none, Downstream: none")
+		fmt.Println()
+	}
+
+	// Display child base branches
+	for _, name := range baseBranches {
+		branch := cfg.Branches[name]
+		fmt.Printf("  %s → %s\n", name, branch.Parent)
+		fmt.Printf("    Upstream: %s, Downstream: %s\n",
+			branch.UpstreamStrategy, branch.DownstreamStrategy)
+		if branch.AutoUpdate {
+			fmt.Println("    Auto-update: enabled")
 		}
 		fmt.Println()
 	}
 
-	// Display base branches
-	if len(baseBranches) > 0 {
-		fmt.Println("Base Branches:")
-		for _, name := range baseBranches {
-			branch := cfg.Branches[name]
-			fmt.Printf("  • %s (parent: %s)\n", name, branch.Parent)
-			fmt.Printf("    ↑ %s from %s, ↓ %s to %s\n",
-				branch.UpstreamStrategy, branch.Parent,
-				branch.DownstreamStrategy, branch.Parent)
-			fmt.Printf("    Auto-update: %t\n", branch.AutoUpdate)
-			fmt.Println()
-		}
-	}
-
-	// Display topic branches
+	// Display topic branch types
 	if len(topicBranches) > 0 {
-		fmt.Println("Topic Branches:")
+		fmt.Println("Topic branch types:")
+		fmt.Println("-------------------")
 		for _, name := range topicBranches {
 			branch := cfg.Branches[name]
-			fmt.Printf("  • %s (parent: %s)\n", name, branch.Parent)
-			fmt.Printf("    Prefix: %s\n", branch.Prefix)
-			fmt.Printf("    Start point: %s\n", branch.StartPoint)
-			fmt.Printf("    ↑ %s to %s, ↓ %s from %s\n",
-				branch.UpstreamStrategy, branch.Parent,
-				branch.DownstreamStrategy, branch.Parent)
+			fmt.Printf("%s:\n", name)
+			fmt.Printf("  Parent: %s\n", branch.Parent)
+
+			// Show start point if different from parent
+			if branch.StartPoint != "" && branch.StartPoint != branch.Parent {
+				fmt.Printf("  Start point: %s\n", branch.StartPoint)
+			} else {
+				fmt.Printf("  Start point: %s\n", branch.Parent)
+			}
+
+			fmt.Printf("  Prefix: %s\n", branch.Prefix)
+			fmt.Printf("  Upstream: %s, Downstream: %s\n",
+				branch.UpstreamStrategy, branch.DownstreamStrategy)
+
 			if branch.Tag {
-				fmt.Printf("    Creates tags: yes\n")
+				fmt.Println("  Creates tags: yes")
+				if branch.TagPrefix != "" {
+					fmt.Printf("  Tag prefix: %s\n", branch.TagPrefix)
+				}
+			} else {
+				fmt.Println("  Creates tags: no")
 			}
 			fmt.Println()
 		}
 	}
+
+	// Print configuration help
+	fmt.Println("──────────────────────────────────────────────────────────")
+	fmt.Println()
+	fmt.Println("Configuration commands:")
+	fmt.Println("  Add base branch:     git flow config add base <name> <parent>")
+	fmt.Println("  Add topic type:      git flow config add topic <name> <parent> --prefix <prefix>")
+	fmt.Println("  Edit base branch:    git flow config edit base <name> [options]")
+	fmt.Println("  Edit topic type:     git flow config edit topic <name> [options]")
+	fmt.Println("  Delete branch type:  git flow config delete <base|topic> <name>")
+	fmt.Println()
+	fmt.Println("Common options:")
+	fmt.Println("  --upstream-strategy <merge|rebase|squash>")
+	fmt.Println("  --downstream-strategy <merge|rebase>")
+	fmt.Println("  --auto-update        Enable auto-update for base branches")
+	fmt.Println("  --tag                Enable tag creation for topic types")
+	fmt.Println()
+	fmt.Println("For detailed help: git flow config --help")
 
 	return nil
 }

@@ -53,7 +53,80 @@ func overview() error {
 		return &errors.GitError{Operation: "load configuration", Err: err}
 	}
 
-	// Get all branches
+	// Print base branches section with condensed format
+	fmt.Println("Base branches:")
+	fmt.Println("==============")
+
+	// Find and sort base branches
+	var trunkBranches []string
+	var childBranches []string
+
+	for name, branch := range cfg.Branches {
+		if branch.Type == string(config.BranchTypeBase) {
+			if branch.Parent == "" {
+				trunkBranches = append(trunkBranches, name)
+			} else {
+				childBranches = append(childBranches, name)
+			}
+		}
+	}
+
+	// Print trunk branches
+	for _, name := range trunkBranches {
+		fmt.Printf("  %s (root)\n", name)
+	}
+
+	// Print child base branches with condensed info
+	for _, name := range childBranches {
+		branch := cfg.Branches[name]
+		fmt.Printf("  %s → %s", name, branch.Parent)
+		if branch.AutoUpdate {
+			fmt.Printf(" [auto-update]")
+		}
+		fmt.Println()
+	}
+	fmt.Println()
+
+	// Print topic branch configurations with condensed format
+	fmt.Println("Topic branch types:")
+	fmt.Println("===================")
+
+	// Collect and sort topic branches
+	var topicTypes []string
+	for name, branch := range cfg.Branches {
+		if branch.Type == string(config.BranchTypeTopic) {
+			topicTypes = append(topicTypes, name)
+		}
+	}
+
+	for _, name := range topicTypes {
+		branch := cfg.Branches[name]
+
+		// Use prefix with wildcard as title
+		fmt.Printf("%s*:\n", branch.Prefix)
+
+		// Parent (always show)
+		fmt.Printf("  Parent: %s\n", branch.Parent)
+
+		// Start point (only if different from parent)
+		if branch.StartPoint != "" && branch.StartPoint != branch.Parent {
+			fmt.Printf("  Start point: %s\n", branch.StartPoint)
+		}
+
+		// Merge strategies with directional description
+		upstreamDesc := getMergeStrategyDescription(branch.UpstreamStrategy, true)
+		downstreamDesc := getMergeStrategyDescription(branch.DownstreamStrategy, false)
+		fmt.Printf("  %s into %s, %s from %s\n", upstreamDesc, branch.Parent, downstreamDesc, branch.Parent)
+
+		// Tag creation (only if enabled)
+		if branch.Tag {
+			fmt.Println("  Creates tags on finish")
+		}
+
+		fmt.Println()
+	}
+
+	// Get all branches for active topic branches section
 	branches, err := git.ListBranches()
 	if err != nil {
 		return &errors.GitError{Operation: "list branches", Err: err}
@@ -65,92 +138,18 @@ func overview() error {
 		return &errors.GitError{Operation: "get current branch", Err: err}
 	}
 
-	// Print base branches section
-	fmt.Println("Base branches:")
-	fmt.Println("=============")
-
-	// Find base branches and sort them (develop first, then main)
-	var baseBranches []string
-	baseParentMap := make(map[string]string)
-
-	for name, branch := range cfg.Branches {
-		if branch.Type == string(config.BranchTypeBase) {
-			baseBranches = append(baseBranches, name)
-			baseParentMap[name] = branch.Parent
-		}
-	}
-
-	// Print base branches with their relationships
-	for _, name := range baseBranches {
-		parent := baseParentMap[name]
-		if parent == "" {
-			parent = "(root)"
-		}
-
-		fmt.Printf("  %s -> %s\n", name, parent)
-
-		// Add merge strategy information
-		branch := cfg.Branches[name]
-		if parent == "(root)" {
-			fmt.Println("    Upstream: none, Downstream: none")
-		} else {
-			fmt.Printf("    Upstream: %s, Downstream: %s\n",
-				branch.UpstreamStrategy,
-				branch.DownstreamStrategy)
-		}
-	}
-	fmt.Println()
-
-	// Print topic branch configurations
-	fmt.Println("Topic branch configurations:")
-	fmt.Println("==========================")
-
-	// Process topic branches
-	for name, branch := range cfg.Branches {
-		if branch.Type == string(config.BranchTypeTopic) {
-			// Get parent branch
-			parent := branch.Parent
-			if parent == "" {
-				parent = "develop" // Default parent
-			}
-
-			// Get start point
-			startPoint := branch.StartPoint
-			if startPoint == "" {
-				startPoint = parent // Default start point
-			}
-
-			// Print topic branch configuration
-			fmt.Printf("%s:\n", name)
-			fmt.Printf("    Parent: %s\n", parent)
-			fmt.Printf("    Start Point: %s\n", startPoint)
-			fmt.Printf("    Prefix: %s\n", branch.Prefix)
-
-			// Add merge strategy information based on configuration
-			fmt.Printf("    Upstream: %s, Downstream: %s\n",
-				branch.UpstreamStrategy,
-				branch.DownstreamStrategy)
-
-			// Add tag information if enabled
-			if branch.Tag && branch.TagPrefix != "" {
-				fmt.Printf("    Tag prefix: %s\n", branch.TagPrefix)
-			}
-		}
-	}
-	fmt.Println()
-
 	// Print active topic branches
 	fmt.Println("Active topic branches:")
-	fmt.Println("====================")
+	fmt.Println("======================")
 
-	// Collect all topic branches
-	var topicBranches []string
+	// Collect all active topic branches
+	var activeTopicBranches []string
 	branchTypeMap := make(map[string]string)
 
 	for _, branchName := range branches {
 		for name, branch := range cfg.Branches {
 			if branch.Type == string(config.BranchTypeTopic) && strings.HasPrefix(branchName, branch.Prefix) {
-				topicBranches = append(topicBranches, branchName)
+				activeTopicBranches = append(activeTopicBranches, branchName)
 				branchTypeMap[branchName] = name
 				break
 			}
@@ -158,8 +157,8 @@ func overview() error {
 	}
 
 	// Print active topic branches
-	if len(topicBranches) > 0 {
-		for _, branchName := range topicBranches {
+	if len(activeTopicBranches) > 0 {
+		for _, branchName := range activeTopicBranches {
 			prefix := ""
 			if branchName == currentBranch {
 				prefix = "* "
@@ -175,6 +174,29 @@ func overview() error {
 	}
 
 	return nil
+}
+
+// getMergeStrategyDescription returns a human-readable description of the merge strategy
+func getMergeStrategyDescription(strategy string, isUpstream bool) string {
+	switch strategy {
+	case "merge":
+		if isUpstream {
+			return "Merges"
+		}
+		return "Merges"
+	case "rebase":
+		if isUpstream {
+			return "Rebases onto parent then merges"
+		}
+		return "Rebases onto"
+	case "squash":
+		if isUpstream {
+			return "Squashes and merges"
+		}
+		return "Squash-merges"
+	default:
+		return strategy
+	}
 }
 
 func init() {
