@@ -8,7 +8,7 @@ import (
 
 // Version information
 var (
-	Version   = "0.1.0-rc.2"
+	Version   = "0.1.0"
 	BuildDate = "unknown"
 	GitCommit = "unknown"
 )
