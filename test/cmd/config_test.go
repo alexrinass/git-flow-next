@@ -294,6 +294,98 @@ func TestConfigDeleteBase(t *testing.T) {
 	})
 }
 
+// TestConfigDeleteTopic tests deleting topic branch type configurations.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Adds a custom topic branch type (e.g., support)
+// 3. Verifies the topic branch type was added correctly
+// 4. Deletes the topic branch type
+// 5. Verifies configuration is removed from both in-memory and git config
+func TestConfigDeleteTopic(t *testing.T) {
+	// Setup test repository
+	tempDir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, tempDir)
+
+	// Change to test directory
+	oldDir, _ := os.Getwd()
+	os.Chdir(tempDir)
+	defer os.Chdir(oldDir)
+
+	// Initialize git-flow with defaults
+	_, err := testutil.RunGitFlow(t, tempDir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Add a custom topic branch type
+	t.Run("Add experimental topic type", func(t *testing.T) {
+		err := captureConfigAddTopic(t, tempDir, "experimental", "main", "experimental/", "", "", "", true)
+		if err != nil {
+			t.Fatalf("Failed to add experimental topic type: %v", err)
+		}
+
+		// Verify it was added
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			t.Fatalf("Failed to load config: %v", err)
+		}
+
+		if _, exists := cfg.Branches["experimental"]; !exists {
+			t.Errorf("Experimental branch type was not added to configuration")
+		}
+
+		// Verify it was saved to git config
+		output, err := testutil.RunGit(t, tempDir, "config", "--get-regexp", "^gitflow\\.branch\\.experimental")
+		if err != nil {
+			t.Errorf("Experimental branch type was not saved to git config")
+		}
+		if output == "" {
+			t.Errorf("Expected git config entries for experimental branch type, got empty output")
+		}
+	})
+
+	// Delete the experimental topic type
+	t.Run("Delete experimental topic type", func(t *testing.T) {
+		err := captureConfigDeleteTopic(t, tempDir, "experimental")
+		if err != nil {
+			t.Errorf("Unexpected error deleting topic type: %v", err)
+		}
+
+		// Verify configuration was removed from in-memory config
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			t.Fatalf("Failed to load config: %v", err)
+		}
+
+		if _, exists := cfg.Branches["experimental"]; exists {
+			t.Errorf("Experimental branch type was not removed from configuration")
+		}
+
+		// Verify it was removed from git config
+		output, err := testutil.RunGit(t, tempDir, "config", "--get-regexp", "^gitflow\\.branch\\.experimental")
+		// Should return error because config doesn't exist
+		if err == nil {
+			t.Errorf("Expected error when getting deleted git config, but got none. Output: %s", output)
+		}
+	})
+
+	// Test error case - delete nonexistent topic type
+	t.Run("Delete nonexistent topic type", func(t *testing.T) {
+		err := captureConfigDeleteTopic(t, tempDir, "nonexistent")
+		if err == nil {
+			t.Errorf("Expected error when deleting nonexistent topic type")
+		}
+	})
+
+	// Test error case - try to delete a base branch as topic
+	t.Run("Delete base branch as topic", func(t *testing.T) {
+		err := captureConfigDeleteTopic(t, tempDir, "main")
+		if err == nil {
+			t.Errorf("Expected error when trying to delete base branch as topic")
+		}
+	})
+}
+
 // TestConfigList tests the configuration listing functionality.
 // Steps:
 // 1. Sets up a test repository without initialization
@@ -518,4 +610,13 @@ func captureConfigList(t *testing.T, dir string) (string, error) {
 
 	// Run the command
 	return testutil.RunGitFlow(t, dir, args...)
+}
+
+func captureConfigDeleteTopic(t *testing.T, dir string, name string) error {
+	// Build command arguments
+	args := []string{"config", "delete", "topic", name}
+
+	// Run the command
+	_, err := testutil.RunGitFlow(t, dir, args...)
+	return err
 }

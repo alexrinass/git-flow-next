@@ -863,6 +863,11 @@ func executeConfigDeleteTopic(name string) error {
 		return &errors.InvalidBranchTypeError{BranchType: branchConfig.Type}
 	}
 
+	// Remove branch config from git config
+	if err := git.UnsetConfigSection(fmt.Sprintf("gitflow.branch.%s", name)); err != nil {
+		return &errors.GitError{Operation: fmt.Sprintf("remove branch config for '%s'", name), Err: err}
+	}
+
 	// Remove from configuration
 	delete(cfg.Branches, name)
 
