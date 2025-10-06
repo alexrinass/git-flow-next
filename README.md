@@ -146,7 +146,7 @@ These commands currently show "not implemented" messages when used.
 
 ## Documentation
 
-For detailed documentation, please visit our [documentation site](https://github.com/gittower/git-flow-next/wiki).
+For detailed documentation, please visit our [documentation site](https://git-flow.sh/docs/).
 
 ### Configuration Reference
 
