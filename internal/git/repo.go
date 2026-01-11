@@ -461,3 +461,15 @@ func MergeSquashWithMessage(branchName string, message string) error {
 
 	return nil
 }
+
+// CreateTrackingBranch creates a local branch that tracks a remote branch
+func CreateTrackingBranch(localBranch, remote, remoteBranch string) error {
+	// git checkout -b <local> --track <remote>/<branch>
+	cmd := exec.Command("git", "checkout", "-b", localBranch, "--track",
+		fmt.Sprintf("%s/%s", remote, remoteBranch))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to create tracking branch: %s", string(output))
+	}
+	return nil
+}
