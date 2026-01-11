@@ -177,13 +177,8 @@ func registerBranchCommand(branchType string) {
 				Squash:         getBoolFlag(squash, noSquash),
 			}
 
-			// Create fetch options
-			fetchOptions := &config.FetchOptions{
-				Fetch: getBoolFlag(fetch, noFetch),
-			}
-
 			// Call the generic finish command with the branch type and name
-			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, fetchOptions)
+			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, getBoolFlag(fetch, noFetch))
 		},
 	}
 
