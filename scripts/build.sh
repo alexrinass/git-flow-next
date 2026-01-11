@@ -13,7 +13,10 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S')
 
 # Build flags
-BUILD_FLAGS="-X 'github.com/gittower/git-flow-next/version.BuildTime=${BUILD_TIME}' -X 'github.com/gittower/git-flow-next/version.GitCommit=${GIT_COMMIT}'"
+# -s: Strip symbol table
+# -w: Strip DWARF debug info
+# Combined with -trimpath and CGO_ENABLED=0 for minimal binary size
+BUILD_FLAGS="-s -w -X 'github.com/gittower/git-flow-next/version.BuildTime=${BUILD_TIME}' -X 'github.com/gittower/git-flow-next/version.GitCommit=${GIT_COMMIT}'"
 
 # Create build directory if it doesn't exist
 mkdir -p $BUILD_DIR
@@ -23,23 +26,23 @@ echo "Building $PACKAGE_NAME version $VERSION..."
 
 # macOS (both Intel and Apple Silicon)
 echo "Building darwin/amd64..."
-GOOS=darwin GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-amd64" main.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-amd64" main.go
 echo "Building darwin/arm64..."
-GOOS=darwin GOARCH=arm64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-arm64" main.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-darwin-arm64" main.go
 
 # Linux
 echo "Building linux/amd64..."
-GOOS=linux GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-amd64" main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-amd64" main.go
 echo "Building linux/arm64..."
-GOOS=linux GOARCH=arm64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-arm64" main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-arm64" main.go
 echo "Building linux/386..."
-GOOS=linux GOARCH=386 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-386" main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-linux-386" main.go
 
 # Windows
 echo "Building windows/amd64..."
-GOOS=windows GOARCH=amd64 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-amd64.exe" main.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-amd64.exe" main.go
 echo "Building windows/386..."
-GOOS=windows GOARCH=386 go build -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-386.exe" main.go
+CGO_ENABLED=0 GOOS=windows GOARCH=386 go build -trimpath -ldflags "${BUILD_FLAGS}" -o "$BUILD_DIR/${BINARY_NAME}-${VERSION}-windows-386.exe" main.go
 
 # Verify all binaries were created
 echo "Verifying binaries..."
