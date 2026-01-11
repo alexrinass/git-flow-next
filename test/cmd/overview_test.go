@@ -40,8 +40,8 @@ func TestOverviewWithDefaultConfig(t *testing.T) {
 		t.Errorf("Expected output to contain 'Base branches:', got: %s", output)
 	}
 
-	if !strings.Contains(output, "Topic branch configurations:") {
-		t.Errorf("Expected output to contain 'Topic branch configurations:', got: %s", output)
+	if !strings.Contains(output, "Topic branch types:") {
+		t.Errorf("Expected output to contain 'Topic branch types:', got: %s", output)
 	}
 
 	if !strings.Contains(output, "Active topic branches:") {
@@ -49,21 +49,22 @@ func TestOverviewWithDefaultConfig(t *testing.T) {
 	}
 
 	// Check if the output contains the base branches with their relationships
-	if !strings.Contains(output, "develop -> main") {
-		t.Errorf("Expected output to contain 'develop -> main', got: %s", output)
+	if !strings.Contains(output, "develop → main [auto-update]") {
+		t.Errorf("Expected output to contain 'develop → main [auto-update]', got: %s", output)
 	}
 
-	if !strings.Contains(output, "main -> (root)") {
-		t.Errorf("Expected output to contain 'main -> (root)', got: %s", output)
+	if !strings.Contains(output, "main (root)") {
+		t.Errorf("Expected output to contain 'main (root)', got: %s", output)
 	}
 
-	// Check if the output contains the merge strategy information for base branches
-	if !strings.Contains(output, "Upstream: merge, Downstream: merge") {
-		t.Errorf("Expected output to contain 'Upstream: merge, Downstream: merge', got: %s", output)
+	// Check if the output contains merge strategy descriptions
+	if !strings.Contains(output, "Merges into") {
+		t.Errorf("Expected output to contain 'Merges into' (merge strategy), got: %s", output)
 	}
 
-	if !strings.Contains(output, "Upstream: none, Downstream: none") {
-		t.Errorf("Expected output to contain 'Upstream: none, Downstream: none', got: %s", output)
+	// Check if support branch shows 'none' strategy
+	if !strings.Contains(output, "none into") || !strings.Contains(output, "none from") {
+		t.Errorf("Expected output to contain 'none into' and 'none from' for support branches, got: %s", output)
 	}
 }
 
@@ -153,29 +154,29 @@ func TestOverviewWithCustomConfig(t *testing.T) {
 	}
 
 	// Check if the output contains the custom base branches
-	if !strings.Contains(output, "custom-dev -> custom-main") {
-		t.Errorf("Expected output to contain 'custom-dev -> custom-main', got: %s", output)
+	if !strings.Contains(output, "custom-dev → custom-main [auto-update]") {
+		t.Errorf("Expected output to contain 'custom-dev → custom-main [auto-update]', got: %s", output)
 	}
 
-	if !strings.Contains(output, "custom-main -> (root)") {
-		t.Errorf("Expected output to contain 'custom-main -> (root)', got: %s", output)
+	if !strings.Contains(output, "custom-main (root)") {
+		t.Errorf("Expected output to contain 'custom-main (root)', got: %s", output)
 	}
 
-	// Check if the output contains the custom topic branch prefixes
-	if !strings.Contains(output, "Prefix: f/") {
-		t.Errorf("Expected output to contain 'Prefix: f/', got: %s", output)
+	// Check if the output contains the custom topic branch prefixes as section headers
+	if !strings.Contains(output, "f/*:") {
+		t.Errorf("Expected output to contain 'f/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "Prefix: r/") {
-		t.Errorf("Expected output to contain 'Prefix: r/', got: %s", output)
+	if !strings.Contains(output, "r/*:") {
+		t.Errorf("Expected output to contain 'r/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "Prefix: h/") {
-		t.Errorf("Expected output to contain 'Prefix: h/', got: %s", output)
+	if !strings.Contains(output, "h/*:") {
+		t.Errorf("Expected output to contain 'h/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "Prefix: s/") {
-		t.Errorf("Expected output to contain 'Prefix: s/', got: %s", output)
+	if !strings.Contains(output, "s/*:") {
+		t.Errorf("Expected output to contain 's/*:' section header, got: %s", output)
 	}
 }
 
@@ -287,39 +288,34 @@ func TestOverviewWithAVHConfig(t *testing.T) {
 		t.Errorf("Expected output to contain 'Base branches:', got: %s", output)
 	}
 
-	if !strings.Contains(output, "Topic branch configurations:") {
-		t.Errorf("Expected output to contain 'Topic branch configurations:', got: %s", output)
+	if !strings.Contains(output, "Topic branch types:") {
+		t.Errorf("Expected output to contain 'Topic branch types:', got: %s", output)
 	}
 
 	// Check if the output contains the base branches with correct relationship
-	if !strings.Contains(output, "develop -> main") {
-		t.Errorf("Expected output to contain 'develop -> main', got: %s", output)
+	if !strings.Contains(output, "develop → main [auto-update]") {
+		t.Errorf("Expected output to contain 'develop → main [auto-update]', got: %s", output)
 	}
 
-	// Check if the output contains all the branch types with correct prefixes
-	if !strings.Contains(output, "feature") || !strings.Contains(output, "Prefix: feature/") {
-		t.Errorf("Expected output to contain feature branch type with prefix 'feature/', got: %s", output)
+	// Check if the output contains all the branch types with correct prefixes as section headers
+	if !strings.Contains(output, "feature/*:") {
+		t.Errorf("Expected output to contain 'feature/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "bugfix") || !strings.Contains(output, "Prefix: bugfix/") {
-		t.Errorf("Expected output to contain bugfix branch type with prefix 'bugfix/', got: %s", output)
+	if !strings.Contains(output, "bugfix/*:") {
+		t.Errorf("Expected output to contain 'bugfix/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "release") || !strings.Contains(output, "Prefix: release/") {
-		t.Errorf("Expected output to contain release branch type with prefix 'release/', got: %s", output)
+	if !strings.Contains(output, "release/*:") {
+		t.Errorf("Expected output to contain 'release/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "hotfix") || !strings.Contains(output, "Prefix: hotfix/") {
-		t.Errorf("Expected output to contain hotfix branch type with prefix 'hotfix/', got: %s", output)
+	if !strings.Contains(output, "hotfix/*:") {
+		t.Errorf("Expected output to contain 'hotfix/*:' section header, got: %s", output)
 	}
 
-	if !strings.Contains(output, "support") || !strings.Contains(output, "Prefix: support/") {
-		t.Errorf("Expected output to contain support branch type with prefix 'support/', got: %s", output)
-	}
-
-	// Check if tag prefix is correctly displayed
-	if !strings.Contains(output, "Tag prefix: v") {
-		t.Errorf("Expected output to contain 'Tag prefix: v', got: %s", output)
+	if !strings.Contains(output, "support/*:") {
+		t.Errorf("Expected output to contain 'support/*:' section header, got: %s", output)
 	}
 
 	// Check if active feature branch is displayed
