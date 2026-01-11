@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -336,29 +335,14 @@ func TestInitInteractiveWithBranchCreation(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
 
-	// Get the git-flow binary path
-	gitFlowPath, err := filepath.Abs(filepath.Join("..", "..", "git-flow"))
-	if err != nil {
-		t.Fatalf("Failed to get absolute path to git-flow: %v", err)
-	}
+	// Interactive input for init prompts:
+	// main branch, develop branch, feature prefix, bugfix prefix, release prefix, hotfix prefix, support prefix, tag prefix
+	input := "custom-main\ncustom-dev\nfeature/\nbugfix/\nrelease/\nhotfix/\nsupport/\nv\n"
 
-	// Create script file with answers for interactive prompts
-	scriptPath := filepath.Join(dir, "init_script.txt")
-	script := "custom-main\ncustom-dev\nfeature/\nbugfix/\nrelease/\nhotfix/\nsupport/\nv\n"
-	err = os.WriteFile(scriptPath, []byte(script), 0644)
+	// Run git-flow init with interactive input
+	output, err := runGitFlowWithInput(t, dir, input, "init")
 	if err != nil {
-		t.Fatalf("Failed to write script file: %v", err)
-	}
-
-	// Run git-flow init with the script file as input
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("cat %s | %s init", scriptPath, gitFlowPath))
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		t.Fatalf("Failed to run git-flow init: %v\nOutput: %s", err, stdout.String()+stderr.String())
+		t.Fatalf("Failed to run git-flow init: %v\nOutput: %s", err, output)
 	}
 
 	// Check if the branches were actually created
