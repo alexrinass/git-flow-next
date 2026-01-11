@@ -1,12 +1,9 @@
 package cmd_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/gittower/git-flow-next/internal/config"
-	"github.com/gittower/git-flow-next/internal/git"
 	"github.com/gittower/git-flow-next/test/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,22 +18,10 @@ import (
 func TestUpdateFeatureBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with branch creation
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
 		t.Fatal(err)
-	}
-
-	// Verify git-flow is initialized
-	initialized, err := config.IsInitialized()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !initialized {
-		t.Fatal("git-flow is not initialized")
 	}
 
 	// Create a feature branch
@@ -45,7 +30,7 @@ func TestUpdateFeatureBranch(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -64,11 +49,10 @@ func TestUpdateFeatureBranch(t *testing.T) {
 	}
 
 	// Verify changes are in feature branch
-	if err := git.Checkout("feature/test-feature"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-feature"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = os.Stat("develop-change.txt")
-	assert.NoError(t, err, "develop changes should be in feature branch")
+	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"), "develop changes should be in feature branch")
 }
 
 // TestUpdateWithMergeConflict tests the behavior when updating a branch with merge conflicts.
@@ -81,22 +65,10 @@ func TestUpdateFeatureBranch(t *testing.T) {
 func TestUpdateWithMergeConflict(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with branch creation
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
 		t.Fatal(err)
-	}
-
-	// Verify git-flow is initialized
-	initialized, err := config.IsInitialized()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !initialized {
-		t.Fatal("git-flow is not initialized")
 	}
 
 	// Create a feature branch
@@ -105,7 +77,7 @@ func TestUpdateWithMergeConflict(t *testing.T) {
 	}
 
 	// Make conflicting changes in both branches
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "conflict.txt", "develop version"); err != nil {
@@ -118,7 +90,7 @@ func TestUpdateWithMergeConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := git.Checkout("feature/test-feature"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-feature"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "conflict.txt", "feature version"); err != nil {
@@ -145,22 +117,10 @@ func TestUpdateWithMergeConflict(t *testing.T) {
 func TestUpdateNonExistentBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with branch creation
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
 		t.Fatal(err)
-	}
-
-	// Verify git-flow is initialized
-	initialized, err := config.IsInitialized()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !initialized {
-		t.Fatal("git-flow is not initialized")
 	}
 
 	// Try to update non-existent branch
@@ -180,22 +140,10 @@ func TestUpdateNonExistentBranch(t *testing.T) {
 func TestUpdateCurrentBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with branch creation
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
 		t.Fatal(err)
-	}
-
-	// Verify git-flow is initialized
-	initialized, err := config.IsInitialized()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !initialized {
-		t.Fatal("git-flow is not initialized")
 	}
 
 	// Create a feature branch
@@ -204,7 +152,7 @@ func TestUpdateCurrentBranch(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -218,7 +166,7 @@ func TestUpdateCurrentBranch(t *testing.T) {
 	}
 
 	// Switch to feature branch and update without specifying branch name
-	if err := git.Checkout("feature/test-feature"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-feature"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := testutil.RunGitFlow(t, dir, "update"); err != nil {
@@ -226,8 +174,7 @@ func TestUpdateCurrentBranch(t *testing.T) {
 	}
 
 	// Verify changes are in feature branch
-	_, err = os.Stat("develop-change.txt")
-	assert.NoError(t, err, "develop changes should be in feature branch")
+	assert.True(t, testutil.FileExists(t, dir, "develop-change.txt"), "develop changes should be in feature branch")
 }
 
 // TestUpdateBaseBranch tests updating a base branch (develop) with changes from main.
@@ -240,9 +187,6 @@ func TestUpdateCurrentBranch(t *testing.T) {
 func TestUpdateBaseBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Create initial commit and rename master to main
 	if err := testutil.WriteFile(t, dir, "initial.txt", "initial content"); err != nil {
@@ -263,17 +207,8 @@ func TestUpdateBaseBranch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Verify git-flow is initialized
-	initialized, err := config.IsInitialized()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !initialized {
-		t.Fatal("git-flow is not initialized")
-	}
-
 	// Make changes in main branch
-	if err := git.Checkout("main"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "main-change.txt", "main branch change"); err != nil {
@@ -287,7 +222,7 @@ func TestUpdateBaseBranch(t *testing.T) {
 	}
 
 	// Switch to develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,12 +232,10 @@ func TestUpdateBaseBranch(t *testing.T) {
 	}
 
 	// Verify changes from main are in develop
-	_, err = os.Stat("main-change.txt")
-	assert.NoError(t, err, "main branch changes should be in develop branch")
+	assert.True(t, testutil.FileExists(t, dir, "main-change.txt"), "main branch changes should be in develop branch")
 
 	// Verify we're still on develop branch
-	currentBranch, err := git.GetCurrentBranch()
-	assert.NoError(t, err)
+	currentBranch := testutil.GetCurrentBranch(t, dir)
 	assert.Equal(t, "develop", currentBranch, "should still be on develop branch")
 }
 
@@ -311,9 +244,6 @@ func TestUpdateBaseBranch(t *testing.T) {
 func TestUpdateWithRebaseFlag(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults (feature branches use rebase by default)
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -326,7 +256,7 @@ func TestUpdateWithRebaseFlag(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -340,7 +270,7 @@ func TestUpdateWithRebaseFlag(t *testing.T) {
 	}
 
 	// Make changes in feature branch
-	if err := git.Checkout("feature/test-rebase-flag"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-rebase-flag"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "feature-change.txt", "feature change"); err != nil {
@@ -359,7 +289,7 @@ func TestUpdateWithRebaseFlag(t *testing.T) {
 	assert.Contains(t, output, "Successfully updated branch 'feature/test-rebase-flag'")
 
 	// Verify changes are in feature branch
-	if err := git.Checkout("feature/test-rebase-flag"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-rebase-flag"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -379,9 +309,6 @@ func TestUpdateWithRebaseFlag(t *testing.T) {
 func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -399,7 +326,7 @@ func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -413,7 +340,7 @@ func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 	}
 
 	// Make changes in feature branch
-	if err := git.Checkout("feature/test-rebase-override"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-rebase-override"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "feature-change.txt", "feature change"); err != nil {
@@ -432,7 +359,7 @@ func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 	assert.Contains(t, output, "Successfully updated branch 'feature/test-rebase-override'")
 
 	// Verify changes are in feature branch
-	if err := git.Checkout("feature/test-rebase-override"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-rebase-override"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -452,9 +379,6 @@ func TestUpdateWithRebaseFlagOnMergeBranch(t *testing.T) {
 func TestUpdateWithRebaseFlagAndConflict(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -467,7 +391,7 @@ func TestUpdateWithRebaseFlagAndConflict(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -481,7 +405,7 @@ func TestUpdateWithRebaseFlagAndConflict(t *testing.T) {
 	}
 
 	// Make changes in feature branch (different file to avoid conflicts)
-	if err := git.Checkout("feature/test-rebase-simple"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-rebase-simple"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "feature-change.txt", "feature change"); err != nil {
@@ -515,9 +439,6 @@ func TestUpdateWithRebaseFlagAndConflict(t *testing.T) {
 func TestUpdateWithRebaseFlagOnCurrentBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -530,7 +451,7 @@ func TestUpdateWithRebaseFlagOnCurrentBranch(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -544,7 +465,7 @@ func TestUpdateWithRebaseFlagOnCurrentBranch(t *testing.T) {
 	}
 
 	// Make changes in feature branch
-	if err := git.Checkout("feature/test-current-rebase"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/test-current-rebase"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "feature-change.txt", "feature change"); err != nil {
@@ -571,9 +492,6 @@ func TestUpdateWithRebaseFlagOnCurrentBranch(t *testing.T) {
 func TestUpdateWithRebaseFlagOnReleaseBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -586,7 +504,7 @@ func TestUpdateWithRebaseFlagOnReleaseBranch(t *testing.T) {
 	}
 
 	// Make changes in main branch
-	if err := git.Checkout("main"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "main-change.txt", "main change"); err != nil {
@@ -600,7 +518,7 @@ func TestUpdateWithRebaseFlagOnReleaseBranch(t *testing.T) {
 	}
 
 	// Make changes in release branch
-	if err := git.Checkout("release/1.0.0"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "release/1.0.0"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "release-change.txt", "release change"); err != nil {
@@ -627,9 +545,6 @@ func TestUpdateWithRebaseFlagOnReleaseBranch(t *testing.T) {
 func TestUpdateWithRebaseFlagOnHotfixBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -642,7 +557,7 @@ func TestUpdateWithRebaseFlagOnHotfixBranch(t *testing.T) {
 	}
 
 	// Make changes in main branch
-	if err := git.Checkout("main"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "main-change.txt", "main change"); err != nil {
@@ -656,7 +571,7 @@ func TestUpdateWithRebaseFlagOnHotfixBranch(t *testing.T) {
 	}
 
 	// Make changes in hotfix branch
-	if err := git.Checkout("hotfix/critical-fix"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "hotfix/critical-fix"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "hotfix-change.txt", "hotfix change"); err != nil {
@@ -684,9 +599,6 @@ func TestUpdateWithRebaseFlagOnHotfixBranch(t *testing.T) {
 func TestUpdateWithRebaseFlagInvalidBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -704,9 +616,6 @@ func TestUpdateWithRebaseFlagInvalidBranch(t *testing.T) {
 func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -714,7 +623,7 @@ func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 	}
 
 	// Make changes in main branch
-	if err := git.Checkout("main"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "main-change.txt", "main change"); err != nil {
@@ -728,7 +637,7 @@ func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 	}
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop change"); err != nil {
@@ -763,9 +672,6 @@ func TestUpdateWithRebaseFlagOnBaseBranch(t *testing.T) {
 func TestUpdateDoesNotUseStoredBaseBranch(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 
 	// Initialize git-flow with defaults
 	if _, err := testutil.RunGitFlow(t, dir, "init", "--defaults"); err != nil {
@@ -790,7 +696,7 @@ func TestUpdateDoesNotUseStoredBaseBranch(t *testing.T) {
 	assert.Equal(t, "develop", strings.TrimSpace(storedBase))
 
 	// Make changes in develop branch
-	if err := git.Checkout("develop"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "develop"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "develop-change.txt", "develop content"); err != nil {
@@ -804,7 +710,7 @@ func TestUpdateDoesNotUseStoredBaseBranch(t *testing.T) {
 	}
 
 	// Make different changes in main branch
-	if err := git.Checkout("main"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "main"); err != nil {
 		t.Fatal(err)
 	}
 	if err := testutil.WriteFile(t, dir, "main-change.txt", "main content"); err != nil {
@@ -823,7 +729,7 @@ func TestUpdateDoesNotUseStoredBaseBranch(t *testing.T) {
 	assert.Contains(t, output, "Successfully updated branch 'feature/stored-base-update'")
 
 	// Switch to feature branch to verify changes
-	if err := git.Checkout("feature/stored-base-update"); err != nil {
+	if _, err := testutil.RunGit(t, dir, "checkout", "feature/stored-base-update"); err != nil {
 		t.Fatal(err)
 	}
 

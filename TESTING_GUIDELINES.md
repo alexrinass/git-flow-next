@@ -329,15 +329,127 @@ if state.Action != "finish" {
 ## Best Practices
 
 1. **Always use testutil helpers** - Never execute Git commands directly
-2. **Include setup/cleanup** - Use defer to ensure cleanup happens
-3. **Test error conditions** - Verify failures behave correctly
-4. **Check intermediate state** - Don't just test final outcomes
-5. **Use descriptive assertions** - Include context in error messages
-6. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y
-7. **Test with remotes when relevant** - Many Git operations behave differently with remotes
-8. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
-9. **Create conflicts correctly** - Branch first, then add conflicting content (see [TEST_SCENARIOS.md](TEST_SCENARIOS.md))
-10. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
+2. **Avoid internal package imports in cmd tests** - Don't import `internal/git` or `internal/config` in command tests; use testutil functions instead (see [Working Directory Management](#working-directory-management-critical))
+3. **Include setup/cleanup** - Use defer to ensure cleanup happens
+4. **Test error conditions** - Verify failures behave correctly
+5. **Check intermediate state** - Don't just test final outcomes
+6. **Use descriptive assertions** - Include context in error messages
+7. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y
+8. **Test with remotes when relevant** - Many Git operations behave differently with remotes
+9. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
+10. **Create conflicts correctly** - Branch first, then add conflicting content (see [TEST_SCENARIOS.md](TEST_SCENARIOS.md))
+11. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
+
+## Working Directory Management (CRITICAL)
+
+**⚠️ IMPORTANT**: Test commands must run in the test repository directory, not the directory where tests are executed from.
+
+### The Problem
+
+When executing Git or git-flow commands in tests, the commands run in the **current working directory** by default. If you don't explicitly set the working directory, commands will execute in the test runner's directory (e.g., `test/cmd/`) instead of your temporary test repository. This causes:
+
+- Commands operating on the wrong repository
+- Flaky tests that depend on global state
+- Tests that pass locally but fail in CI
+- Hard-to-debug failures
+
+### The Solution: Always Use `cmd.Dir`
+
+The testutil helper functions (`RunGit`, `RunGitFlow`, `RunGitFlowWithInput`) properly set `cmd.Dir` to ensure commands execute in the correct directory:
+
+```go
+// From test/testutil/git.go - CORRECT pattern
+func RunGit(t *testing.T, dir string, args ...string) (string, error) {
+    cmd := exec.Command("git", args...)
+    cmd.Dir = dir  // ✓ Ensures command runs in test repo
+    // ...
+}
+```
+
+### ✅ CORRECT: Use testutil Functions
+
+```go
+func TestExample(t *testing.T) {
+    dir := testutil.SetupTestRepo(t)
+    defer testutil.CleanupTestRepo(t, dir)
+
+    // CORRECT: testutil.RunGit sets cmd.Dir internally
+    output, err := testutil.RunGit(t, dir, "checkout", "-b", "feature/test")
+    if err != nil {
+        t.Fatalf("Failed to create branch: %v", err)
+    }
+
+    // CORRECT: testutil.RunGitFlow also sets cmd.Dir
+    output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "test")
+    // ...
+}
+```
+
+### ❌ AVOID: Using `os.Chdir()` with Internal Functions
+
+Some tests use `os.Chdir()` to change the working directory, then call internal git functions that don't accept directory parameters. This pattern is fragile:
+
+```go
+// PROBLEMATIC: Relies on global state
+func TestExample(t *testing.T) {
+    dir := testutil.SetupTestRepo(t)
+    defer testutil.CleanupTestRepo(t, dir)
+
+    originalDir, _ := os.Getwd()
+    defer os.Chdir(originalDir)  // Must restore!
+
+    if err := os.Chdir(dir); err != nil {
+        t.Fatal(err)
+    }
+
+    // These internal functions have no dir parameter
+    // They rely on os.Chdir() having been called
+    if err := git.Checkout("develop"); err != nil {  // ⚠️ Uses current dir
+        t.Fatal(err)
+    }
+}
+```
+
+**Why this is problematic:**
+- If `os.Chdir()` fails or defer doesn't run, subsequent tests break
+- Test parallelization becomes impossible (shared global state)
+- Harder to understand which directory commands execute in
+
+### When `os.Chdir()` Is Acceptable
+
+In some cases, `os.Chdir()` is necessary because internal functions (`internal/git/repo.go`, `internal/git/config.go`) don't accept directory parameters. If you must use this pattern:
+
+1. **Always save and restore** the original directory with defer
+2. **Place defer immediately** after the `os.Chdir()` call
+3. **Document why** the pattern is necessary
+4. **Consider adding `*InDir` variants** to internal functions if this pattern repeats
+
+```go
+// If os.Chdir() is unavoidable, do it safely:
+originalDir, err := os.Getwd()
+if err != nil {
+    t.Fatalf("Failed to get working directory: %v", err)
+}
+if err := os.Chdir(dir); err != nil {
+    t.Fatalf("Failed to change to test directory: %v", err)
+}
+defer func() {
+    if err := os.Chdir(originalDir); err != nil {
+        t.Errorf("Failed to restore working directory: %v", err)
+    }
+}()
+```
+
+### Known Areas Using `os.Chdir()`
+
+The following test files currently use `os.Chdir()` because they call internal functions without directory parameters:
+
+- `test/cmd/config_test.go` - Calls `config.LoadConfig()`, etc.
+- `test/cmd/init_test.go` - Some edge case tests
+
+**Note**: Functions in `internal/git/repo.go` and `internal/git/config.go` don't accept directory parameters. If you need to call these in tests, you must use `os.Chdir()`. Consider whether a testutil helper or `*InDir` variant would be better.
+
+**Refactored**: `test/cmd/update_test.go` was refactored to use only testutil functions, eliminating the need for `os.Chdir()` and internal package imports.
 
 ## Test Implementation Anti-Patterns
 
