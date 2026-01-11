@@ -1,0 +1,314 @@
+# Git-Flow-Next Architecture Overview
+
+## Command Invocation Flow
+
+```
+main.go → cmd.Execute() → Cobra Framework
+    ↓
+cmd/root.go (rootCmd)
+    ↓
+cmd/topicbranch.go (Dynamic Registration)
+    ├─> Registers: feature, release, hotfix, support, etc.
+    └─> Each gets: start, finish, list, update, delete, rename, checkout
+```
+
+## Command Execution Steps
+
+### 1. Entry & CLI Setup (`main.go:11` → `cmd/root.go:28`)
+- Execute Cobra root command
+- Handle global flags (e.g., `--verbose`)
+
+### 2. Dynamic Command Registration (`cmd/topicbranch.go:14-42`)
+- Load git-flow configuration on init
+- Discover topic branch types from config (feature, release, hotfix, etc.)
+- Dynamically register commands for each branch type
+
+### 3. Command Parsing (`cmd/topicbranch.go:69-98`)
+- Parse subcommand (start, finish, list, update, delete, etc.)
+- Extract flags and arguments
+- Convert flag pairs (e.g., `--tag`/`--notag`) into option structs
+
+### 4. Configuration Resolution - 3-Layer Precedence (`internal/config/resolver.go`)
+```
+Branch Defaults ← Git Config ← CLI Flags
+     ↓              ↓            ↓ (highest priority)
+Default values   gitflow.*    --flag overrides
+```
+
+### 5. Validation (`cmd/start.go:31-54`)
+- Check git-flow initialization: `config.IsInitialized()`
+- Validate inputs (branch name, branch type exists)
+- Load full configuration: `config.LoadConfig()`
+
+### 6. Git Operations (`cmd/start.go:68-112`)
+- Optional: Fetch from remote (based on config/flags)
+- Check branch existence/conflicts
+- Execute git commands via `internal/git/repo.go`
+- Store metadata (e.g., base branch in git config)
+
+### 7. Error Handling (`cmd/start.go:16-25`)
+- Custom error types from `internal/errors`
+- Map to specific exit codes
+- Return to user with context
+
+**Key Pattern**: All commands follow this same flow—only the git operations in step 6 differ.
+
+---
+
+## Key Internal Modules
+
+### `internal/config/` - Configuration Management
+**Purpose**: Manages git-flow configuration (branch types, prefixes, merge strategies)
+
+**Key files:**
+- `config.go` - Main Config struct, Load/Save, branch types
+- `resolver.go` - 3-layer option resolution for finish command
+- `presets.go` - Default configurations (Classic, GitHub, GitLab)
+- `validator.go` - Validate config consistency
+
+**Key responsibilities:**
+- Load/save configuration from Git config (`gitflow.*` keys)
+- Define branch types (base vs. topic) and their relationships
+- Import git-flow-avh compatibility
+- Provide default configurations and presets
+- **Three-layer precedence resolver**: Branch defaults → Git config → CLI flags
+
+**Used by**: All commands during initialization and option resolution
+
+---
+
+### `internal/git/` - Git Operations Wrapper
+**Purpose**: Centralized Git command execution with error handling
+
+**Key files:**
+- `repo.go` - All Git commands (CreateBranch, Merge, Rebase, etc.)
+- `config.go` - Direct git config access (GetConfig, SetConfig)
+
+**Key operations:**
+- Branch management: Create, delete, rename, checkout, list
+- Merge operations: Merge, rebase, squash (with conflict detection)
+- State checks: Branch existence, conflict detection, commit history
+- Remote operations: Fetch, remote branch management
+- Tag creation with signing support
+
+**Used by**: All commands that interact with Git (executed after validation)
+
+---
+
+### `internal/errors/` - Custom Error Types
+**Purpose**: Structured error handling with specific exit codes
+
+**Error types:**
+- `NotInitializedError` (exit 1) - git-flow not initialized
+- `InvalidBranchTypeError` (exit 2) - Unknown branch type
+- `GitError` (exit 3) - Generic Git operation failure
+- `BranchExistsError` (exit 4) - Branch already exists
+- `BranchNotFoundError` (exit 5) - Required branch missing
+- Plus conflict-specific errors for merge/rebase states
+
+**Used by**: All commands to provide consistent error reporting
+
+---
+
+### `internal/mergestate/` - Merge State Persistence
+**Purpose**: Track multi-step operations (especially finish with conflicts)
+
+**State tracked:**
+- Current operation (finish) and step (merge, update_children, delete_branch)
+- Branch being operated on and its parent
+- Merge strategy in use
+- Child branches pending updates
+- Current child branch being processed
+
+**Stored in**: `.git/gitflow/state/merge.json`
+
+**Used by**: Finish command for `--continue`/`--abort` operations across conflicts
+
+---
+
+### `internal/util/` - Validation Utilities
+**Purpose**: Input validation and sanitization
+
+**Key functions:**
+- Branch name validation (Git naming rules)
+- Prefix validation (must end with `/`)
+- Character restrictions (no `..`, spaces, `.lock`, etc.)
+
+**Used by**: Commands during input validation phase
+
+---
+
+### `internal/update/` - Shared Update Logic
+**Purpose**: Common branch update functionality
+
+**Used by**: Update command and finish command (for child branch updates)
+
+---
+
+## Command Implementation
+
+### Dynamic Commands (via `cmd/topicbranch.go`)
+| File | Purpose |
+|------|---------|
+| `start.go` | Create new branch from parent/startPoint |
+| `finish.go` | Merge branch back (state machine, conflict handling) |
+| `list.go` | List branches of type |
+| `update.go` | Pull changes from parent |
+| `delete.go` | Remove branch |
+| `rename.go` | Rename branch |
+| `checkout.go` | Switch to branch |
+
+### Static Commands
+| File | Purpose |
+|------|---------|
+| `init.go` | Initialize git-flow |
+| `config.go` | Manage configuration |
+| `overview.go` | Show git-flow status |
+| `version.go` | Display version |
+| `shorthand.go` | Quick commands (work on current branch) |
+
+---
+
+## State Machine: Finish Command
+
+The finish command uses a step-based state machine for complex multi-step operations:
+
+```
+Steps: MERGE → CREATE_TAG → UPDATE_CHILDREN → DELETE_BRANCH
+```
+
+### Flow with Conflict Handling
+```
+git flow feature finish my-feature --rebase
+    ↓
+1. Resolve options (3-layer precedence)
+2. STATE: MERGE
+   → Checkout develop
+   → Rebase feature/my-feature
+   → On conflict: save state to .git/gitflow/state/merge.json, exit
+3. STATE: CREATE_TAG (if configured)
+   → Create tag with prefix
+4. STATE: UPDATE_CHILDREN
+   → Update branches with autoUpdate=true
+   → On conflict: save state (including current child), exit
+5. STATE: DELETE_BRANCH
+   → Delete local/remote (unless --keep)
+```
+
+### Continue After Conflict
+```
+git flow feature finish --continue
+    ↓
+1. Load state from .git/gitflow/state/merge.json
+2. Resume from saved step
+3. Continue state machine
+```
+
+---
+
+## Git Configuration Keys
+
+```ini
+gitflow.version                           = "1.0"
+gitflow.branch.<name>.type                = "base|topic"
+gitflow.branch.<name>.parent              = parent branch
+gitflow.branch.<name>.prefix              = "feature/"
+gitflow.branch.<name>.upstreamStrategy    = "merge|rebase|squash"
+gitflow.branch.<name>.downstreamStrategy  = "merge|rebase"
+gitflow.branch.<name>.tag                 = "true|false"
+gitflow.branch.<name>.autoUpdate          = "true|false"
+
+gitflow.<type>.start.fetch                = "true|false"
+gitflow.<type>.finish.merge               = "merge|rebase|squash"
+gitflow.<type>.finish.keep                = "true|false"
+```
+
+### Branch Types
+- **Base branches**: main, develop (persistent)
+- **Topic branches**: feature, release, hotfix, support, bugfix (temporary)
+- **Custom types**: Any via configuration
+
+---
+
+## Module Interaction Flow
+
+```
+Commands → config.ResolveFinishOptions() → Three-layer precedence resolution
+        ↓                                        ↓
+   git operations                         util.ValidateBranchName()
+        ↓                                        ↓
+   Conflict? → mergestate.SaveMergeState()     errors.*Error types
+        ↓
+   Success/Fail → Exit with appropriate code
+```
+
+---
+
+## Finding Code
+
+### To modify command behavior:
+1. Check if it's a topic command → `cmd/topicbranch.go`
+2. Find the actual implementation → `cmd/<command>.go`
+3. Check configuration resolution → `internal/config/resolver.go`
+4. Git operations → `internal/git/repo.go`
+
+### To add new functionality:
+1. New command → Add to `cmd/` and register in `root.go` or `topicbranch.go`
+2. New config option → Update `internal/config/config.go` and `resolver.go`
+3. New Git operation → Add to `internal/git/repo.go`
+4. New branch type → Configure via `gitflow.branch.<name>.*`
+
+### To debug issues:
+1. State problems → Check `.git/gitflow/state/merge.json`
+2. Config issues → `git config --get-regexp gitflow`
+3. Git operations → Trace through `internal/git/repo.go`
+4. Command flow → Start at `cmd/<command>.go`
+
+---
+
+## Key Design Patterns
+
+1. **Dynamic Command Generation**: Commands created at runtime based on config
+2. **Three-Layer Configuration**: Predictable precedence system
+3. **State Machine with Persistence**: Resume complex operations after conflicts
+4. **Centralized Git Operations**: All Git commands through single module
+5. **Configuration-Driven**: Behavior determined by git config
+6. **Error Codes**: Specific exit codes for different failure modes
+
+---
+
+## Testing Structure
+
+```
+test/
+├─ cmd/           - Command-level tests
+├─ internal/      - Unit tests for internal packages
+└─ testutil/      - Test helpers (CreateTestRepo, InitGitFlow)
+```
+
+Use `testutil.CreateTestRepo()` for integration tests with real Git operations.
+
+---
+
+## Command Examples
+
+### Start Command Flow
+```
+git flow feature start my-feature
+    ↓
+1. Load config → get feature.parent (develop)
+2. Determine startPoint → feature.startPoint or parent
+3. Fetch if configured → gitflow.feature.start.fetch
+4. Create branch → git checkout -b feature/my-feature develop
+```
+
+### Finish Command Flow
+```
+git flow feature finish my-feature
+    ↓
+1. Resolve options (defaults → config → flags)
+2. Merge feature/my-feature into develop
+3. Create tag if configured
+4. Update child branches with autoUpdate=true
+5. Delete branch (unless --keep)
+```
