@@ -135,8 +135,14 @@ func RegisterShorthandCommands() {
 				KeepLocal:   getBoolPtr(cmd, "keeplocal", "no-keeplocal"),
 				ForceDelete: getBoolPtr(cmd, "force-delete", "no-force-delete"),
 			}
-			// Create empty merge strategy options for shorthand command
-			mergeOptions := &config.MergeStrategyOptions{}
+			// Create merge strategy options with squash message support
+			mergeOptions := &config.MergeStrategyOptions{
+				Rebase:         getBoolPtr(cmd, "rebase", "no-rebase"),
+				PreserveMerges: getBoolPtr(cmd, "preserve-merges", "no-preserve-merges"),
+				NoFF:           getBoolPtr(cmd, "no-ff", "ff"),
+				Squash:         getBoolPtr(cmd, "squash", "no-squash"),
+				SquashMessage:  getStringPtrFromFlag(cmd, "squash-message"),
+			}
 			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, nil)
 		},
 	}
@@ -241,4 +247,13 @@ func getBoolPtr(cmd *cobra.Command, trueFlag, falseFlag string) *bool {
 		return &f
 	}
 	return nil
+}
+
+// getStringPtrFromFlag gets a string flag value and returns nil if empty
+func getStringPtrFromFlag(cmd *cobra.Command, flagName string) *string {
+	value := cmd.Flag(flagName).Value.String()
+	if value == "" {
+		return nil
+	}
+	return &value
 }

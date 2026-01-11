@@ -1,8 +1,6 @@
 package config
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // ResolvedFinishOptions contains all resolved configuration options for the finish command
 type ResolvedFinishOptions struct {
@@ -26,6 +24,7 @@ type ResolvedFinishOptions struct {
 	PreserveMerges bool   // Whether to preserve merges during rebase
 	NoFastForward  bool   // Whether to create merge commit for fast-forward
 	UseSquash      bool   // Whether to squash commits
+	SquashMessage  string // Custom commit message for squash merge
 
 	// Fetch options
 	ShouldFetch bool // Whether to fetch from remote before finishing
@@ -59,6 +58,7 @@ type MergeStrategyOptions struct {
 	PreserveMerges *bool   // --preserve-merges/--no-preserve-merges
 	NoFF           *bool   // --no-ff/--ff
 	Squash         *bool   // --squash/--no-squash override
+	SquashMessage  *string // --squash-message custom commit message
 }
 
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
@@ -67,6 +67,9 @@ type MergeStrategyOptions struct {
 // Layer 3: Command-line arguments (highest priority)
 func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions, fetch *bool) *ResolvedFinishOptions {
 	branchConfig := cfg.Branches[branchType]
+
+	// Compute full branch name from prefix + branchName
+	fullBranchName := branchConfig.Prefix + branchName
 
 	// Resolve merge strategy components
 	strategy, useRebase, preserveMerges, noFastForward, useSquash := resolveMergeStrategy(cfg, branchConfig, branchType, mergeOpts)
@@ -92,6 +95,7 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 		PreserveMerges: preserveMerges,
 		NoFastForward:  noFastForward,
 		UseSquash:      useSquash,
+		SquashMessage:  resolveSquashMessage(fullBranchName, mergeOpts),
 
 		// Fetch resolution
 		ShouldFetch: resolveFinishShouldFetch(cfg, branchType, fetch),
@@ -433,4 +437,17 @@ func resolveFinishShouldFetch(cfg *Config, branchType string, fetch *bool) bool 
 	}
 
 	return shouldFetch
+}
+
+// resolveSquashMessage resolves the squash commit message.
+// Unlike most finish options, this is CLI-only (no git config support) because
+// squash messages are specific to each branch being finished.
+func resolveSquashMessage(fullBranchName string, mergeOpts *MergeStrategyOptions) string {
+	// Command-line flag overrides default
+	if mergeOpts != nil && mergeOpts.SquashMessage != nil && *mergeOpts.SquashMessage != "" {
+		return *mergeOpts.SquashMessage
+	}
+
+	// Default message
+	return fmt.Sprintf("Squashed commit of branch '%s'", fullBranchName)
 }

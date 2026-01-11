@@ -27,6 +27,9 @@ type MergeState struct {
 	// Enhanced child branch tracking
 	CurrentChildBranch string            `json:"currentChildBranch,omitempty"` // The child branch currently being updated
 	ChildStrategies    map[string]string `json:"childStrategies,omitempty"`    // Merge strategies for each child branch
+
+	// Squash merge options
+	SquashMessage string `json:"squashMessage,omitempty"` // Custom commit message for squash merge
 }
 
 // SaveMergeState saves the current merge state to a file

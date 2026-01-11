@@ -109,6 +109,9 @@ The operation maintains a persistent state file that allows it to resume after c
 **--no-squash**
 : Keep individual commits (don't squash)
 
+**--squash-message** *message*
+: Custom commit message for squash merge. This is a CLI-only option with no git config equivalent, as squash messages are specific to each branch being finished.
+
 **--preserve-merges**
 : Preserve merges during rebase operations
 
@@ -234,6 +237,11 @@ git flow feature finish my-feature --no-ff
 Override configured squash with regular merge:
 ```bash
 git flow feature finish my-feature --no-squash
+```
+
+Squash with custom commit message:
+```bash
+git flow feature finish my-feature --squash --squash-message "feat: add login functionality"
 ```
 
 ### Branch Retention

@@ -297,6 +297,322 @@ func TestMergeStrategyFlagOverridesConfig(t *testing.T) {
 	}
 }
 
+// TestFinishWithSquashMessageFlag tests that the --squash-message flag customizes the commit message.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch with multiple commits
+// 3. Finishes the feature branch with --squash and --squash-message flags
+// 4. Verifies the custom commit message was used
+func TestFinishWithSquashMessageFlag(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "squash-msg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add multiple commits to feature branch
+	testutil.WriteFile(t, dir, "file1.txt", "first file")
+	_, err = testutil.RunGit(t, dir, "add", "file1.txt")
+	if err != nil {
+		t.Fatalf("Failed to add first file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add first file")
+	if err != nil {
+		t.Fatalf("Failed to commit first file: %v", err)
+	}
+
+	testutil.WriteFile(t, dir, "file2.txt", "second file")
+	_, err = testutil.RunGit(t, dir, "add", "file2.txt")
+	if err != nil {
+		t.Fatalf("Failed to add second file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add second file")
+	if err != nil {
+		t.Fatalf("Failed to commit second file: %v", err)
+	}
+
+	// Finish feature branch with custom squash message
+	customMessage := "feat: add login functionality"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "squash-msg-test", "--squash", "--squash-message", customMessage, "--keep")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify that squash strategy was used
+	if !strings.Contains(output, "Merging using strategy: squash") {
+		t.Errorf("Expected output to indicate squash strategy, got: %s", output)
+	}
+
+	// Verify the commit message in develop
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the last commit message
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", customMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestSquashMessageIgnoredWithoutSquashStrategy tests that --squash-message is ignored when not using squash strategy.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch with commits
+// 3. Finishes with --squash-message but WITHOUT --squash flag
+// 4. Verifies the commit message is NOT the custom squash message (uses merge commit message instead)
+func TestSquashMessageIgnoredWithoutSquashStrategy(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "no-squash-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Finish feature branch with squash-message but WITHOUT --squash flag (using default merge strategy)
+	ignoredMessage := "this message should be ignored"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "no-squash-test", "--squash-message", ignoredMessage, "--no-ff", "--keep")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify that merge strategy was used (not squash)
+	if strings.Contains(output, "Merging using strategy: squash") {
+		t.Errorf("Expected merge strategy, but squash was used: %s", output)
+	}
+
+	// Verify the commit message in develop is NOT the squash message
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the last commit message
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	// The commit message should be a merge commit message, NOT the squash message
+	if strings.TrimSpace(commitMsg) == ignoredMessage {
+		t.Errorf("Squash message should be ignored when not using squash strategy, but got: '%s'", commitMsg)
+	}
+
+	// It should be a merge commit message
+	if !strings.Contains(commitMsg, "Merge branch") {
+		t.Errorf("Expected merge commit message, got: '%s'", commitMsg)
+	}
+}
+
+// TestSquashMessagePreservedAfterConflict tests that --squash-message is preserved in merge state after conflict.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch with conflicting changes
+// 3. Attempts to finish with --squash --squash-message (causes conflict)
+// 4. Resolves conflict and continues WITHOUT --squash-message
+// 5. Verifies the original custom squash message was used (preserved from state)
+func TestSquashMessagePreservedAfterConflict(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create conflicting content in develop
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version\nLine 2\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Develop changes")
+
+	// Create feature with conflicting changes
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "squash-conflict")
+	if err != nil {
+		t.Fatalf("Failed to create feature: %v\nOutput: %s", err, output)
+	}
+
+	testutil.WriteFile(t, dir, "conflict.txt", "Feature version\nLine 2 modified\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Feature changes")
+
+	// Meanwhile, add more changes to develop to create conflict
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version updated\nLine 2\nLine 3 modified")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "More develop changes")
+
+	// Try to finish feature with squash (will conflict)
+	customMessage := "feat: squash merged after conflict resolution"
+	testutil.RunGit(t, dir, "checkout", "feature/squash-conflict")
+	output, _ = testutil.RunGitFlow(t, dir, "feature", "finish", "squash-conflict", "--squash", "--squash-message", customMessage)
+
+	// Verify conflict detected
+	if !strings.Contains(output, "conflict") {
+		t.Fatal("Expected merge conflict to be detected")
+	}
+
+	// Verify merge state exists with squash strategy and message
+	state, err := testutil.LoadMergeState(t, dir)
+	if err != nil || state == nil {
+		t.Fatal("Expected merge state to exist after conflict")
+	}
+
+	if state.MergeStrategy != "squash" {
+		t.Errorf("Expected MergeStrategy to be 'squash', got: %s", state.MergeStrategy)
+	}
+
+	if state.SquashMessage != customMessage {
+		t.Errorf("Expected SquashMessage in state to be '%s', got: '%s'", customMessage, state.SquashMessage)
+	}
+
+	// Resolve conflict
+	testutil.WriteFile(t, dir, "conflict.txt", "Resolved version\nLine 2 resolved\nLine 3 resolved")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+
+	// Continue finish operation WITHOUT --squash-message (should use preserved message from state)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--continue", "squash-conflict")
+	if err != nil {
+		t.Fatalf("Failed to continue finish: %v\nOutput: %s", err, output)
+	}
+
+	// Verify success
+	if !strings.Contains(output, "Successfully finished") {
+		t.Error("Expected successful finish message")
+	}
+
+	// Verify the commit message in develop uses the preserved message
+	testutil.RunGit(t, dir, "checkout", "develop")
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", customMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestSquashMessageOverrideOnContinue tests that --squash-message can be overridden on continue.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch with conflicting changes
+// 3. Attempts to finish with --squash --squash-message (causes conflict)
+// 4. Resolves conflict and continues WITH a different --squash-message
+// 5. Verifies the new message was used (overriding the preserved one)
+func TestSquashMessageOverrideOnContinue(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create conflicting content in develop
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version\nLine 2\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Develop changes")
+
+	// Create feature with conflicting changes
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "squash-override")
+	if err != nil {
+		t.Fatalf("Failed to create feature: %v\nOutput: %s", err, output)
+	}
+
+	testutil.WriteFile(t, dir, "conflict.txt", "Feature version\nLine 2 modified\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Feature changes")
+
+	// Meanwhile, add more changes to develop to create conflict
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version updated\nLine 2\nLine 3 modified")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "More develop changes")
+
+	// Try to finish feature with squash (will conflict)
+	originalMessage := "feat: original message"
+	testutil.RunGit(t, dir, "checkout", "feature/squash-override")
+	output, _ = testutil.RunGitFlow(t, dir, "feature", "finish", "squash-override", "--squash", "--squash-message", originalMessage)
+
+	// Verify conflict detected
+	if !strings.Contains(output, "conflict") {
+		t.Fatal("Expected merge conflict to be detected")
+	}
+
+	// Resolve conflict
+	testutil.WriteFile(t, dir, "conflict.txt", "Resolved version\nLine 2 resolved\nLine 3 resolved")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+
+	// Continue finish operation WITH a different --squash-message (should override)
+	overrideMessage := "feat: overridden message after conflict"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--continue", "--squash-message", overrideMessage, "squash-override")
+	if err != nil {
+		t.Fatalf("Failed to continue finish: %v\nOutput: %s", err, output)
+	}
+
+	// Verify success
+	if !strings.Contains(output, "Successfully finished") {
+		t.Error("Expected successful finish message")
+	}
+
+	// Verify the commit message in develop uses the override message
+	testutil.RunGit(t, dir, "checkout", "develop")
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != overrideMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", overrideMessage, strings.TrimSpace(commitMsg))
+	}
+
+	// Make sure it's NOT the original message
+	if strings.TrimSpace(commitMsg) == originalMessage {
+		t.Errorf("Expected override message to be used, but got original message: '%s'", commitMsg)
+	}
+}
+
 // TestMergeStrategyConfigUsedByDefault tests that branch configuration is used when no flags are provided.
 // Steps:
 // 1. Sets up a test repository and initializes git-flow with defaults

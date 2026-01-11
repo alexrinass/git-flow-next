@@ -129,7 +129,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 		if continueOp {
 			// Resolve options for continue operation
 			resolvedOptions := config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, tagOptions, retentionOptions, mergeOptions, fetch)
-			return handleContinue(cfg, state, stateBranchConfig, resolvedOptions)
+			return handleContinue(cfg, state, stateBranchConfig, resolvedOptions, mergeOptions)
 		}
 
 		return &errors.MergeInProgressError{BranchName: state.FullBranchName}
@@ -255,6 +255,9 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		}
 	}
 
+	// Resolve all options once at the beginning
+	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
+
 	// Save merge state before starting
 	state := &mergestate.MergeState{
 		Action:          "finish",
@@ -267,13 +270,11 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		ChildBranches:   childBranches,
 		UpdatedBranches: []string{},
 		ChildStrategies: childStrategies,
+		SquashMessage:   resolvedOptions.SquashMessage,
 	}
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
 	}
-
-	// Resolve all options once at the beginning
-	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
 
 	return executeSteps(cfg, state, branchConfig, resolvedOptions)
 }
@@ -305,7 +306,7 @@ func executeSteps(cfg *config.Config, state *mergestate.MergeState, branchConfig
 	}
 }
 
-func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions) error {
+func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConfig config.BranchConfig, resolvedOptions *config.ResolvedFinishOptions, mergeOptions *config.MergeStrategyOptions) error {
 	// Handle continuation based on current step
 	switch state.CurrentStep {
 	case stepMerge:
@@ -345,8 +346,12 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 
 		case strategySquash:
 			// For squash merge, commit the staged changes
-			squashMessage := fmt.Sprintf("Squashed commit of branch '%s'", state.FullBranchName)
-			err = git.Commit(squashMessage)
+			// Use CLI-provided message if given, otherwise use saved state message
+			squashMsg := state.SquashMessage
+			if mergeOptions != nil && mergeOptions.SquashMessage != nil && *mergeOptions.SquashMessage != "" {
+				squashMsg = *mergeOptions.SquashMessage
+			}
+			err = git.Commit(squashMsg)
 			if err != nil {
 				return &errors.GitError{Operation: "commit squashed changes", Err: err}
 			}
@@ -522,8 +527,7 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 		}
 	case strategySquash:
-		squashMessage := fmt.Sprintf("Squashed commit of branch '%s'", state.FullBranchName)
-		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, squashMessage)
+		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, resolvedOptions.SquashMessage)
 	case strategyMerge:
 		mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 	default:

@@ -146,6 +146,7 @@ func registerBranchCommand(branchType string) {
 			ff, _ := cmd.Flags().GetBool("ff")
 			squash, _ := cmd.Flags().GetBool("squash")
 			noSquash, _ := cmd.Flags().GetBool("no-squash")
+			squashMessage, _ := cmd.Flags().GetString("squash-message")
 
 			// Get fetch flags
 			fetch, _ := cmd.Flags().GetBool("fetch")
@@ -175,6 +176,7 @@ func registerBranchCommand(branchType string) {
 				PreserveMerges: getBoolFlag(preserveMerges, noPreserveMerges),
 				NoFF:           getBoolFlag(noFF, ff),
 				Squash:         getBoolFlag(squash, noSquash),
+				SquashMessage:  getStringPtr(squashMessage),
 			}
 
 			// Call the generic finish command with the branch type and name
@@ -359,6 +361,7 @@ func addFinishFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("ff", false, "Allow fast-forward merge when possible")
 	cmd.Flags().BoolP("squash", "S", false, "Squash all commits into single commit")
 	cmd.Flags().Bool("no-squash", false, "Keep individual commits (don't squash)")
+	cmd.Flags().String("squash-message", "", "Custom commit message for squash merge")
 
 	// Fetch Flags
 	cmd.Flags().Bool("fetch", false, "Fetch from remote before finishing")
@@ -378,4 +381,12 @@ func getBoolFlag(positive, negative bool) *bool {
 		return &falseBool
 	}
 	return nil
+}
+
+// getStringPtr converts a string to a *string, returning nil for empty strings
+func getStringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
