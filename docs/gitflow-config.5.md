@@ -331,6 +331,13 @@ The finish command supports extensive merge strategy configuration through comma
 : *Type*: boolean
 : *Default*: true
 
+### Remote Fetch Options
+
+**gitflow.*type*.finish.fetch**
+: Fetch from remote before finishing a topic branch. When enabled, performs `git fetch <remote>` to update remote tracking branches before merging the topic branch into its parent.
+: *Type*: boolean
+: *Default*: false
+
 ### Strategy Precedence
 
 1. **Command-line flags** (highest priority)

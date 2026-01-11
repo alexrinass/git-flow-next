@@ -121,6 +121,14 @@ The operation maintains a persistent state file that allows it to resume after c
 **--ff**
 : Allow fast-forward merge when possible (default)
 
+### Remote Fetch Options
+
+**--fetch**
+: Fetch from remote before finishing the branch. This ensures the latest remote changes are incorporated before merging. Overrides git config setting `gitflow.<type>.finish.fetch`.
+
+**--no-fetch**
+: Don't fetch from remote before finishing. Overrides git config setting `gitflow.<type>.finish.fetch`.
+
 ## MERGE STRATEGIES
 
 The merge strategy used when finishing follows a three-layer precedence system:
@@ -284,6 +292,9 @@ git config gitflow.<type>.finish.no-ff true
 # Tag creation overrides
 git config gitflow.<type>.finish.sign true
 git config gitflow.<type>.finish.signingkey ABC123DEF
+
+# Remote fetch options
+git config gitflow.<type>.finish.fetch true
 ```
 
 ## EXIT STATUS

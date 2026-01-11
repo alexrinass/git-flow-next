@@ -137,7 +137,9 @@ func RegisterShorthandCommands() {
 			}
 			// Create empty merge strategy options for shorthand command
 			mergeOptions := &config.MergeStrategyOptions{}
-			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions)
+			// Create empty fetch options for shorthand command
+			fetchOptions := &config.FetchOptions{}
+			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, fetchOptions)
 		},
 	}
 

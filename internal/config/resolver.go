@@ -26,6 +26,9 @@ type ResolvedFinishOptions struct {
 	PreserveMerges bool   // Whether to preserve merges during rebase
 	NoFastForward  bool   // Whether to create merge commit for fast-forward
 	UseSquash      bool   // Whether to squash commits
+
+	// Fetch options
+	ShouldFetch bool // Whether to fetch from remote before finishing
 }
 
 // TagOptions represents command-line tag options
@@ -58,11 +61,17 @@ type MergeStrategyOptions struct {
 	Squash         *bool   // --squash/--no-squash override
 }
 
+// FetchOptions represents command-line fetch options
+// Note: This should match the FetchOptions type in cmd package
+type FetchOptions struct {
+	Fetch *bool // --fetch/--no-fetch override
+}
+
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
 // Layer 1: Branch configuration defaults
 // Layer 2: Command-specific git config (gitflow.<branchtype>.finish.*)
 // Layer 3: Command-line arguments (highest priority)
-func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions) *ResolvedFinishOptions {
+func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions, fetchOpts *FetchOptions) *ResolvedFinishOptions {
 	branchConfig := cfg.Branches[branchType]
 
 	// Resolve merge strategy components
@@ -89,6 +98,9 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 		PreserveMerges: preserveMerges,
 		NoFastForward:  noFastForward,
 		UseSquash:      useSquash,
+
+		// Fetch resolution
+		ShouldFetch: resolveFinishShouldFetch(cfg, branchType, fetchOpts),
 	}
 }
 
@@ -409,4 +421,22 @@ func resolveFinishNoFF(cfg *Config, branchType string, mergeOpts *MergeStrategyO
 	}
 
 	return noFF
+}
+
+// resolveFinishShouldFetch resolves whether to fetch from remote before finishing
+func resolveFinishShouldFetch(cfg *Config, branchType string, fetchOpts *FetchOptions) bool {
+	// Layer 1: Default is not to fetch
+	shouldFetch := false
+
+	// Layer 2: Check command-specific config
+	if fetchConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.fetch", branchType)); fetchConfig {
+		shouldFetch = true
+	}
+
+	// Layer 3: Command-line flags override config
+	if fetchOpts != nil && fetchOpts.Fetch != nil {
+		shouldFetch = *fetchOpts.Fetch
+	}
+
+	return shouldFetch
 }

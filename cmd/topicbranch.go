@@ -147,6 +147,10 @@ func registerBranchCommand(branchType string) {
 			squash, _ := cmd.Flags().GetBool("squash")
 			noSquash, _ := cmd.Flags().GetBool("no-squash")
 
+			// Get fetch flags
+			fetch, _ := cmd.Flags().GetBool("fetch")
+			noFetch, _ := cmd.Flags().GetBool("no-fetch")
+
 			// Create tag options
 			tagOptions := &config.TagOptions{
 				ShouldTag:   getBoolFlag(tag, noTag),
@@ -173,8 +177,13 @@ func registerBranchCommand(branchType string) {
 				Squash:         getBoolFlag(squash, noSquash),
 			}
 
+			// Create fetch options
+			fetchOptions := &config.FetchOptions{
+				Fetch: getBoolFlag(fetch, noFetch),
+			}
+
 			// Call the generic finish command with the branch type and name
-			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions)
+			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, fetchOptions)
 		},
 	}
 
@@ -338,6 +347,10 @@ func addFinishFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("ff", false, "Allow fast-forward merge when possible")
 	cmd.Flags().BoolP("squash", "S", false, "Squash all commits into single commit")
 	cmd.Flags().Bool("no-squash", false, "Keep individual commits (don't squash)")
+
+	// Fetch Flags
+	cmd.Flags().Bool("fetch", false, "Fetch from remote before finishing")
+	cmd.Flags().Bool("no-fetch", false, "Don't fetch from remote before finishing")
 }
 
 // getBoolFlag converts two opposite boolean flags into a single *bool value
