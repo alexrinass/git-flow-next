@@ -199,3 +199,17 @@ func (e *UnresolvedConflictsError) Error() string {
 func (e *UnresolvedConflictsError) ExitCode() uint8 {
 	return 1
 }
+
+// RemoteBranchNotFoundError indicates the branch doesn't exist on the remote
+type RemoteBranchNotFoundError struct {
+	Remote     string
+	BranchName string
+}
+
+func (e *RemoteBranchNotFoundError) Error() string {
+	return fmt.Sprintf("branch '%s' not found on remote '%s'", e.BranchName, e.Remote)
+}
+
+func (e *RemoteBranchNotFoundError) ExitCode() ExitCode {
+	return ExitCodeBranchNotFound
+}

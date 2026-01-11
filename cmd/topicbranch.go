@@ -297,6 +297,23 @@ func registerBranchCommand(branchType string) {
 
 	branchCmd.AddCommand(checkoutCmd)
 
+	// Add track subcommand
+	trackCmd := &cobra.Command{
+		Use:   "track <name>",
+		Short: fmt.Sprintf("Track a remote %s branch", branchType),
+		Long: fmt.Sprintf(`Creates a local branch that tracks a remote %s branch.
+
+This is useful when you want to work on a %s branch that was
+started by someone else.`, branchType, branchType),
+		Example: fmt.Sprintf("  git flow %s track my-feature", branchType),
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			TrackCommand(branchType, args[0])
+		},
+	}
+
+	branchCmd.AddCommand(trackCmd)
+
 	// Add the branch command to the root command
 	rootCmd.AddCommand(branchCmd)
 }
