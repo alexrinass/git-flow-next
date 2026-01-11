@@ -165,6 +165,11 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 For information about the project's architecture and technical overview, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+### Testing Resources
+
+- **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - Testing conventions, patterns, and best practices
+- **[TEST_SCENARIOS.md](TEST_SCENARIOS.md)** - How to set up specific Git test scenarios (merge conflicts, local remotes, state verification)
+
 ## License
 
 This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICENSE) file for details.
