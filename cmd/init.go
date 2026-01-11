@@ -159,19 +159,47 @@ func createGitFlowBranches(cfg *config.Config) error {
 		}
 	}
 
-	// Create all base branches
+	// Collect base branches that need to be created
+	type branchToCreate struct {
+		name   string
+		parent string
+	}
+	var toCreate []branchToCreate
 	for name, branch := range cfg.Branches {
-		if branch.Type == string(config.BranchTypeBase) {
-			// Check if branch exists
-			if err := git.BranchExists(name); err != nil {
-				// Create branch
-				err = git.CreateBranch(name, branch.Parent)
-				if err != nil {
-					return &errors.GitError{Operation: fmt.Sprintf("create base branch '%s'", name), Err: err}
-				}
-				fmt.Printf("Created branch '%s'\n", name)
+		if branch.Type == string(config.BranchTypeBase) && git.BranchExists(name) != nil {
+			toCreate = append(toCreate, branchToCreate{name: name, parent: branch.Parent})
+		}
+	}
+
+	// Sort branches topologically: parents before children
+	sorted := make([]branchToCreate, 0, len(toCreate))
+	added := make(map[string]bool)
+	for len(sorted) < len(toCreate) {
+		progress := false
+		for _, b := range toCreate {
+			if added[b.name] {
+				continue
+			}
+			// Add if: no parent, parent already exists in git, or parent already in sorted list
+			parentReady := b.parent == "" || git.BranchExists(b.parent) == nil || added[b.parent]
+			if parentReady {
+				sorted = append(sorted, b)
+				added[b.name] = true
+				progress = true
 			}
 		}
+		if !progress {
+			break // Prevent infinite loop on circular dependencies
+		}
+	}
+
+	// Create branches in dependency order
+	for _, b := range sorted {
+		err := git.CreateBranch(b.name, b.parent)
+		if err != nil {
+			return &errors.GitError{Operation: fmt.Sprintf("create base branch '%s'", b.name), Err: err}
+		}
+		fmt.Printf("Created branch '%s'\n", b.name)
 	}
 
 	// Return to original branch if we had one and it still exists
