@@ -65,6 +65,9 @@ Each topic branch type supports these subcommands:
 **checkout** *name*|*prefix*
 : Switch to topic branch. See **git-flow-checkout**(1).
 
+**track** *name*
+: Create local branch tracking a remote topic branch. See **git-flow-track**(1).
+
 ### Shorthand Commands
 
 **delete** [*name*]
@@ -141,7 +144,7 @@ git flow config add topic bugfix develop --prefix=bug/
 
 ## SEE ALSO
 
-**git-flow-init**(1), **git-flow-config**(1), **git-flow-start**(1), **git-flow-finish**(1), **git-flow-update**(1), **git-flow-delete**(1), **gitflow-config**(5), **git**(1)
+**git-flow-init**(1), **git-flow-config**(1), **git-flow-start**(1), **git-flow-finish**(1), **git-flow-update**(1), **git-flow-delete**(1), **git-flow-track**(1), **gitflow-config**(5), **git**(1)
 
 ## AUTHORS
 
