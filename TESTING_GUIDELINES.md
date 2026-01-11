@@ -574,6 +574,57 @@ if state.Action != "finish" {
 
    **Key Principle**: Match test setup to test goal. If testing "X doesn't happen during continue", don't require "Y must happen initially". Keep tests focused on their stated purpose and avoid dependencies on unrelated features.
 
+## Test Execution Methods
+
+### CRITICAL: Use Test Helpers, Not Bash Piping
+
+**IMPORTANT**: When running git-flow commands that require interactive input, always use the `runGitFlowWithInput` helper function instead of bash piping.
+
+#### ❌ BAD: Using Bash Piping
+
+```go
+// BAD: Bash piping can cause flaky tests due to process isolation issues
+cmd := exec.Command("bash", "-c", fmt.Sprintf("cat %s | %s init", scriptPath, gitFlowPath))
+cmd.Dir = dir
+err = cmd.Run()
+```
+
+**Problems with bash piping:**
+1. Creates an extra shell process layer that can affect working directory inheritance
+2. May cause intermittent failures that are hard to reproduce
+3. Harder to debug when failures occur
+
+#### ✅ GOOD: Using Test Helper
+
+```go
+// GOOD: Direct stdin piping through the test helper
+input := "custom-main\ncustom-dev\nfeature/\nbugfix/\nrelease/\nhotfix/\nsupport/\nv\n"
+output, err := runGitFlowWithInput(t, dir, input, "init")
+```
+
+**Benefits:**
+1. Direct stdin connection to the git-flow process
+2. Consistent working directory handling via `cmd.Dir`
+3. Reliable and deterministic test execution
+
+### Working Directory Handling
+
+All test helper functions must set `cmd.Dir` to the test repository directory:
+
+```go
+func runGitFlow(t *testing.T, dir string, args ...string) (string, error) {
+    gitFlowPath, _ := filepath.Abs(filepath.Join("..", "..", "git-flow"))
+    cmd := exec.Command(gitFlowPath, args...)
+    cmd.Dir = dir  // CRITICAL: Always set working directory
+    // ...
+}
+```
+
+**Why this matters:**
+- Git commands run by the git-flow binary inherit the working directory
+- Without proper `cmd.Dir` setting, commands may run in the wrong repository
+- This can cause tests to pass locally but fail in CI, or vice versa
+
 ## Debugging Test Failures
 
 When tests fail, follow this systematic approach:
@@ -583,3 +634,4 @@ When tests fail, follow this systematic approach:
 3. **Inspect Git State** - Use `.git/` directory contents to understand actual repository state
 4. **Test Configuration Persistence** - Verify that config changes are actually saved and old entries removed
 5. **Check Command Flag Logic** - Ensure flag detection properly influences command behavior
+6. **Verify Test Execution Method** - Ensure tests use `runGitFlowWithInput` instead of bash piping for interactive commands
