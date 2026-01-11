@@ -3,7 +3,7 @@ package version
 // Version information
 const (
 	// Version is the current version of git-flow-next
-	Version = "0.1.1"
+	Version = "0.2.0"
 
 	// BuildTime will be injected during build
 	BuildTime = ""
