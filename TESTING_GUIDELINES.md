@@ -453,10 +453,11 @@ if state.Action != "finish" {
 3. **Test error conditions** - Verify failures behave correctly
 4. **Check intermediate state** - Don't just test final outcomes
 5. **Use descriptive assertions** - Include context in error messages
-6. **Test with remotes when relevant** - Many Git operations behave differently with remotes
-7. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
-8. **Create conflicts correctly** - Branch first, then add conflicting content (see conflict generation guidelines above)
-9. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
+6. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y. Understand execution flow (e.g., fetch → merge → continue) and ensure early stages won't fail and prevent testing the target behavior
+7. **Test with remotes when relevant** - Many Git operations behave differently with remotes
+8. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
+9. **Create conflicts correctly** - Branch first, then add conflicting content (see conflict generation guidelines above)
+10. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
 
 ## Test Implementation Anti-Patterns
 
@@ -494,6 +495,27 @@ if state.Action != "finish" {
    }
    ```
 
+4. **Testing Multiple Behaviors with Fragile Dependencies**:
+   ```go
+   // BAD: Test fails if fetch errors, even though it's testing continue behavior
+   // TestFinishContinueDoesNotFetch - but tries to test fetch too!
+
+   // This will fail fatally if no remote exists
+   output, _ := RunGitFlow(t, dir, "feature", "finish", "test", "--fetch")
+
+   // Never reaches here because fetch failed and aborted before merge
+   if !strings.Contains(output, "conflict") {
+       t.Error("Expected conflict") // Test fails for wrong reason
+   }
+
+   // Continue never runs because no merge state was created
+   RunGitFlow(t, dir, "feature", "finish", "--continue") // Error: no merge in progress
+   ```
+
+   **Problem**: The test name says "ContinueDoesNotFetch" but setup requires fetch to succeed. If fetch fails (no remote), the merge never starts, and continue can't be tested. The test fails for the wrong reason.
+
+   **Root Cause**: Testing two behaviors (fetch + continue) when only one is needed. Understand execution flow: fetch → merge → continue. If fetch fails, later stages never execute.
+
 ### ✅ Correct Implementations
 
 1. **Proper Helper Functions**:
@@ -525,6 +547,32 @@ if state.Action != "finish" {
        t.Error("Expected rebase conflict state")
    }
    ```
+
+4. **Focused Test Isolation**:
+   ```go
+   // GOOD: Test only what the test name promises
+   // TestFinishContinueDoesNotFetch - tests ONLY that continue doesn't fetch
+
+   // Finish without fetch to create conflict (simple setup)
+   output, _ := RunGitFlow(t, dir, "feature", "finish", "test")
+
+   // Verify conflict occurred
+   if !strings.Contains(output, "conflict") {
+       t.Error("Expected conflict")
+   }
+
+   // Resolve conflict
+   WriteFile(t, dir, "conflict.txt", "resolved")
+   RunGit(t, dir, "add", "conflict.txt")
+
+   // Continue and verify NO fetch happens
+   continueOutput, _ := RunGitFlow(t, dir, "feature", "finish", "--continue")
+   if strings.Contains(continueOutput, "Fetching") {
+       t.Error("Continue should not fetch") // Tests exactly one behavior
+   }
+   ```
+
+   **Key Principle**: Match test setup to test goal. If testing "X doesn't happen during continue", don't require "Y must happen initially". Keep tests focused on their stated purpose and avoid dependencies on unrelated features.
 
 ## Debugging Test Failures
 
