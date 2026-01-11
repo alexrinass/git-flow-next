@@ -36,6 +36,27 @@ jobs:
       - name: Build binaries
         run: ./scripts/build.sh ${GITHUB_REF#refs/tags/}
 
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Extracting release notes for version $VERSION"
+
+          # Extract content between this version and the next version header
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          # Handle multi-line output for GitHub Actions
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -46,13 +67,15 @@ jobs:
             dist/*-checksums.txt
           draft: false
           prerelease: ${{ steps.check_preview.outputs.is_preview }}
-          generate_release_notes: true
+          generate_release_notes: false
           body: |
             ${{ steps.check_preview.outputs.is_preview && '⚠️ This is a preview release and may not be stable.' || '' }}
-            
+
+            ${{ steps.changelog.outputs.notes }}
+
             ## Installation
             See the [installation instructions](https://github.com/gittower/git-flow-next#installation) in the README.
-            
+
             ## Checksums
             SHA-256 checksums for the release artifacts are available in the checksums.txt file.
         env:
