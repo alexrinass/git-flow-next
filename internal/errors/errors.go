@@ -94,6 +94,33 @@ func (e *BranchNotFoundError) ExitCode() ExitCode {
 	return ExitCodeBranchNotFound
 }
 
+// LocalBranchNotFoundError indicates a local branch does not exist
+type LocalBranchNotFoundError struct {
+	BranchName string
+}
+
+func (e *LocalBranchNotFoundError) Error() string {
+	return fmt.Sprintf("local branch '%s' does not exist", e.BranchName)
+}
+
+func (e *LocalBranchNotFoundError) ExitCode() ExitCode {
+	return ExitCodeBranchNotFound
+}
+
+// RemoteBranchExistsError indicates a branch already exists on the remote
+type RemoteBranchExistsError struct {
+	Remote     string
+	BranchName string
+}
+
+func (e *RemoteBranchExistsError) Error() string {
+	return fmt.Sprintf("branch '%s' already exists on remote '%s'", e.BranchName, e.Remote)
+}
+
+func (e *RemoteBranchExistsError) ExitCode() ExitCode {
+	return ExitCodeBranchExists
+}
+
 // GitError indicates a Git operation failed
 type GitError struct {
 	Operation string

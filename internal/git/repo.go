@@ -462,6 +462,16 @@ func MergeSquashWithMessage(branchName string, message string) error {
 	return nil
 }
 
+// PushBranch pushes a local branch to a remote and sets up tracking
+func PushBranch(remote, branch string) error {
+	cmd := exec.Command("git", "push", "-u", remote, branch)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to push branch '%s' to '%s': %s", branch, remote, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
 // CreateTrackingBranch creates a local branch that tracks a remote branch
 func CreateTrackingBranch(localBranch, remote, remoteBranch string) error {
 	// git checkout -b <local> --track <remote>/<branch>

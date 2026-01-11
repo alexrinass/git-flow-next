@@ -1,0 +1,117 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/gittower/git-flow-next/internal/config"
+	"github.com/gittower/git-flow-next/internal/errors"
+	"github.com/gittower/git-flow-next/internal/git"
+)
+
+// PublishCommand is the implementation of the publish command for topic branches.
+// If name is empty, the current branch will be published.
+func PublishCommand(branchType string, name string) {
+	if err := publish(branchType, name); err != nil {
+		var exitCode errors.ExitCode
+		if flowErr, ok := err.(errors.Error); ok {
+			exitCode = flowErr.ExitCode()
+		} else {
+			exitCode = errors.ExitCodeGitError
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(int(exitCode))
+	}
+}
+
+// publish performs the actual publish logic and returns any errors
+func publish(branchType string, name string) error {
+	// Validate that git-flow is initialized
+	initialized, err := config.IsInitialized()
+	if err != nil {
+		return &errors.GitError{Operation: "check if git-flow is initialized", Err: err}
+	}
+	if !initialized {
+		return &errors.NotInitializedError{}
+	}
+
+	// Get configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return &errors.GitError{Operation: "load configuration", Err: err}
+	}
+
+	// Get branch configuration
+	branchConfig, ok := cfg.Branches[branchType]
+	if !ok {
+		return &errors.InvalidBranchTypeError{BranchType: branchType}
+	}
+
+	// Determine branch name - if empty, use current branch
+	var fullBranchName string
+	if name == "" {
+		currentBranch, err := git.GetCurrentBranch()
+		if err != nil {
+			return &errors.GitError{Operation: "get current branch", Err: err}
+		}
+		fullBranchName = currentBranch
+
+		// Verify current branch is of the correct type
+		if branchConfig.Prefix != "" && !strings.HasPrefix(currentBranch, branchConfig.Prefix) {
+			return fmt.Errorf("current branch '%s' is not a %s branch", currentBranch, branchType)
+		}
+	} else {
+		// Construct full branch name from provided name
+		fullBranchName = name
+		if branchConfig.Prefix != "" && !strings.HasPrefix(name, branchConfig.Prefix) {
+			fullBranchName = branchConfig.Prefix + name
+		}
+	}
+
+	// Check if branch exists locally
+	if err := git.BranchExists(fullBranchName); err != nil {
+		return &errors.LocalBranchNotFoundError{BranchName: fullBranchName}
+	}
+
+	// Determine remote (from config or default to "origin")
+	remote := cfg.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+
+	// Fetch to get latest remote refs
+	fmt.Printf("Fetching from '%s'...\n", remote)
+	if err := git.Fetch(remote); err != nil {
+		// Don't fail if fetch fails - remote might not be reachable
+		fmt.Fprintf(os.Stderr, "Warning: Could not fetch from '%s': %v\n", remote, err)
+	}
+
+	// Check if remote branch already exists
+	if git.RemoteBranchExists(remote, fullBranchName) {
+		return &errors.RemoteBranchExistsError{
+			Remote:     remote,
+			BranchName: fullBranchName,
+		}
+	}
+
+	// Push the branch to remote with tracking
+	fmt.Printf("Publishing '%s' to '%s'...\n", fullBranchName, remote)
+	if err := git.PushBranch(remote, fullBranchName); err != nil {
+		return &errors.GitError{
+			Operation: fmt.Sprintf("push branch '%s' to '%s'", fullBranchName, remote),
+			Err:       err,
+		}
+	}
+
+	// Extract short name for display
+	shortName := fullBranchName
+	if branchConfig.Prefix != "" && strings.HasPrefix(fullBranchName, branchConfig.Prefix) {
+		shortName = strings.TrimPrefix(fullBranchName, branchConfig.Prefix)
+	}
+
+	fmt.Printf("Successfully published '%s' to '%s/%s'\n", fullBranchName, remote, fullBranchName)
+	fmt.Printf("You can now track this branch with:\n")
+	fmt.Printf("    git flow %s track %s\n", branchType, shortName)
+	return nil
+}

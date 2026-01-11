@@ -299,6 +299,29 @@ func registerBranchCommand(branchType string) {
 
 	branchCmd.AddCommand(checkoutCmd)
 
+	// Add publish subcommand
+	publishCmd := &cobra.Command{
+		Use:   "publish [name]",
+		Short: fmt.Sprintf("Publish a %s branch to the remote", branchType),
+		Long: fmt.Sprintf(`Publishes a local %s branch to the configured remote repository.
+
+This pushes the branch to the remote and sets up tracking between
+the local and remote branches. After publishing, other team members
+can track this branch using 'git flow %s track'.
+
+If no name is provided, the current branch is published.`, branchType, branchType),
+		Example: fmt.Sprintf("  git flow %s publish my-feature\n  git flow %s publish", branchType, branchType),
+		Args:    cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			PublishCommand(branchType, name)
+		},
+	}
+	branchCmd.AddCommand(publishCmd)
+
 	// Add track subcommand
 	trackCmd := &cobra.Command{
 		Use:   "track <name>",
