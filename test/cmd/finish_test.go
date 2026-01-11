@@ -2942,35 +2942,13 @@ func TestMergeStrategyConfigUsedByDefault(t *testing.T) {
 // 9. Verifies the branch is merged into develop
 // 10. Verifies the feature branch is deleted
 func TestFinishFeatureBranchWithFetchFlag(t *testing.T) {
-	// Setup
-	dir := testutil.SetupTestRepo(t)
+	// Setup test repository with remote
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
 	defer testutil.CleanupTestRepo(t, dir)
-
-	// Initialize git-flow with defaults
-	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
-	if err != nil {
-		t.Fatalf("Failed to initialize git-flow: %v", err)
-	}
-
-	// Create a local bare remote repository
-	remoteDir, err := testutil.AddRemote(t, dir, "origin", true)
-	if err != nil {
-		t.Fatalf("Failed to add remote: %v", err)
-	}
 	defer testutil.CleanupTestRepo(t, remoteDir)
 
-	// Push main and develop to remote to establish tracking
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "main")
-	if err != nil {
-		t.Fatalf("Failed to push main: %v", err)
-	}
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "develop")
-	if err != nil {
-		t.Fatalf("Failed to push develop: %v", err)
-	}
-
 	// Create a feature branch
-	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-fetch")
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "test-fetch")
 	if err != nil {
 		t.Fatalf("Failed to create feature branch: %v", err)
 	}
@@ -3163,35 +3141,13 @@ func TestFinishFeatureBranchDefaultNoFetch(t *testing.T) {
 // 10. Verifies the branch is merged into develop
 // 11. Verifies the feature branch is deleted
 func TestFinishFeatureBranchFetchFromConfig(t *testing.T) {
-	// Setup
-	dir := testutil.SetupTestRepo(t)
+	// Setup test repository with remote
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
 	defer testutil.CleanupTestRepo(t, dir)
-
-	// Initialize git-flow with defaults
-	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
-	if err != nil {
-		t.Fatalf("Failed to initialize git-flow: %v", err)
-	}
-
-	// Create a local bare remote repository
-	remoteDir, err := testutil.AddRemote(t, dir, "origin", true)
-	if err != nil {
-		t.Fatalf("Failed to add remote: %v", err)
-	}
 	defer testutil.CleanupTestRepo(t, remoteDir)
 
-	// Push main and develop to remote to establish tracking
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "main")
-	if err != nil {
-		t.Fatalf("Failed to push main: %v", err)
-	}
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "develop")
-	if err != nil {
-		t.Fatalf("Failed to push develop: %v", err)
-	}
-
 	// Configure fetch to be enabled for feature finish
-	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "true")
+	_, err := testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "true")
 	if err != nil {
 		t.Fatalf("Failed to configure fetch option: %v", err)
 	}
@@ -3330,35 +3286,13 @@ func TestFinishFeatureBranchNoFetchFlagOverridesConfig(t *testing.T) {
 // 10. Verifies the branch is merged into develop
 // 11. Verifies the feature branch is deleted
 func TestFinishFeatureBranchFetchFlagOverridesConfig(t *testing.T) {
-	// Setup
-	dir := testutil.SetupTestRepo(t)
+	// Setup test repository with remote
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
 	defer testutil.CleanupTestRepo(t, dir)
-
-	// Initialize git-flow with defaults
-	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
-	if err != nil {
-		t.Fatalf("Failed to initialize git-flow: %v", err)
-	}
-
-	// Create a local bare remote repository
-	remoteDir, err := testutil.AddRemote(t, dir, "origin", true)
-	if err != nil {
-		t.Fatalf("Failed to add remote: %v", err)
-	}
 	defer testutil.CleanupTestRepo(t, remoteDir)
 
-	// Push main and develop to remote to establish tracking
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "main")
-	if err != nil {
-		t.Fatalf("Failed to push main: %v", err)
-	}
-	_, err = testutil.RunGit(t, dir, "push", "-u", "origin", "develop")
-	if err != nil {
-		t.Fatalf("Failed to push develop: %v", err)
-	}
-
 	// Configure fetch to be disabled for feature finish
-	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "false")
+	_, err := testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "false")
 	if err != nil {
 		t.Fatalf("Failed to configure fetch option: %v", err)
 	}

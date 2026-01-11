@@ -192,3 +192,42 @@ func RemoteBranchExists(t *testing.T, dir string, remote string, branch string) 
 	_, err := RunGit(t, dir, "rev-parse", "--verify", "--quiet", ref)
 	return err == nil
 }
+
+// SetupTestRepoWithRemote creates a test repository with git-flow initialized and a local remote.
+// It pushes main and develop branches to the remote with tracking enabled.
+// Returns the local repository directory and the remote repository directory.
+// Both should be cleaned up with CleanupTestRepo.
+func SetupTestRepoWithRemote(t *testing.T) (string, string) {
+	// Create test repository
+	dir := SetupTestRepo(t)
+
+	// Initialize git-flow with defaults
+	_, err := RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		CleanupTestRepo(t, dir)
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Create a local bare remote repository
+	remoteDir, err := AddRemote(t, dir, "origin", false)
+	if err != nil {
+		CleanupTestRepo(t, dir)
+		t.Fatalf("Failed to add remote: %v", err)
+	}
+
+	// Push main and develop to remote with tracking
+	_, err = RunGit(t, dir, "push", "-u", "origin", "main")
+	if err != nil {
+		CleanupTestRepo(t, dir)
+		CleanupTestRepo(t, remoteDir)
+		t.Fatalf("Failed to push main: %v", err)
+	}
+	_, err = RunGit(t, dir, "push", "-u", "origin", "develop")
+	if err != nil {
+		CleanupTestRepo(t, dir)
+		CleanupTestRepo(t, remoteDir)
+		t.Fatalf("Failed to push develop: %v", err)
+	}
+
+	return dir, remoteDir
+}
