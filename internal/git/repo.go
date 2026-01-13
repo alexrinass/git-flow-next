@@ -14,6 +14,18 @@ func IsGitRepo() bool {
 	return err == nil
 }
 
+// GetGitDir returns the path to the git directory for the current repository.
+// For regular repositories, this returns ".git".
+// For worktrees, this returns the actual git directory path (e.g., "/repo/.git/worktrees/work1").
+func GetGitDir() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git directory: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // GetCurrentBranch returns the current Git branch
 func GetCurrentBranch() (string, error) {
 	// Check if we have any commits

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/mergestate"
@@ -20,9 +22,30 @@ func (e *ExitError) Error() string {
 	return e.Err.Error()
 }
 
+// getGitDirForRepo returns the git directory for the specified repository.
+// This handles both regular repos (returns ".git") and worktrees (returns the actual git dir path).
+func getGitDirForRepo(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git directory: %w", err)
+	}
+	gitDir := strings.TrimSpace(string(output))
+	// If the path is relative, make it absolute relative to dir
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(dir, gitDir)
+	}
+	return gitDir, nil
+}
+
 // LoadMergeState loads the merge state from the test repository
 func LoadMergeState(t *testing.T, dir string) (*mergestate.MergeState, error) {
-	stateFile := filepath.Join(dir, ".git", "gitflow", "state", "merge.json")
+	gitDir, err := getGitDirForRepo(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine git directory: %w", err)
+	}
+	stateFile := filepath.Join(gitDir, "gitflow", "state", "merge.json")
 	data, err := os.ReadFile(stateFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read merge state file: %w", err)
@@ -38,8 +61,12 @@ func LoadMergeState(t *testing.T, dir string) (*mergestate.MergeState, error) {
 
 // IsMergeInProgress checks if a merge is in progress in the test repository
 func IsMergeInProgress(t *testing.T, dir string) bool {
-	// Check for .git/MERGE_HEAD which indicates a merge in progress
-	_, err := os.Stat(filepath.Join(dir, ".git", "MERGE_HEAD"))
+	// Check for MERGE_HEAD in git directory which indicates a merge in progress
+	gitDir, err := getGitDirForRepo(dir)
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filepath.Join(gitDir, "MERGE_HEAD"))
 	return !os.IsNotExist(err)
 }
 

@@ -5,12 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/gittower/git-flow-next/internal/git"
 )
 
 const (
-	stateDir  = ".git/gitflow/state"
-	stateFile = "merge.json"
+	stateDirName = "gitflow/state"
+	stateFile    = "merge.json"
 )
+
+// getStateDir returns the path to the state directory, resolving the git directory
+// correctly for both regular repos and worktrees.
+func getStateDir() (string, error) {
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(gitDir, stateDirName), nil
+}
+
+// getStatePath returns the full path to the state file.
+func getStatePath() (string, error) {
+	stateDir, err := getStateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(stateDir, stateFile), nil
+}
 
 // MergeState represents the state of a merge operation
 type MergeState struct {
@@ -34,6 +55,12 @@ type MergeState struct {
 
 // SaveMergeState saves the current merge state to a file
 func SaveMergeState(state *MergeState) error {
+	// Get the state directory path (handles worktrees correctly)
+	stateDir, err := getStateDir()
+	if err != nil {
+		return fmt.Errorf("failed to determine state directory: %w", err)
+	}
+
 	// Create state directory if it doesn't exist
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		return fmt.Errorf("failed to create state directory: %w", err)
@@ -56,7 +83,11 @@ func SaveMergeState(state *MergeState) error {
 
 // LoadMergeState loads the current merge state from file
 func LoadMergeState() (*MergeState, error) {
-	statePath := filepath.Join(stateDir, stateFile)
+	statePath, err := getStatePath()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine state path: %w", err)
+	}
+
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -75,8 +106,12 @@ func LoadMergeState() (*MergeState, error) {
 
 // ClearMergeState removes the merge state file
 func ClearMergeState() error {
-	statePath := filepath.Join(stateDir, stateFile)
-	err := os.Remove(statePath)
+	statePath, err := getStatePath()
+	if err != nil {
+		return fmt.Errorf("failed to determine state path: %w", err)
+	}
+
+	err = os.Remove(statePath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove state file: %w", err)
 	}
