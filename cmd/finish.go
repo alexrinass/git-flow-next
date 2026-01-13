@@ -54,6 +54,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 	"github.com/gittower/git-flow-next/internal/mergestate"
 	"github.com/gittower/git-flow-next/internal/update"
 )
@@ -562,6 +563,38 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 // handleCreateTagStep handles the tag creation step
 func handleCreateTagStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
 	if resolvedOptions.ShouldTag {
+		// Apply tag message filter for release and hotfix branches
+		if state.BranchType == "release" || state.BranchType == "hotfix" {
+			gitDir, err := git.GetGitDir()
+			if err != nil {
+				return &errors.GitError{Operation: "get git directory", Err: err}
+			}
+
+			var filterType hooks.FilterType
+			if state.BranchType == "release" {
+				filterType = hooks.FilterTagMessageReleaseFinish
+			} else {
+				filterType = hooks.FilterTagMessageHotfixFinish
+			}
+
+			ctx := hooks.FilterContext{
+				BranchType: state.BranchType,
+				BranchName: state.BranchName,
+				Version:    resolvedOptions.TagName,
+				TagMessage: resolvedOptions.TagMessage,
+				BaseBranch: state.ParentBranch,
+			}
+
+			filteredMessage, err := hooks.RunTagMessageFilter(gitDir, filterType, ctx)
+			if err != nil {
+				return &errors.GitError{Operation: "run tag message filter", Err: err}
+			}
+			if filteredMessage != resolvedOptions.TagMessage {
+				fmt.Printf("Tag message filter modified the message\n")
+				resolvedOptions.TagMessage = filteredMessage
+			}
+		}
+
 		if err := createTagForBranchResolved(state, resolvedOptions); err != nil {
 			return err
 		}

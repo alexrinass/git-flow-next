@@ -7,6 +7,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 )
 
 // StartCommand is the implementation of the start command for topic branches
@@ -39,6 +40,30 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 	// Validate inputs
 	if name == "" {
 		return &errors.EmptyBranchNameError{}
+	}
+
+	// Apply version filter for release and hotfix branches
+	if branchType == "release" || branchType == "hotfix" {
+		gitDir, err := git.GetGitDir()
+		if err != nil {
+			return &errors.GitError{Operation: "get git directory", Err: err}
+		}
+
+		var filterType hooks.FilterType
+		if branchType == "release" {
+			filterType = hooks.FilterVersionReleaseStart
+		} else {
+			filterType = hooks.FilterVersionHotfixStart
+		}
+
+		filteredName, err := hooks.RunVersionFilter(gitDir, filterType, name)
+		if err != nil {
+			return &errors.GitError{Operation: "run version filter", Err: err}
+		}
+		if filteredName != name {
+			fmt.Printf("Version filter changed '%s' to '%s'\n", name, filteredName)
+			name = filteredName
+		}
 	}
 
 	// Get configuration
