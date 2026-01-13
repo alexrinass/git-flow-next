@@ -42,13 +42,14 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 		return &errors.EmptyBranchNameError{}
 	}
 
+	// Get git directory for hooks and filters
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return &errors.GitError{Operation: "get git directory", Err: err}
+	}
+
 	// Apply version filter for release and hotfix branches
 	if branchType == "release" || branchType == "hotfix" {
-		gitDir, err := git.GetGitDir()
-		if err != nil {
-			return &errors.GitError{Operation: "get git directory", Err: err}
-		}
-
 		var filterType hooks.FilterType
 		if branchType == "release" {
 			filterType = hooks.FilterVersionReleaseStart
@@ -78,6 +79,41 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 		return &errors.InvalidBranchTypeError{BranchType: branchType}
 	}
 
+	// Get full branch name
+	fullBranchName := branchConfig.Prefix + name
+
+	// Get start point
+	startPoint := branchConfig.Parent
+	if branchConfig.StartPoint != "" {
+		// If start point is specified in config, use it instead of parent
+		startPoint = branchConfig.StartPoint
+	}
+	if base != "" {
+		// If base argument is provided, it overrides the configured starting point
+		startPoint = base
+	}
+
+	// Build hook context
+	hookCtx := hooks.HookContext{
+		BranchType: branchType,
+		BranchName: name,
+		FullBranch: fullBranchName,
+		BaseBranch: startPoint,
+		Origin:     cfg.Remote,
+	}
+	// Set version for release/hotfix
+	if branchType == "release" || branchType == "hotfix" {
+		hookCtx.Version = name
+	}
+
+	// Run start operation wrapped with hooks
+	return hooks.WithHooks(gitDir, branchType, hooks.HookActionStart, hookCtx, func() error {
+		return executeStart(branchType, name, base, shouldFetch, cfg, branchConfig, fullBranchName, startPoint)
+	})
+}
+
+// executeStart performs the actual start operation (called within hooks wrapper)
+func executeStart(branchType string, name string, base string, shouldFetch *bool, cfg *config.Config, branchConfig config.BranchConfig, fullBranchName string, startPoint string) error {
 	// Determine if we should fetch
 	fetchFromConfig := false
 	if shouldFetch == nil {
@@ -99,23 +135,9 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 		}
 	}
 
-	// Get full branch name
-	fullBranchName := branchConfig.Prefix + name
-
 	// Check if branch already exists
 	if err := git.BranchExists(fullBranchName); err == nil {
 		return &errors.BranchExistsError{BranchName: fullBranchName}
-	}
-
-	// Get start point
-	startPoint := branchConfig.Parent
-	if branchConfig.StartPoint != "" {
-		// If start point is specified in config, use it instead of parent
-		startPoint = branchConfig.StartPoint
-	}
-	if base != "" {
-		// If base argument is provided, it overrides the configured starting point
-		startPoint = base
 	}
 
 	// Check if start point exists (can be branch, tag, or commit)
@@ -124,7 +146,7 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 	}
 
 	// Create branch
-	err = git.CreateBranch(fullBranchName, startPoint)
+	err := git.CreateBranch(fullBranchName, startPoint)
 	if err != nil {
 		return &errors.GitError{Operation: "create branch", Err: err}
 	}

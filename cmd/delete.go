@@ -7,6 +7,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 )
 
 // DeleteCommand handles the deletion of a topic branch
@@ -49,6 +50,38 @@ func executeDelete(branchType string, name string, force bool, remote *bool) err
 		return &errors.BranchNotFoundError{BranchName: fullBranchName}
 	}
 
+	// Get git directory for hooks
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return &errors.GitError{Operation: "get git directory", Err: err}
+	}
+
+	// Get remote name
+	remoteName := cfg.Remote
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	// Build hook context
+	hookCtx := hooks.HookContext{
+		BranchType: branchType,
+		BranchName: name,
+		FullBranch: fullBranchName,
+		BaseBranch: branchConfig.Parent,
+		Origin:     remoteName,
+	}
+	if branchType == "release" || branchType == "hotfix" {
+		hookCtx.Version = name
+	}
+
+	// Run delete operation wrapped with hooks
+	return hooks.WithHooks(gitDir, branchType, hooks.HookActionDelete, hookCtx, func() error {
+		return performDelete(branchType, name, fullBranchName, branchConfig, force, remote, cfg)
+	})
+}
+
+// performDelete performs the actual delete operation (called within hooks wrapper)
+func performDelete(branchType, name, fullBranchName string, branchConfig config.BranchConfig, force bool, remote *bool, cfg *config.Config) error {
 	// Check if we're currently on the branch to be deleted
 	currentBranch, err := git.GetCurrentBranch()
 	if err != nil {
@@ -89,9 +122,9 @@ func executeDelete(branchType string, name string, force bool, remote *bool) err
 	// Delete remote branch if requested
 	if deleteRemote {
 		// Get remote name from config
-		remoteName, err := git.GetConfig("gitflow.remote")
-		if err != nil {
-			remoteName = "origin" // Default to origin if not configured
+		remoteName := cfg.Remote
+		if remoteName == "" {
+			remoteName = "origin"
 		}
 
 		// Delete remote branch

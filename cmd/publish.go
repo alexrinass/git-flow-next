@@ -8,6 +8,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 )
 
 // PublishCommand is the implementation of the publish command for topic branches.
@@ -50,6 +51,7 @@ func publish(branchType string, name string) error {
 
 	// Determine branch name - if empty, use current branch
 	var fullBranchName string
+	var shortName string
 	if name == "" {
 		currentBranch, err := git.GetCurrentBranch()
 		if err != nil {
@@ -61,11 +63,21 @@ func publish(branchType string, name string) error {
 		if branchConfig.Prefix != "" && !strings.HasPrefix(currentBranch, branchConfig.Prefix) {
 			return fmt.Errorf("current branch '%s' is not a %s branch", currentBranch, branchType)
 		}
+
+		// Extract short name
+		if branchConfig.Prefix != "" {
+			shortName = strings.TrimPrefix(currentBranch, branchConfig.Prefix)
+		} else {
+			shortName = currentBranch
+		}
 	} else {
 		// Construct full branch name from provided name
 		fullBranchName = name
+		shortName = name
 		if branchConfig.Prefix != "" && !strings.HasPrefix(name, branchConfig.Prefix) {
 			fullBranchName = branchConfig.Prefix + name
+		} else if branchConfig.Prefix != "" {
+			shortName = strings.TrimPrefix(name, branchConfig.Prefix)
 		}
 	}
 
@@ -80,6 +92,32 @@ func publish(branchType string, name string) error {
 		remote = "origin"
 	}
 
+	// Get git directory for hooks
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return &errors.GitError{Operation: "get git directory", Err: err}
+	}
+
+	// Build hook context
+	hookCtx := hooks.HookContext{
+		BranchType: branchType,
+		BranchName: shortName,
+		FullBranch: fullBranchName,
+		BaseBranch: branchConfig.Parent,
+		Origin:     remote,
+	}
+	if branchType == "release" || branchType == "hotfix" {
+		hookCtx.Version = shortName
+	}
+
+	// Run publish operation wrapped with hooks
+	return hooks.WithHooks(gitDir, branchType, hooks.HookActionPublish, hookCtx, func() error {
+		return executePublish(fullBranchName, shortName, branchType, remote)
+	})
+}
+
+// executePublish performs the actual publish operation (called within hooks wrapper)
+func executePublish(fullBranchName, shortName, branchType, remote string) error {
 	// Fetch to get latest remote refs
 	fmt.Printf("Fetching from '%s'...\n", remote)
 	if err := git.Fetch(remote); err != nil {
@@ -102,12 +140,6 @@ func publish(branchType string, name string) error {
 			Operation: fmt.Sprintf("push branch '%s' to '%s'", fullBranchName, remote),
 			Err:       err,
 		}
-	}
-
-	// Extract short name for display
-	shortName := fullBranchName
-	if branchConfig.Prefix != "" && strings.HasPrefix(fullBranchName, branchConfig.Prefix) {
-		shortName = strings.TrimPrefix(fullBranchName, branchConfig.Prefix)
 	}
 
 	fmt.Printf("Successfully published '%s' to '%s/%s'\n", fullBranchName, remote, fullBranchName)

@@ -259,6 +259,27 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	// Resolve all options once at the beginning
 	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
 
+	// Run pre-hook before starting finish operation
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return &errors.GitError{Operation: "get git directory", Err: err}
+	}
+
+	hookCtx := hooks.HookContext{
+		BranchType: branchType,
+		BranchName: shortName,
+		FullBranch: name,
+		BaseBranch: targetBranch,
+		Origin:     cfg.Remote,
+	}
+	if branchType == "release" || branchType == "hotfix" {
+		hookCtx.Version = shortName
+	}
+
+	if err := hooks.RunPreHook(gitDir, branchType, hooks.HookActionFinish, hookCtx); err != nil {
+		return err
+	}
+
 	// Save merge state before starting
 	state := &mergestate.MergeState{
 		Action:          "finish",
@@ -674,6 +695,35 @@ func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *confi
 	}
 
 	fmt.Printf("Successfully finished branch '%s' and updated %d child base branches\n", state.FullBranchName, len(state.UpdatedBranches))
+
+	// Run post-hook after successful completion
+	gitDir, err := git.GetGitDir()
+	if err == nil {
+		// Get remote from config for hook context
+		cfg, cfgErr := config.LoadConfig()
+		remote := "origin"
+		if cfgErr == nil {
+			remote = cfg.Remote
+		}
+
+		hookCtx := hooks.HookContext{
+			BranchType: state.BranchType,
+			BranchName: state.BranchName,
+			FullBranch: state.FullBranchName,
+			BaseBranch: state.ParentBranch,
+			Origin:     remote,
+			ExitCode:   0, // Success
+		}
+		if state.BranchType == "release" || state.BranchType == "hotfix" {
+			hookCtx.Version = state.BranchName
+		}
+
+		result := hooks.RunPostHook(gitDir, state.BranchType, hooks.HookActionFinish, hookCtx)
+		if result.Executed && result.Output != "" {
+			fmt.Print(result.Output)
+		}
+	}
+
 	return nil
 }
 

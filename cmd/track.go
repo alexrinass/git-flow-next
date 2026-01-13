@@ -8,6 +8,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 )
 
 // TrackCommand is the implementation of the track command for topic branches
@@ -54,8 +55,11 @@ func track(branchType string, name string) error {
 
 	// Construct full branch name
 	fullBranchName := name
+	shortName := name
 	if branchConfig.Prefix != "" && !strings.HasPrefix(name, branchConfig.Prefix) {
 		fullBranchName = branchConfig.Prefix + name
+	} else if branchConfig.Prefix != "" {
+		shortName = strings.TrimPrefix(name, branchConfig.Prefix)
 	}
 
 	// Check if branch already exists locally
@@ -69,6 +73,32 @@ func track(branchType string, name string) error {
 		remote = "origin"
 	}
 
+	// Get git directory for hooks
+	gitDir, err := git.GetGitDir()
+	if err != nil {
+		return &errors.GitError{Operation: "get git directory", Err: err}
+	}
+
+	// Build hook context
+	hookCtx := hooks.HookContext{
+		BranchType: branchType,
+		BranchName: shortName,
+		FullBranch: fullBranchName,
+		BaseBranch: branchConfig.Parent,
+		Origin:     remote,
+	}
+	if branchType == "release" || branchType == "hotfix" {
+		hookCtx.Version = shortName
+	}
+
+	// Run track operation wrapped with hooks
+	return hooks.WithHooks(gitDir, branchType, hooks.HookActionTrack, hookCtx, func() error {
+		return executeTrack(fullBranchName, remote)
+	})
+}
+
+// executeTrack performs the actual track operation (called within hooks wrapper)
+func executeTrack(fullBranchName, remote string) error {
 	// Fetch from remote to ensure we have latest refs
 	fmt.Printf("Fetching from '%s'...\n", remote)
 	if err := git.Fetch(remote); err != nil {
