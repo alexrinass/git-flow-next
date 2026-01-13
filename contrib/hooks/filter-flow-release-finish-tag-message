@@ -1,0 +1,48 @@
+#!/bin/sh
+# filter-flow-release-finish-tag-message
+#
+# This filter appends a changelog to the tag message for releases.
+# It extracts commits since the last tag and includes them in the message.
+#
+# Usage: Copy to .git/hooks/ and make executable:
+#   cp contrib/hooks/filter-flow-release-finish-tag-message .git/hooks/
+#   chmod +x .git/hooks/filter-flow-release-finish-tag-message
+#
+# Arguments:
+#   $1 - The version (tag name)
+#   $2 - The original tag message
+#
+# Environment variables:
+#   BRANCH_TYPE - The branch type (release)
+#   BRANCH_NAME - The short branch name
+#   BASE_BRANCH - The parent branch
+#   VERSION     - The version number
+#
+# Output:
+#   The modified tag message (stdout)
+
+VERSION="$1"
+MESSAGE="$2"
+
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+# Get changelog
+if [ -n "$LAST_TAG" ]; then
+    CHANGELOG=$(git log --oneline "${LAST_TAG}..HEAD" 2>/dev/null | head -20)
+    RANGE="${LAST_TAG}..HEAD"
+else
+    CHANGELOG=$(git log --oneline -20 2>/dev/null)
+    RANGE="last 20 commits"
+fi
+
+# Build enhanced message
+cat <<EOF
+${MESSAGE}
+
+Changes since ${RANGE}:
+${CHANGELOG}
+
+---
+Tagged by git-flow-next
+EOF

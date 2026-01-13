@@ -1,0 +1,64 @@
+#!/bin/sh
+# pre-flow-release-start
+#
+# This hook performs checks before starting a release branch.
+# It verifies:
+#   1. There are no uncommitted changes
+#   2. The develop branch is up to date with remote
+#   3. (Optional) CI is passing on develop
+#
+# Usage: Copy to .git/hooks/ and make executable:
+#   cp contrib/hooks/pre-flow-release-start .git/hooks/
+#   chmod +x .git/hooks/pre-flow-release-start
+#
+# Environment variables:
+#   BRANCH_TYPE  - The branch type (release)
+#   BRANCH_NAME  - The release name/version
+#   BRANCH       - Full branch name (release/x.y.z)
+#   BASE_BRANCH  - The parent branch (main)
+#   ORIGIN       - Remote name
+#   VERSION      - The version number
+
+echo "Pre-release checks for ${VERSION}..."
+
+# Check for uncommitted changes
+if ! git diff-index --quiet HEAD --; then
+    echo "Error: You have uncommitted changes." >&2
+    echo "Please commit or stash them before starting a release." >&2
+    exit 1
+fi
+
+# Check for untracked files (optional - comment out if not desired)
+if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    echo "Warning: You have untracked files." >&2
+    echo "Consider adding them to .gitignore or committing them." >&2
+    # exit 1  # Uncomment to make this a hard failure
+fi
+
+# Check if develop is up to date with remote (if remote exists)
+if git remote | grep -q "${ORIGIN}"; then
+    git fetch "${ORIGIN}" --quiet 2>/dev/null || true
+
+    LOCAL=$(git rev-parse develop 2>/dev/null || echo "")
+    REMOTE=$(git rev-parse "${ORIGIN}/develop" 2>/dev/null || echo "")
+
+    if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+        echo "Warning: develop branch is not in sync with ${ORIGIN}/develop" >&2
+        echo "Consider pulling the latest changes first." >&2
+        # exit 1  # Uncomment to make this a hard failure
+    fi
+fi
+
+# Optional: Check CI status using GitHub CLI
+# Uncomment the following block if you have 'gh' installed and want CI checks
+# if command -v gh &> /dev/null; then
+#     echo "Checking CI status..."
+#     STATUS=$(gh run list --branch develop --limit 1 --json conclusion -q '.[0].conclusion' 2>/dev/null || echo "")
+#     if [ "$STATUS" != "success" ] && [ "$STATUS" != "" ]; then
+#         echo "Warning: Latest CI run on develop is not successful (status: ${STATUS})" >&2
+#         # exit 1  # Uncomment to make this a hard failure
+#     fi
+# fi
+
+echo "All pre-release checks passed."
+exit 0

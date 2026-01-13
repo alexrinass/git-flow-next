@@ -1,0 +1,62 @@
+#!/bin/sh
+# post-flow-release-finish
+#
+# This hook runs after a release is finished.
+# It can be used for:
+#   1. Sending notifications (Slack, email, etc.)
+#   2. Updating external systems (JIRA, etc.)
+#   3. Triggering deployment pipelines
+#
+# Usage: Copy to .git/hooks/ and make executable:
+#   cp contrib/hooks/post-flow-release-finish .git/hooks/
+#   chmod +x .git/hooks/post-flow-release-finish
+#
+# Environment variables:
+#   BRANCH_TYPE  - The branch type (release)
+#   BRANCH_NAME  - The release name/version
+#   BRANCH       - Full branch name (release/x.y.z)
+#   BASE_BRANCH  - The parent branch (main)
+#   ORIGIN       - Remote name
+#   VERSION      - The version number
+#   EXIT_CODE    - The exit code of the finish operation (0 = success)
+
+if [ "$EXIT_CODE" -ne 0 ]; then
+    echo "Release ${VERSION} finish failed with exit code ${EXIT_CODE}"
+    exit 0  # Post-hooks don't affect the operation result
+fi
+
+echo ""
+echo "=================================================="
+echo "Release ${VERSION} completed successfully!"
+echo "=================================================="
+echo ""
+echo "Next steps:"
+echo "  1. Push tags to remote:"
+echo "     git push ${ORIGIN} ${VERSION}"
+echo "     git push ${ORIGIN} main"
+echo "     git push ${ORIGIN} develop"
+echo ""
+echo "  2. Create GitHub release (if using GitHub):"
+echo "     gh release create ${VERSION} --title 'Release ${VERSION}' --generate-notes"
+echo ""
+echo "  3. Update changelog:"
+echo "     Consider updating CHANGELOG.md with release notes"
+echo ""
+
+# Optional: Push tags automatically
+# Uncomment the following to auto-push
+# echo "Pushing to ${ORIGIN}..."
+# git push "${ORIGIN}" "${VERSION}" 2>/dev/null || true
+# git push "${ORIGIN}" main 2>/dev/null || true
+# git push "${ORIGIN}" develop 2>/dev/null || true
+
+# Optional: Send Slack notification
+# Uncomment and configure with your webhook URL
+# SLACK_WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+# if [ -n "$SLACK_WEBHOOK" ]; then
+#     curl -s -X POST -H 'Content-type: application/json' \
+#         --data "{\"text\":\"Release ${VERSION} has been completed!\"}" \
+#         "$SLACK_WEBHOOK" > /dev/null 2>&1
+# fi
+
+exit 0

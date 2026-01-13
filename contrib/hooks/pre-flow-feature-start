@@ -1,0 +1,53 @@
+#!/bin/sh
+# pre-flow-feature-start
+#
+# This hook validates feature branch names before creation.
+# It enforces naming conventions to keep branch names consistent.
+#
+# Usage: Copy to .git/hooks/ and make executable:
+#   cp contrib/hooks/pre-flow-feature-start .git/hooks/
+#   chmod +x .git/hooks/pre-flow-feature-start
+#
+# Environment variables:
+#   BRANCH_TYPE  - The branch type (feature)
+#   BRANCH_NAME  - The feature name
+#   BRANCH       - Full branch name (feature/xxx)
+#   BASE_BRANCH  - The parent branch (develop)
+#   ORIGIN       - Remote name
+
+NAME="$BRANCH_NAME"
+
+# Check for valid characters (lowercase, numbers, hyphens)
+if ! echo "$NAME" | grep -qE '^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$'; then
+    echo "Error: Invalid feature name '${NAME}'" >&2
+    echo "Feature names must:" >&2
+    echo "  - Start and end with a letter or number" >&2
+    echo "  - Contain only lowercase letters, numbers, and hyphens" >&2
+    echo "Examples: 'add-login', 'fix-123', 'user-profile'" >&2
+    exit 1
+fi
+
+# Check minimum length
+if [ ${#NAME} -lt 3 ]; then
+    echo "Error: Feature name '${NAME}' is too short" >&2
+    echo "Feature names must be at least 3 characters long." >&2
+    exit 1
+fi
+
+# Check maximum length
+if [ ${#NAME} -gt 50 ]; then
+    echo "Error: Feature name '${NAME}' is too long" >&2
+    echo "Feature names must be at most 50 characters long." >&2
+    exit 1
+fi
+
+# Check for common anti-patterns (optional)
+case "$NAME" in
+    test|temp|tmp|wip|dev|fix|feature)
+        echo "Warning: Generic feature name '${NAME}' - consider a more descriptive name" >&2
+        # exit 1  # Uncomment to make this a hard failure
+        ;;
+esac
+
+echo "Feature name '${NAME}' is valid."
+exit 0

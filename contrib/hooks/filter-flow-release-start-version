@@ -1,0 +1,34 @@
+#!/bin/sh
+# filter-flow-release-start-version
+#
+# This filter normalizes version numbers for release branches.
+# It ensures versions have a 'v' prefix for consistency.
+#
+# Usage: Copy to .git/hooks/ and make executable:
+#   cp contrib/hooks/filter-flow-release-start-version .git/hooks/
+#   chmod +x .git/hooks/filter-flow-release-start-version
+#
+# Arguments:
+#   $1 - The version provided by the user
+#
+# Output:
+#   The modified version (stdout)
+#
+# Exit codes:
+#   0 - Success (version is valid)
+#   1 - Error (version is invalid)
+
+VERSION="$1"
+
+# Remove 'v' prefix for validation
+CLEAN_VERSION="${VERSION#v}"
+
+# Validate semver format (major.minor.patch with optional pre-release)
+if ! echo "$CLEAN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+    echo "Error: Invalid version format '${VERSION}'" >&2
+    echo "Expected: MAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH (e.g., 1.0.0 or v1.0.0)" >&2
+    exit 1
+fi
+
+# Output with 'v' prefix for consistency
+echo "v$CLEAN_VERSION"
