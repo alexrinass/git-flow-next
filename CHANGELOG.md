@@ -34,12 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release of git-flow-next
-- Support for feature, release, hotfix, and support branches
-- Configurable merge strategies (merge, rebase, squash)
-- Three-layer configuration precedence (defaults → git config → CLI flags)
-- State machine for finish command with conflict recovery
-- Automatic child branch updates with `autoUpdate` configuration
-- Import configuration from git-flow-avh
+- Support for feature, release, hotfix, and support branch workflows
+- Fully customizable base and topic branches with configurable prefixes and relationships
+- Configurable merge strategies: merge, rebase, or squash when finishing branches
+- Flexible configuration via git config or command-line flags
+- Conflict recovery: resolve conflicts and continue where you left off
+- Automatic updates to child branches (e.g., develop syncs from main)
+- Compatibility with existing git-flow-avh repositories
 
 [Unreleased]: https://github.com/gittower/git-flow-next/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/gittower/git-flow-next/compare/v0.1.1...v0.2.0
