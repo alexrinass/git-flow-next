@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-14
+
+### Added
+
+- Add hooks and filters system for customizing git-flow operations
+  - Pre/post hooks for start, finish, publish, track, delete, and update actions
+  - Version filters for topic branches on start
+  - Tag message filters for topic branches that create tags on finish
+- Add `publish` command for topic branches to push branches to remote
+- Add `--squash-message` option for custom squash commit messages on finish
+- Add config support for force deletion (`gitflow.branch.<type>.forceDelete`)
+
+### Fixed
+
+- Fix worktree support for hooks, filters, and merge state
+- Fix shorthand `git flow publish` command (was returning "not implemented")
+- Fix `git flow <type> finish` to allow optional branch name (uses current branch)
+
 ## [0.2.0] - 2026-01-11
 
 ### Added
@@ -42,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic updates to child branches (e.g., develop syncs from main)
 - Compatibility with existing git-flow-avh repositories
 
-[Unreleased]: https://github.com/gittower/git-flow-next/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/gittower/git-flow-next/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/gittower/git-flow-next/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gittower/git-flow-next/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/gittower/git-flow-next/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/gittower/git-flow-next/releases/tag/v0.1.0
