@@ -54,7 +54,7 @@ fi
 	createExecutableScript(t, dir, "filter-flow-release-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "1.0.0")
+	result, err := hooks.RunVersionFilter(gitDir, "release", "1.0.0")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
@@ -81,7 +81,7 @@ fi
 	createExecutableScript(t, dir, "filter-flow-release-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "v1.0.0")
+	result, err := hooks.RunVersionFilter(gitDir, "release", "v1.0.0")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestVersionFilterNonExistentReturnsOriginal(t *testing.T) {
 	defer testutil.CleanupTestRepo(t, dir)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "1.0.0")
+	result, err := hooks.RunVersionFilter(gitDir, "release", "1.0.0")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
@@ -119,7 +119,7 @@ echo "modified-$1"
 	createNonExecutableScript(t, dir, "filter-flow-release-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "1.0.0")
+	result, err := hooks.RunVersionFilter(gitDir, "release", "1.0.0")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
@@ -143,7 +143,7 @@ exit 1
 	createExecutableScript(t, dir, "filter-flow-release-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	_, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "1.0.0")
+	_, err := hooks.RunVersionFilter(gitDir, "release", "1.0.0")
 	if err == nil {
 		t.Fatal("Expected error for non-zero exit code, got nil")
 	}
@@ -161,7 +161,7 @@ func TestVersionFilterEmptyOutputReturnsOriginal(t *testing.T) {
 	createExecutableScript(t, dir, "filter-flow-release-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionReleaseStart, "1.0.0")
+	result, err := hooks.RunVersionFilter(gitDir, "release", "1.0.0")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
@@ -184,13 +184,35 @@ echo "hotfix-$1"
 	createExecutableScript(t, dir, "filter-flow-hotfix-start-version", script)
 
 	gitDir := filepath.Join(dir, ".git")
-	result, err := hooks.RunVersionFilter(gitDir, hooks.FilterVersionHotfixStart, "1.0.1")
+	result, err := hooks.RunVersionFilter(gitDir, "hotfix", "1.0.1")
 	if err != nil {
 		t.Fatalf("RunVersionFilter failed: %v", err)
 	}
 
 	if result != "hotfix-1.0.1" {
 		t.Errorf("Expected 'hotfix-1.0.1', got '%s'", result)
+	}
+}
+
+// TestVersionFilterCustomBranchType tests version filter for custom branch types.
+func TestVersionFilterCustomBranchType(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a custom branch type version filter script
+	script := `#!/bin/sh
+echo "custom-$1"
+`
+	createExecutableScript(t, dir, "filter-flow-epic-start-version", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	result, err := hooks.RunVersionFilter(gitDir, "epic", "my-epic")
+	if err != nil {
+		t.Fatalf("RunVersionFilter failed: %v", err)
+	}
+
+	if result != "custom-my-epic" {
+		t.Errorf("Expected 'custom-my-epic', got '%s'", result)
 	}
 }
 
@@ -218,7 +240,7 @@ Release ${VERSION} - Auto-generated"
 		BaseBranch: "main",
 	}
 
-	result, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageReleaseFinish, ctx)
+	result, err := hooks.RunTagMessageFilter(gitDir, "release", ctx)
 	if err != nil {
 		t.Fatalf("RunTagMessageFilter failed: %v", err)
 	}
@@ -243,7 +265,7 @@ func TestTagMessageFilterNonExistentReturnsOriginal(t *testing.T) {
 		BaseBranch: "main",
 	}
 
-	result, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageReleaseFinish, ctx)
+	result, err := hooks.RunTagMessageFilter(gitDir, "release", ctx)
 	if err != nil {
 		t.Fatalf("RunTagMessageFilter failed: %v", err)
 	}
@@ -273,7 +295,7 @@ echo "modified message"
 		BaseBranch: "main",
 	}
 
-	result, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageReleaseFinish, ctx)
+	result, err := hooks.RunTagMessageFilter(gitDir, "release", ctx)
 	if err != nil {
 		t.Fatalf("RunTagMessageFilter failed: %v", err)
 	}
@@ -304,7 +326,7 @@ exit 1
 		BaseBranch: "main",
 	}
 
-	_, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageReleaseFinish, ctx)
+	_, err := hooks.RunTagMessageFilter(gitDir, "release", ctx)
 	if err == nil {
 		t.Fatal("Expected error for non-zero exit code, got nil")
 	}
@@ -331,13 +353,44 @@ echo "Hotfix ${VERSION}"
 		BaseBranch: "main",
 	}
 
-	result, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageHotfixFinish, ctx)
+	result, err := hooks.RunTagMessageFilter(gitDir, "hotfix", ctx)
 	if err != nil {
 		t.Fatalf("RunTagMessageFilter failed: %v", err)
 	}
 
 	if result != "Hotfix 1.0.1" {
 		t.Errorf("Expected 'Hotfix 1.0.1', got '%s'", result)
+	}
+}
+
+// TestTagMessageFilterCustomBranchType tests tag message filter for custom branch types.
+func TestTagMessageFilterCustomBranchType(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a custom branch type tag message filter script
+	script := `#!/bin/sh
+VERSION="$1"
+echo "Epic ${VERSION} completed"
+`
+	createExecutableScript(t, dir, "filter-flow-epic-finish-tag-message", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	ctx := hooks.FilterContext{
+		BranchType: "epic",
+		BranchName: "my-epic",
+		Version:    "my-epic",
+		TagMessage: "Original message",
+		BaseBranch: "main",
+	}
+
+	result, err := hooks.RunTagMessageFilter(gitDir, "epic", ctx)
+	if err != nil {
+		t.Fatalf("RunTagMessageFilter failed: %v", err)
+	}
+
+	if result != "Epic my-epic completed" {
+		t.Errorf("Expected 'Epic my-epic completed', got '%s'", result)
 	}
 }
 
@@ -361,7 +414,7 @@ echo "Type: ${BRANCH_TYPE}, Name: ${BRANCH_NAME}, Base: ${BASE_BRANCH}, Version:
 		BaseBranch: "main",
 	}
 
-	result, err := hooks.RunTagMessageFilter(gitDir, hooks.FilterTagMessageReleaseFinish, ctx)
+	result, err := hooks.RunTagMessageFilter(gitDir, "release", ctx)
 	if err != nil {
 		t.Fatalf("RunTagMessageFilter failed: %v", err)
 	}
@@ -369,5 +422,33 @@ echo "Type: ${BRANCH_TYPE}, Name: ${BRANCH_NAME}, Base: ${BASE_BRANCH}, Version:
 	expected := "Type: release, Name: my-release, Base: main, Version: 2.0.0"
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
+	}
+}
+
+// TestGetFilterName tests the dynamic filter name generation.
+func TestGetFilterName(t *testing.T) {
+	tests := []struct {
+		branchType string
+		action     string
+		target     hooks.FilterTarget
+		expected   string
+	}{
+		{"release", "start", hooks.FilterTargetVersion, "filter-flow-release-start-version"},
+		{"hotfix", "start", hooks.FilterTargetVersion, "filter-flow-hotfix-start-version"},
+		{"feature", "start", hooks.FilterTargetVersion, "filter-flow-feature-start-version"},
+		{"epic", "start", hooks.FilterTargetVersion, "filter-flow-epic-start-version"},
+		{"release", "finish", hooks.FilterTargetTagMessage, "filter-flow-release-finish-tag-message"},
+		{"hotfix", "finish", hooks.FilterTargetTagMessage, "filter-flow-hotfix-finish-tag-message"},
+		{"custom", "finish", hooks.FilterTargetTagMessage, "filter-flow-custom-finish-tag-message"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			result := hooks.GetFilterName(tt.branchType, tt.action, tt.target)
+			if result != tt.expected {
+				t.Errorf("GetFilterName(%q, %q, %q) = %q, want %q",
+					tt.branchType, tt.action, tt.target, result, tt.expected)
+			}
+		})
 	}
 }

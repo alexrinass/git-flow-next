@@ -8,28 +8,30 @@
 //   - Hooks: {pre,post}-flow-{type}-{action}
 package hooks
 
-// FilterType represents the type of filter script.
-type FilterType string
+import "fmt"
+
+// FilterTarget represents what is being filtered.
+type FilterTarget string
 
 const (
-	// FilterVersionReleaseStart filters the version for release start.
-	FilterVersionReleaseStart FilterType = "filter-flow-release-start-version"
+	// FilterTargetVersion filters version/name for start operations.
+	FilterTargetVersion FilterTarget = "version"
 
-	// FilterVersionHotfixStart filters the version for hotfix start.
-	FilterVersionHotfixStart FilterType = "filter-flow-hotfix-start-version"
-
-	// FilterTagMessageReleaseFinish filters the tag message for release finish.
-	FilterTagMessageReleaseFinish FilterType = "filter-flow-release-finish-tag-message"
-
-	// FilterTagMessageHotfixFinish filters the tag message for hotfix finish.
-	FilterTagMessageHotfixFinish FilterType = "filter-flow-hotfix-finish-tag-message"
+	// FilterTargetTagMessage filters tag message for finish operations.
+	FilterTargetTagMessage FilterTarget = "tag-message"
 )
+
+// GetFilterName returns the filter script name for a given branch type, action, and target.
+// Example: GetFilterName("release", "start", FilterTargetVersion) returns "filter-flow-release-start-version"
+func GetFilterName(branchType string, action string, target FilterTarget) string {
+	return fmt.Sprintf("filter-flow-%s-%s-%s", branchType, action, target)
+}
 
 // FilterContext contains data passed to filters.
 type FilterContext struct {
-	BranchType string // The type of branch (e.g., "release", "hotfix")
+	BranchType string // The type of branch (e.g., "release", "hotfix", "feature")
 	BranchName string // The short name of the branch
-	Version    string // The version number (for release/hotfix)
+	Version    string // The version/name being filtered
 	TagMessage string // The tag message to filter
 	BaseBranch string // The base/parent branch
 }
@@ -72,7 +74,7 @@ type HookContext struct {
 	FullBranch string // The full branch name with prefix
 	BaseBranch string // The base/parent branch
 	Origin     string // The remote name
-	Version    string // The version (for release/hotfix)
+	Version    string // The version (for branches with tagging)
 	ExitCode   int    // For post-hooks: exit code of the operation
 }
 

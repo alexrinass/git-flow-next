@@ -8,11 +8,13 @@ import (
 	"strings"
 )
 
-// RunVersionFilter executes a version filter and returns the modified version.
+// RunVersionFilter executes a version filter for the given branch type and returns the modified version.
+// The filter script name is: filter-flow-{branchType}-start-version
 // If the filter does not exist or is not executable, the original version is returned.
 // If the filter exits with a non-zero status, an error is returned.
-func RunVersionFilter(gitDir string, filterType FilterType, version string) (string, error) {
-	scriptPath := filepath.Join(gitDir, "hooks", string(filterType))
+func RunVersionFilter(gitDir string, branchType string, version string) (string, error) {
+	filterName := GetFilterName(branchType, "start", FilterTargetVersion)
+	scriptPath := filepath.Join(gitDir, "hooks", filterName)
 
 	// Check if filter exists and is executable
 	if !isExecutable(scriptPath) {
@@ -22,7 +24,7 @@ func RunVersionFilter(gitDir string, filterType FilterType, version string) (str
 	// Execute the filter with version as argument
 	result, err := runFilter(scriptPath, version, nil)
 	if err != nil {
-		return "", fmt.Errorf("version filter '%s' failed: %w", filterType, err)
+		return "", fmt.Errorf("version filter '%s' failed: %w", filterName, err)
 	}
 
 	// If the filter returned empty output, use the original version
@@ -33,11 +35,13 @@ func RunVersionFilter(gitDir string, filterType FilterType, version string) (str
 	return result, nil
 }
 
-// RunTagMessageFilter executes a tag message filter and returns the modified message.
+// RunTagMessageFilter executes a tag message filter for the given branch type and returns the modified message.
+// The filter script name is: filter-flow-{branchType}-finish-tag-message
 // If the filter does not exist or is not executable, the original message is returned.
 // If the filter exits with a non-zero status, an error is returned.
-func RunTagMessageFilter(gitDir string, filterType FilterType, ctx FilterContext) (string, error) {
-	scriptPath := filepath.Join(gitDir, "hooks", string(filterType))
+func RunTagMessageFilter(gitDir string, branchType string, ctx FilterContext) (string, error) {
+	filterName := GetFilterName(branchType, "finish", FilterTargetTagMessage)
+	scriptPath := filepath.Join(gitDir, "hooks", filterName)
 
 	// Check if filter exists and is executable
 	if !isExecutable(scriptPath) {
@@ -51,7 +55,7 @@ func RunTagMessageFilter(gitDir string, filterType FilterType, ctx FilterContext
 	// The filter receives: $1 = version, $2 = message
 	result, err := runFilterWithArgs(scriptPath, []string{ctx.Version, ctx.TagMessage}, env)
 	if err != nil {
-		return "", fmt.Errorf("tag message filter '%s' failed: %w", filterType, err)
+		return "", fmt.Errorf("tag message filter '%s' failed: %w", filterName, err)
 	}
 
 	// If the filter returned empty output, use the original message

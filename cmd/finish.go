@@ -272,7 +272,8 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		BaseBranch: targetBranch,
 		Origin:     cfg.Remote,
 	}
-	if branchType == "release" || branchType == "hotfix" {
+	// Set version for branches configured with tagging
+	if branchConfig.Tag {
 		hookCtx.Version = shortName
 	}
 
@@ -584,36 +585,28 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 // handleCreateTagStep handles the tag creation step
 func handleCreateTagStep(state *mergestate.MergeState, resolvedOptions *config.ResolvedFinishOptions) error {
 	if resolvedOptions.ShouldTag {
-		// Apply tag message filter for release and hotfix branches
-		if state.BranchType == "release" || state.BranchType == "hotfix" {
-			gitDir, err := git.GetGitDir()
-			if err != nil {
-				return &errors.GitError{Operation: "get git directory", Err: err}
-			}
+		// Apply tag message filter for any branch type configured with tagging
+		// The filter script (filter-flow-{branchType}-finish-tag-message) decides what to do
+		gitDir, err := git.GetGitDir()
+		if err != nil {
+			return &errors.GitError{Operation: "get git directory", Err: err}
+		}
 
-			var filterType hooks.FilterType
-			if state.BranchType == "release" {
-				filterType = hooks.FilterTagMessageReleaseFinish
-			} else {
-				filterType = hooks.FilterTagMessageHotfixFinish
-			}
+		ctx := hooks.FilterContext{
+			BranchType: state.BranchType,
+			BranchName: state.BranchName,
+			Version:    resolvedOptions.TagName,
+			TagMessage: resolvedOptions.TagMessage,
+			BaseBranch: state.ParentBranch,
+		}
 
-			ctx := hooks.FilterContext{
-				BranchType: state.BranchType,
-				BranchName: state.BranchName,
-				Version:    resolvedOptions.TagName,
-				TagMessage: resolvedOptions.TagMessage,
-				BaseBranch: state.ParentBranch,
-			}
-
-			filteredMessage, err := hooks.RunTagMessageFilter(gitDir, filterType, ctx)
-			if err != nil {
-				return &errors.GitError{Operation: "run tag message filter", Err: err}
-			}
-			if filteredMessage != resolvedOptions.TagMessage {
-				fmt.Printf("Tag message filter modified the message\n")
-				resolvedOptions.TagMessage = filteredMessage
-			}
+		filteredMessage, err := hooks.RunTagMessageFilter(gitDir, state.BranchType, ctx)
+		if err != nil {
+			return &errors.GitError{Operation: "run tag message filter", Err: err}
+		}
+		if filteredMessage != resolvedOptions.TagMessage {
+			fmt.Printf("Tag message filter modified the message\n")
+			resolvedOptions.TagMessage = filteredMessage
 		}
 
 		if err := createTagForBranchResolved(state, resolvedOptions); err != nil {
@@ -714,7 +707,8 @@ func handleDeleteBranchStep(state *mergestate.MergeState, resolvedOptions *confi
 			Origin:     remote,
 			ExitCode:   0, // Success
 		}
-		if state.BranchType == "release" || state.BranchType == "hotfix" {
+		// Set version for branches configured with tagging
+		if resolvedOptions.ShouldTag {
 			hookCtx.Version = state.BranchName
 		}
 

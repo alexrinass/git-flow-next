@@ -48,23 +48,15 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 		return &errors.GitError{Operation: "get git directory", Err: err}
 	}
 
-	// Apply version filter for release and hotfix branches
-	if branchType == "release" || branchType == "hotfix" {
-		var filterType hooks.FilterType
-		if branchType == "release" {
-			filterType = hooks.FilterVersionReleaseStart
-		} else {
-			filterType = hooks.FilterVersionHotfixStart
-		}
-
-		filteredName, err := hooks.RunVersionFilter(gitDir, filterType, name)
-		if err != nil {
-			return &errors.GitError{Operation: "run version filter", Err: err}
-		}
-		if filteredName != name {
-			fmt.Printf("Version filter changed '%s' to '%s'\n", name, filteredName)
-			name = filteredName
-		}
+	// Apply version filter for any branch type
+	// The filter script (filter-flow-{branchType}-start-version) decides what to do
+	filteredName, err := hooks.RunVersionFilter(gitDir, branchType, name)
+	if err != nil {
+		return &errors.GitError{Operation: "run version filter", Err: err}
+	}
+	if filteredName != name {
+		fmt.Printf("Version filter changed '%s' to '%s'\n", name, filteredName)
+		name = filteredName
 	}
 
 	// Get configuration
@@ -101,8 +93,8 @@ func start(branchType string, name string, base string, shouldFetch *bool) error
 		BaseBranch: startPoint,
 		Origin:     cfg.Remote,
 	}
-	// Set version for release/hotfix
-	if branchType == "release" || branchType == "hotfix" {
+	// Set version for branches configured with tagging
+	if branchConfig.Tag {
 		hookCtx.Version = name
 	}
 
