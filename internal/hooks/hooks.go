@@ -32,10 +32,46 @@ func RunPostHook(gitDir string, branchType string, action HookAction, ctx HookCo
 	return runHook(gitDir, HookPost, branchType, action, ctx)
 }
 
+// getHooksDir returns the directory where hooks are stored.
+// For regular repositories, this is gitDir/hooks.
+// For worktrees, hooks are shared in the main repository's git directory.
+// Worktree git directories have a path like: /repo/.git/worktrees/<name>
+// In this case, hooks should be found at /repo/.git/hooks (the common git dir).
+func getHooksDir(gitDir string) string {
+	// Check if this is a worktree git directory
+	// Worktree git dirs have a path pattern: .../worktrees/<worktree-name>
+	// In this case, we need to go up two levels to get to the common git dir
+	commonDir := getCommonGitDir(gitDir)
+	return filepath.Join(commonDir, "hooks")
+}
+
+// getCommonGitDir returns the common git directory from a git directory path.
+// For regular repositories, this returns the gitDir unchanged.
+// For worktrees (where gitDir is like /repo/.git/worktrees/<name>), this returns /repo/.git
+func getCommonGitDir(gitDir string) string {
+	// Normalize the path
+	gitDir = filepath.Clean(gitDir)
+
+	// Check if this looks like a worktree git dir
+	// Pattern: .../worktrees/<worktree-name>
+	parent := filepath.Dir(gitDir)
+	parentBase := filepath.Base(parent)
+
+	if parentBase == "worktrees" {
+		// This is a worktree git directory
+		// Go up two levels: worktrees/<name> -> .git
+		return filepath.Dir(parent)
+	}
+
+	// Not a worktree, return as-is
+	return gitDir
+}
+
 // runHook executes a hook script and returns the result.
 func runHook(gitDir string, phase HookPhase, branchType string, action HookAction, ctx HookContext) HookResult {
 	hookName := fmt.Sprintf("%s-flow-%s-%s", phase, branchType, action)
-	hookPath := filepath.Join(gitDir, "hooks", hookName)
+	hooksDir := getHooksDir(gitDir)
+	hookPath := filepath.Join(hooksDir, hookName)
 
 	// Check if hook exists
 	info, err := os.Stat(hookPath)

@@ -3,6 +3,7 @@ package hooks_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gittower/git-flow-next/internal/hooks"
@@ -450,5 +451,107 @@ func TestGetFilterName(t *testing.T) {
 					tt.branchType, tt.action, tt.target, result, tt.expected)
 			}
 		})
+	}
+}
+
+// TestVersionFilterWorksInGitWorktree tests that version filters work correctly in a git worktree.
+func TestVersionFilterWorksInGitWorktree(t *testing.T) {
+	// Setup main repository
+	mainRepo := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, mainRepo)
+
+	// Create a worktree
+	worktreePath, err := os.MkdirTemp("", "git-flow-worktree-filter-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory for worktree: %v", err)
+	}
+	defer os.RemoveAll(worktreePath)
+	os.RemoveAll(worktreePath)
+
+	_, err = testutil.RunGit(t, mainRepo, "worktree", "add", worktreePath, "-b", "filter-test-branch")
+	if err != nil {
+		t.Fatalf("Failed to create worktree: %v", err)
+	}
+
+	// Create a version filter in the main repository's hooks directory
+	script := `#!/bin/sh
+VERSION="$1"
+echo "v${VERSION}"
+`
+	createExecutableScript(t, mainRepo, "filter-flow-release-start-version", script)
+
+	// Get the worktree's git directory
+	oldDir, _ := os.Getwd()
+	os.Chdir(worktreePath)
+	worktreeGitDirOutput, err := testutil.RunGit(t, worktreePath, "rev-parse", "--git-dir")
+	os.Chdir(oldDir)
+	if err != nil {
+		t.Fatalf("Failed to get worktree git directory: %v", err)
+	}
+	worktreeGitDir := strings.TrimSpace(worktreeGitDirOutput)
+
+	// Run version filter from worktree context
+	result, err := hooks.RunVersionFilter(worktreeGitDir, "release", "1.0.0")
+	if err != nil {
+		t.Fatalf("RunVersionFilter failed in worktree: %v", err)
+	}
+
+	if result != "v1.0.0" {
+		t.Errorf("Expected 'v1.0.0', got '%s'", result)
+	}
+}
+
+// TestTagMessageFilterWorksInGitWorktree tests that tag message filters work correctly in a git worktree.
+func TestTagMessageFilterWorksInGitWorktree(t *testing.T) {
+	// Setup main repository
+	mainRepo := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, mainRepo)
+
+	// Create a worktree
+	worktreePath, err := os.MkdirTemp("", "git-flow-worktree-tagfilter-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory for worktree: %v", err)
+	}
+	defer os.RemoveAll(worktreePath)
+	os.RemoveAll(worktreePath)
+
+	_, err = testutil.RunGit(t, mainRepo, "worktree", "add", worktreePath, "-b", "tagfilter-test-branch")
+	if err != nil {
+		t.Fatalf("Failed to create worktree: %v", err)
+	}
+
+	// Create a tag message filter in the main repository's hooks directory
+	script := `#!/bin/sh
+VERSION="$1"
+echo "Release ${VERSION} from worktree"
+`
+	createExecutableScript(t, mainRepo, "filter-flow-release-finish-tag-message", script)
+
+	// Get the worktree's git directory
+	oldDir, _ := os.Getwd()
+	os.Chdir(worktreePath)
+	worktreeGitDirOutput, err := testutil.RunGit(t, worktreePath, "rev-parse", "--git-dir")
+	os.Chdir(oldDir)
+	if err != nil {
+		t.Fatalf("Failed to get worktree git directory: %v", err)
+	}
+	worktreeGitDir := strings.TrimSpace(worktreeGitDirOutput)
+
+	ctx := hooks.FilterContext{
+		BranchType: "release",
+		BranchName: "2.0.0",
+		Version:    "2.0.0",
+		TagMessage: "Original message",
+		BaseBranch: "main",
+	}
+
+	// Run tag message filter from worktree context
+	result, err := hooks.RunTagMessageFilter(worktreeGitDir, "release", ctx)
+	if err != nil {
+		t.Fatalf("RunTagMessageFilter failed in worktree: %v", err)
+	}
+
+	if result != "Release 2.0.0 from worktree" {
+		t.Errorf("Expected 'Release 2.0.0 from worktree', got '%s'", result)
 	}
 }

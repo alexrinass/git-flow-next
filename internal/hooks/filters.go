@@ -14,7 +14,8 @@ import (
 // If the filter exits with a non-zero status, an error is returned.
 func RunVersionFilter(gitDir string, branchType string, version string) (string, error) {
 	filterName := GetFilterName(branchType, "start", FilterTargetVersion)
-	scriptPath := filepath.Join(gitDir, "hooks", filterName)
+	hooksDir := getHooksDir(gitDir)
+	scriptPath := filepath.Join(hooksDir, filterName)
 
 	// Check if filter exists and is executable
 	if !isExecutable(scriptPath) {
@@ -41,7 +42,8 @@ func RunVersionFilter(gitDir string, branchType string, version string) (string,
 // If the filter exits with a non-zero status, an error is returned.
 func RunTagMessageFilter(gitDir string, branchType string, ctx FilterContext) (string, error) {
 	filterName := GetFilterName(branchType, "finish", FilterTargetTagMessage)
-	scriptPath := filepath.Join(gitDir, "hooks", filterName)
+	hooksDir := getHooksDir(gitDir)
+	scriptPath := filepath.Join(hooksDir, filterName)
 
 	// Check if filter exists and is executable
 	if !isExecutable(scriptPath) {
