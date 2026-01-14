@@ -143,7 +143,7 @@ func executePublish(fullBranchName, shortName, branchType, remote string) error 
 	}
 
 	fmt.Printf("Successfully published '%s' to '%s/%s'\n", fullBranchName, remote, fullBranchName)
-	fmt.Printf("You can now track this branch with:\n")
+	fmt.Printf("Other team members can now track this branch with:\n")
 	fmt.Printf("    git flow %s track %s\n", branchType, shortName)
 	return nil
 }
