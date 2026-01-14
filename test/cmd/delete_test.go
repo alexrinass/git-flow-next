@@ -510,7 +510,7 @@ func TestDeleteFeatureWithCustomRemote(t *testing.T) {
 
 	// Configure custom remote name
 	customRemote := "upstream"
-	_, err = testutil.RunGit(t, dir, "config", "gitflow.remote", customRemote)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.origin", customRemote)
 	if err != nil {
 		t.Fatalf("Failed to set custom remote name: %v", err)
 	}
