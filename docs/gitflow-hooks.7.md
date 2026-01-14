@@ -130,16 +130,16 @@ Hooks are scripts that execute before (pre) or after (post) git-flow operations.
 Where:
 - `{pre,post}` indicates when the hook runs
 - `{type}` is the branch type (feature, release, hotfix, support)
-- `{action}` is the git-flow action (start, finish, publish, track, delete)
+- `{action}` is the git-flow action (start, finish, publish, track, delete, update)
 
 ### Available Hooks
 
 | Hook Pattern | Operations |
 |--------------|------------|
-| `{pre,post}-flow-feature-{action}` | start, finish, publish, track, delete |
-| `{pre,post}-flow-release-{action}` | start, finish, publish, track, delete |
-| `{pre,post}-flow-hotfix-{action}` | start, finish, publish, delete |
-| `{pre,post}-flow-support-{action}` | start, finish, publish, delete |
+| `{pre,post}-flow-feature-{action}` | start, finish, publish, track, delete, update |
+| `{pre,post}-flow-release-{action}` | start, finish, publish, track, delete, update |
+| `{pre,post}-flow-hotfix-{action}` | start, finish, publish, delete, update |
+| `{pre,post}-flow-support-{action}` | start, finish, publish, delete, update |
 
 ### Environment Variables
 
@@ -214,6 +214,18 @@ fi
 
 if [ "$EXIT_CODE" -eq 0 ]; then
     echo "Feature $BRANCH_NAME merged. Consider updating documentation."
+fi
+```
+
+**Example: Run tests after updating branch**
+
+```bash
+#!/bin/sh
+# .git/hooks/post-flow-feature-update
+
+if [ "$EXIT_CODE" -eq 0 ]; then
+    echo "Branch $BRANCH updated from $BASE_BRANCH. Running tests..."
+    # npm test || yarn test || make test
 fi
 ```
 

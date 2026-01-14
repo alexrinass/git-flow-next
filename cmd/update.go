@@ -7,6 +7,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
 	"github.com/gittower/git-flow-next/internal/git"
+	"github.com/gittower/git-flow-next/internal/hooks"
 	"github.com/gittower/git-flow-next/internal/mergestate"
 	"github.com/gittower/git-flow-next/internal/update"
 )
@@ -34,7 +35,11 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 	}
 
 	var branchName string
+	var shortName string
+	var detectedBranchType string
+
 	if branchType != "" {
+		detectedBranchType = branchType
 		// If branch type is specified, construct full branch name
 		if name == "" {
 			// If no name provided, try to get current branch and verify it's of the correct type
@@ -50,6 +55,7 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 				return &errors.GitError{Operation: "validate current branch", Err: fmt.Errorf("current branch is not a %s branch", branchType)}
 			}
 			branchName = currentBranch
+			shortName = strings.TrimPrefix(currentBranch, branchConfig.Prefix)
 		} else {
 			// Construct full branch name from type and name
 			branchConfig, ok := cfg.Branches[branchType]
@@ -57,6 +63,7 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 				return &errors.InvalidBranchTypeError{BranchType: branchType}
 			}
 			branchName = branchConfig.Prefix + name
+			shortName = name
 		}
 	} else {
 		// No branch type specified, use provided branch name or current branch
@@ -69,6 +76,8 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 		} else {
 			branchName = name
 		}
+		// Try to detect branch type from branch name
+		detectedBranchType, shortName = detectBranchTypeFromName(cfg, branchName)
 	}
 
 	// Check if branch exists
@@ -119,6 +128,48 @@ func executeUpdate(branchType string, name string, useRebase bool) error {
 		FullBranchName: branchName,
 	}
 
-	// Update the branch using shared logic
+	// If we detected a branch type, run with hooks
+	if detectedBranchType != "" {
+		// Get git directory for hooks
+		gitDir, err := git.GetGitDir()
+		if err != nil {
+			return &errors.GitError{Operation: "get git directory", Err: err}
+		}
+
+		// Get remote name
+		remoteName := cfg.Remote
+		if remoteName == "" {
+			remoteName = "origin"
+		}
+
+		// Build hook context
+		hookCtx := hooks.HookContext{
+			BranchType: detectedBranchType,
+			BranchName: shortName,
+			FullBranch: branchName,
+			BaseBranch: parentBranch,
+			Origin:     remoteName,
+		}
+		if detectedBranchType == "release" || detectedBranchType == "hotfix" {
+			hookCtx.Version = shortName
+		}
+
+		// Run update operation wrapped with hooks
+		return hooks.WithHooks(gitDir, detectedBranchType, hooks.HookActionUpdate, hookCtx, func() error {
+			return update.UpdateBranchFromParent(branchName, parentBranch, strategy, true, state)
+		})
+	}
+
+	// No branch type detected, run without hooks
 	return update.UpdateBranchFromParent(branchName, parentBranch, strategy, true, state)
+}
+
+// detectBranchTypeFromName detects the branch type and short name from a full branch name
+func detectBranchTypeFromName(cfg *config.Config, branchName string) (string, string) {
+	for branchType, bc := range cfg.Branches {
+		if bc.Type == string(config.BranchTypeTopic) && bc.Prefix != "" && strings.HasPrefix(branchName, bc.Prefix) {
+			return branchType, strings.TrimPrefix(branchName, bc.Prefix)
+		}
+	}
+	return "", branchName
 }

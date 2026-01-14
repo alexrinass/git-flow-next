@@ -65,6 +65,9 @@ const (
 
 	// HookActionDelete is the delete action.
 	HookActionDelete HookAction = "delete"
+
+	// HookActionUpdate is the update action.
+	HookActionUpdate HookAction = "update"
 )
 
 // HookContext contains data passed to hooks via environment variables.

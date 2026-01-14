@@ -820,6 +820,194 @@ echo "BASE_BRANCH=$BASE_BRANCH" >> "` + markerFile + `"
 	}
 }
 
+// =============================================================================
+// Update Hook Tests - Verify hooks run for update operations
+// =============================================================================
+
+// TestUpdatePreHookBlocks tests that a failing pre-hook prevents update operation.
+func TestUpdatePreHookBlocks(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "update-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop (so there's something to update from)
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/update-test")
+
+	// Create a pre-hook that fails
+	script := `#!/bin/sh
+echo "Pre-hook blocking update" >&2
+exit 1
+`
+	createHookScript(t, dir, "pre-flow-feature-update", script)
+
+	// Try to update - should fail
+	output, err := testutil.RunGitFlow(t, dir, "feature", "update", "update-test")
+	if err == nil {
+		t.Fatal("Expected feature update to fail due to pre-hook, but it succeeded")
+	}
+
+	// Verify the error mentions the hook
+	if !strings.Contains(output, "pre-hook") {
+		t.Errorf("Expected error to mention pre-hook, got: %s", output)
+	}
+}
+
+// TestUpdatePostHookRuns tests that post-hook executes after successful update.
+func TestUpdatePostHookRuns(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "update-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop (so there's something to update from)
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/update-hook-test")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "update-hook-executed.txt")
+
+	// Create a post-hook that creates a marker file
+	script := `#!/bin/sh
+echo "BRANCH=$BRANCH" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+echo "BRANCH_TYPE=$BRANCH_TYPE" >> "` + markerFile + `"
+echo "BASE_BRANCH=$BASE_BRANCH" >> "` + markerFile + `"
+echo "EXIT_CODE=$EXIT_CODE" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-update", script)
+
+	// Update the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "update", "update-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to update feature: %v", err)
+	}
+
+	// Verify post-hook ran by checking marker file
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run - marker file not found: %v", err)
+	}
+
+	// Verify environment variables were passed correctly
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH=feature/update-hook-test") {
+		t.Errorf("Expected BRANCH=feature/update-hook-test in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_NAME=update-hook-test") {
+		t.Errorf("Expected BRANCH_NAME=update-hook-test in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_TYPE=feature") {
+		t.Errorf("Expected BRANCH_TYPE=feature in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BASE_BRANCH=develop") {
+		t.Errorf("Expected BASE_BRANCH=develop in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "EXIT_CODE=0") {
+		t.Errorf("Expected EXIT_CODE=0 in hook output, got: %s", contentStr)
+	}
+}
+
+// TestUpdateShorthandHookRuns tests that hooks work with the shorthand update command.
+func TestUpdateShorthandHookRuns(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "shorthand-update")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/shorthand-update")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "shorthand-update-hook.txt")
+
+	// Create a post-hook
+	script := `#!/bin/sh
+echo "BRANCH_TYPE=$BRANCH_TYPE" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-update", script)
+
+	// Use shorthand update command (git flow update)
+	_, err = testutil.RunGitFlow(t, dir, "update")
+	if err != nil {
+		t.Fatalf("Failed to run shorthand update: %v", err)
+	}
+
+	// Verify post-hook ran
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run with shorthand command - marker file not found: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH_TYPE=feature") {
+		t.Errorf("Expected BRANCH_TYPE=feature, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_NAME=shorthand-update") {
+		t.Errorf("Expected BRANCH_NAME=shorthand-update, got: %s", contentStr)
+	}
+}
+
 // TestHotfixVersionFilter tests that version filters work with hotfix branch type.
 // This verifies filters work with branch types beyond just release.
 func TestHotfixVersionFilter(t *testing.T) {
