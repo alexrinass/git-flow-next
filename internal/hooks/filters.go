@@ -23,7 +23,8 @@ func RunVersionFilter(gitDir string, branchType string, version string) (string,
 	}
 
 	// Execute the filter with version as argument
-	result, err := runFilter(scriptPath, version, nil)
+	repoRoot := filepath.Dir(getCommonGitDir(gitDir))
+	result, err := runFilter(scriptPath, version, nil, repoRoot)
 	if err != nil {
 		return "", fmt.Errorf("version filter '%s' failed: %w", filterName, err)
 	}
@@ -55,7 +56,8 @@ func RunTagMessageFilter(gitDir string, branchType string, ctx FilterContext) (s
 
 	// Execute the filter with version and message as arguments
 	// The filter receives: $1 = version, $2 = message
-	result, err := runFilterWithArgs(scriptPath, []string{ctx.Version, ctx.TagMessage}, env)
+	repoRoot := filepath.Dir(getCommonGitDir(gitDir))
+	result, err := runFilterWithArgs(scriptPath, []string{ctx.Version, ctx.TagMessage}, env, repoRoot)
 	if err != nil {
 		return "", fmt.Errorf("tag message filter '%s' failed: %w", filterName, err)
 	}
@@ -93,8 +95,8 @@ func buildFilterEnv(ctx FilterContext) []string {
 	return env
 }
 
-// runFilter executes a filter script with input on stdin.
-func runFilter(scriptPath string, input string, env []string) (string, error) {
+// runFilter executes a filter script with input as argument.
+func runFilter(scriptPath string, input string, env []string, repoRoot string) (string, error) {
 	cmd := exec.Command(scriptPath, input)
 
 	if env != nil {
@@ -102,7 +104,7 @@ func runFilter(scriptPath string, input string, env []string) (string, error) {
 	}
 
 	// Set working directory to repository root
-	cmd.Dir = filepath.Dir(filepath.Dir(scriptPath))
+	cmd.Dir = repoRoot
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -116,7 +118,7 @@ func runFilter(scriptPath string, input string, env []string) (string, error) {
 }
 
 // runFilterWithArgs executes a filter script with arguments.
-func runFilterWithArgs(scriptPath string, args []string, env []string) (string, error) {
+func runFilterWithArgs(scriptPath string, args []string, env []string, repoRoot string) (string, error) {
 	cmd := exec.Command(scriptPath, args...)
 
 	if env != nil {
@@ -124,7 +126,7 @@ func runFilterWithArgs(scriptPath string, args []string, env []string) (string, 
 	}
 
 	// Set working directory to repository root
-	cmd.Dir = filepath.Dir(filepath.Dir(scriptPath))
+	cmd.Dir = repoRoot
 
 	output, err := cmd.Output()
 	if err != nil {
