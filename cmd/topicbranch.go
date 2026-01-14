@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gittower/git-flow-next/internal/config"
 	"github.com/gittower/git-flow-next/internal/errors"
+	"github.com/gittower/git-flow-next/internal/git"
 	"github.com/spf13/cobra"
 )
 
@@ -108,9 +110,9 @@ func registerBranchCommand(branchType string) {
 	finishCmd := &cobra.Command{
 		Use:     "finish [name]",
 		Short:   fmt.Sprintf("Finish a %s branch", branchType),
-		Long:    fmt.Sprintf("Finish a %s branch by merging it into the appropriate base branch", branchType),
-		Example: fmt.Sprintf("  git flow %s finish my-feature\n  git flow %s finish other/branch -f", branchType, branchType),
-		Args:    cobra.ExactArgs(1),
+		Long:    fmt.Sprintf("Finish a %s branch by merging it into the appropriate base branch. If no name is provided, finishes the current branch.", branchType),
+		Example: fmt.Sprintf("  git flow %s finish\n  git flow %s finish my-feature\n  git flow %s finish other/branch -f", branchType, branchType, branchType),
+		Args:    cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Get flags
 			continueOp, _ := cmd.Flags().GetBool("continue")
@@ -152,6 +154,37 @@ func registerBranchCommand(branchType string) {
 			fetch, _ := cmd.Flags().GetBool("fetch")
 			noFetch, _ := cmd.Flags().GetBool("no-fetch")
 
+			// Determine branch name - use provided arg or detect from current branch
+			var name string
+			if len(args) > 0 {
+				name = args[0]
+			} else {
+				// No name provided, try to detect from current branch
+				currentBranch, err := git.GetCurrentBranch()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					os.Exit(int(errors.ExitCodeGitError))
+				}
+				// Load config to get prefix
+				cfg, err := config.LoadConfig()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					os.Exit(int(errors.ExitCodeGitError))
+				}
+				branchConfig, ok := cfg.Branches[branchType]
+				if !ok {
+					fmt.Fprintf(os.Stderr, "Error: invalid branch type '%s'\n", branchType)
+					os.Exit(int(errors.ExitCodeInvalidInput))
+				}
+				// Verify current branch is of the correct type
+				if !strings.HasPrefix(currentBranch, branchConfig.Prefix) {
+					fmt.Fprintf(os.Stderr, "Error: current branch '%s' is not a %s branch\n", currentBranch, branchType)
+					os.Exit(int(errors.ExitCodeBranchNotFound))
+				}
+				// Extract short name from current branch
+				name = strings.TrimPrefix(currentBranch, branchConfig.Prefix)
+			}
+
 			// Create tag options
 			tagOptions := &config.TagOptions{
 				ShouldTag:   getBoolFlag(tag, noTag),
@@ -180,7 +213,7 @@ func registerBranchCommand(branchType string) {
 			}
 
 			// Call the generic finish command with the branch type and name
-			FinishCommand(branchType, args[0], continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, getBoolFlag(fetch, noFetch))
+			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, getBoolFlag(fetch, noFetch))
 		},
 	}
 
