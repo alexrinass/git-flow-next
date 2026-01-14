@@ -475,3 +475,392 @@ echo "BRANCH=$BRANCH" >> "` + markerFile + `"
 		t.Error("Feature branch should have been created from worktree")
 	}
 }
+
+// =============================================================================
+// Publish Hook Tests - Verify hooks run for publish operations
+// =============================================================================
+
+// TestPublishPreHookBlocks tests that a failing pre-hook prevents publish operation.
+func TestPublishPreHookBlocks(t *testing.T) {
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	defer testutil.CleanupTestRepo(t, remoteDir)
+
+	// Start a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "publish-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Create a pre-hook that fails
+	script := `#!/bin/sh
+echo "Pre-hook blocking publish" >&2
+exit 1
+`
+	createHookScript(t, dir, "pre-flow-feature-publish", script)
+
+	// Try to publish - should fail
+	output, err := testutil.RunGitFlow(t, dir, "feature", "publish", "publish-test")
+	if err == nil {
+		t.Fatal("Expected feature publish to fail due to pre-hook, but it succeeded")
+	}
+
+	// Verify the error mentions the hook
+	if !strings.Contains(output, "pre-hook") {
+		t.Errorf("Expected error to mention pre-hook, got: %s", output)
+	}
+
+	// Verify branch was NOT pushed to remote
+	if testutil.RemoteBranchExists(t, dir, "origin", "feature/publish-test") {
+		t.Error("Branch should not have been pushed when pre-hook failed")
+	}
+}
+
+// TestPublishPostHookRuns tests that post-hook executes after successful publish.
+func TestPublishPostHookRuns(t *testing.T) {
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	defer testutil.CleanupTestRepo(t, remoteDir)
+
+	// Start a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "publish-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "publish-hook-executed.txt")
+
+	// Create a post-hook that creates a marker file
+	script := `#!/bin/sh
+echo "BRANCH=$BRANCH" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+echo "ORIGIN=$ORIGIN" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-publish", script)
+
+	// Publish the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "publish", "publish-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to publish feature: %v", err)
+	}
+
+	// Verify post-hook ran by checking marker file
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run - marker file not found: %v", err)
+	}
+
+	// Verify environment variables were passed correctly
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH=feature/publish-hook-test") {
+		t.Errorf("Expected BRANCH=feature/publish-hook-test in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_NAME=publish-hook-test") {
+		t.Errorf("Expected BRANCH_NAME=publish-hook-test in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "ORIGIN=origin") {
+		t.Errorf("Expected ORIGIN=origin in hook output, got: %s", contentStr)
+	}
+}
+
+// =============================================================================
+// Track Hook Tests - Verify hooks run for track operations
+// =============================================================================
+
+// TestTrackPreHookBlocks tests that a failing pre-hook prevents track operation.
+func TestTrackPreHookBlocks(t *testing.T) {
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	defer testutil.CleanupTestRepo(t, remoteDir)
+
+	// Start and publish a feature branch to create it on remote
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "track-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+	_, err = testutil.RunGitFlow(t, dir, "feature", "publish", "track-test")
+	if err != nil {
+		t.Fatalf("Failed to publish feature: %v", err)
+	}
+
+	// Delete local branch and switch to develop
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	_, _ = testutil.RunGit(t, dir, "branch", "-D", "feature/track-test")
+
+	// Create a pre-hook that fails
+	script := `#!/bin/sh
+echo "Pre-hook blocking track" >&2
+exit 1
+`
+	createHookScript(t, dir, "pre-flow-feature-track", script)
+
+	// Try to track - should fail
+	output, err := testutil.RunGitFlow(t, dir, "feature", "track", "track-test")
+	if err == nil {
+		t.Fatal("Expected feature track to fail due to pre-hook, but it succeeded")
+	}
+
+	// Verify the error mentions the hook
+	if !strings.Contains(output, "pre-hook") {
+		t.Errorf("Expected error to mention pre-hook, got: %s", output)
+	}
+
+	// Verify local branch was NOT created
+	if testutil.BranchExists(t, dir, "feature/track-test") {
+		t.Error("Local branch should not have been created when pre-hook failed")
+	}
+}
+
+// TestTrackPostHookRuns tests that post-hook executes after successful track.
+func TestTrackPostHookRuns(t *testing.T) {
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	defer testutil.CleanupTestRepo(t, remoteDir)
+
+	// Start and publish a feature branch to create it on remote
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "track-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+	_, err = testutil.RunGitFlow(t, dir, "feature", "publish", "track-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to publish feature: %v", err)
+	}
+
+	// Delete local branch and switch to develop
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	_, _ = testutil.RunGit(t, dir, "branch", "-D", "feature/track-hook-test")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "track-hook-executed.txt")
+
+	// Create a post-hook that creates a marker file
+	script := `#!/bin/sh
+echo "BRANCH=$BRANCH" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+echo "ORIGIN=$ORIGIN" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-track", script)
+
+	// Track the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "track", "track-hook-test")
+	if err != nil {
+		t.Fatalf("Failed to track feature: %v", err)
+	}
+
+	// Verify post-hook ran by checking marker file
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run - marker file not found: %v", err)
+	}
+
+	// Verify environment variables were passed correctly
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH=feature/track-hook-test") {
+		t.Errorf("Expected BRANCH=feature/track-hook-test in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_NAME=track-hook-test") {
+		t.Errorf("Expected BRANCH_NAME=track-hook-test in hook output, got: %s", contentStr)
+	}
+}
+
+// =============================================================================
+// Delete Post-Hook Test - Verify post-hook runs after delete
+// =============================================================================
+
+// TestDeletePostHookRuns tests that post-hook executes after successful delete.
+func TestDeletePostHookRuns(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "to-delete-hook")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Switch back to develop so we can delete the feature branch
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "delete-hook-executed.txt")
+
+	// Create a post-hook that creates a marker file
+	script := `#!/bin/sh
+echo "BRANCH=$BRANCH" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+echo "EXIT_CODE=$EXIT_CODE" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-delete", script)
+
+	// Delete the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "delete", "to-delete-hook")
+	if err != nil {
+		t.Fatalf("Failed to delete feature: %v", err)
+	}
+
+	// Verify post-hook ran by checking marker file
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run - marker file not found: %v", err)
+	}
+
+	// Verify environment variables were passed correctly
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH=feature/to-delete-hook") {
+		t.Errorf("Expected BRANCH=feature/to-delete-hook in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "EXIT_CODE=0") {
+		t.Errorf("Expected EXIT_CODE=0 in hook output, got: %s", contentStr)
+	}
+}
+
+// =============================================================================
+// Custom Branch Type Hook Tests - Verify hooks work with custom branch configs
+// =============================================================================
+
+// TestCustomBranchTypePreHookBlocks tests that hooks work with custom branch types.
+func TestCustomBranchTypePreHookBlocks(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Configure a custom branch type "bugfix"
+	_, _ = testutil.RunGit(t, dir, "config", "gitflow.branch.bugfix.prefix", "bugfix/")
+	_, _ = testutil.RunGit(t, dir, "config", "gitflow.branch.bugfix.parent", "develop")
+
+	// Create a pre-hook that fails for the custom branch type
+	script := `#!/bin/sh
+echo "Pre-hook blocking bugfix start" >&2
+exit 1
+`
+	createHookScript(t, dir, "pre-flow-bugfix-start", script)
+
+	// Try to start a bugfix - should fail
+	output, err := testutil.RunGitFlow(t, dir, "bugfix", "start", "custom-blocked")
+	if err == nil {
+		t.Fatal("Expected bugfix start to fail due to pre-hook, but it succeeded")
+	}
+
+	// Verify the error mentions the hook
+	if !strings.Contains(output, "pre-hook") {
+		t.Errorf("Expected error to mention pre-hook, got: %s", output)
+	}
+
+	// Verify branch was NOT created
+	if testutil.BranchExists(t, dir, "bugfix/custom-blocked") {
+		t.Error("Branch should not have been created when pre-hook failed")
+	}
+}
+
+// TestCustomBranchTypePostHookReceivesCorrectType tests that post-hooks receive the correct branch type.
+// Uses "support" branch type which is a standard git-flow type but configured with custom prefix.
+func TestCustomBranchTypePostHookReceivesCorrectType(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Configure support branch with a custom prefix
+	_, _ = testutil.RunGit(t, dir, "config", "gitflow.branch.support.prefix", "sup/")
+	_, _ = testutil.RunGit(t, dir, "config", "gitflow.branch.support.parent", "main")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "custom-hook-executed.txt")
+
+	// Create a post-hook that records the branch type
+	script := `#!/bin/sh
+echo "BRANCH=$BRANCH" > "` + markerFile + `"
+echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
+echo "BRANCH_TYPE=$BRANCH_TYPE" >> "` + markerFile + `"
+echo "BASE_BRANCH=$BASE_BRANCH" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-support-start", script)
+
+	// Start a support branch
+	_, err = testutil.RunGitFlow(t, dir, "support", "start", "lts-1.0")
+	if err != nil {
+		t.Fatalf("Failed to start support: %v", err)
+	}
+
+	// Verify post-hook ran by checking marker file
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Post-hook did not run - marker file not found: %v", err)
+	}
+
+	// Verify environment variables were passed correctly for support type
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "BRANCH=sup/lts-1.0") {
+		t.Errorf("Expected BRANCH=sup/lts-1.0 in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_NAME=lts-1.0") {
+		t.Errorf("Expected BRANCH_NAME=lts-1.0 in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BRANCH_TYPE=support") {
+		t.Errorf("Expected BRANCH_TYPE=support in hook output, got: %s", contentStr)
+	}
+	if !strings.Contains(contentStr, "BASE_BRANCH=main") {
+		t.Errorf("Expected BASE_BRANCH=main in hook output, got: %s", contentStr)
+	}
+}
+
+// TestHotfixVersionFilter tests that version filters work with hotfix branch type.
+// This verifies filters work with branch types beyond just release.
+func TestHotfixVersionFilter(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Create a version filter that adds 'hotfix-' prefix for hotfixes
+	script := `#!/bin/sh
+VERSION="$1"
+if [ "${VERSION#hotfix-}" = "$VERSION" ]; then
+    echo "hotfix-$VERSION"
+else
+    echo "$VERSION"
+fi
+`
+	createHookScript(t, dir, "filter-flow-hotfix-start-version", script)
+
+	// Start a hotfix - filter should change "1.0.1" to "hotfix-1.0.1"
+	output, err := testutil.RunGitFlow(t, dir, "hotfix", "start", "1.0.1")
+	if err != nil {
+		t.Fatalf("Failed to start hotfix: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the filter message is shown
+	if !strings.Contains(output, "Version filter changed") {
+		t.Errorf("Expected output to mention version filter, got: %s", output)
+	}
+
+	// Verify the branch was created with the filtered name
+	if !testutil.BranchExists(t, dir, "hotfix/hotfix-1.0.1") {
+		t.Error("Expected hotfix/hotfix-1.0.1 branch to exist (filtered from 1.0.1)")
+	}
+
+	// Verify original name branch was NOT created
+	if testutil.BranchExists(t, dir, "hotfix/1.0.1") {
+		t.Error("hotfix/1.0.1 should not exist - filter should have changed it to hotfix-1.0.1")
+	}
+}
