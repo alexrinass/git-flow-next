@@ -660,3 +660,162 @@ func TestDeleteCleansUpBaseBranchConfig(t *testing.T) {
 		t.Error("Expected feature branch to be deleted")
 	}
 }
+
+// TestDeleteForceWithConfig tests that the gitflow.<type>.delete.force config enables force deletion.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Enables force delete in config for feature branches
+// 3. Creates a feature branch with unmerged changes
+// 4. Deletes without --force flag (should succeed due to config)
+// 5. Verifies the branch is deleted
+func TestDeleteForceWithConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Enable force delete in config
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.delete.force", "true")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	// Create a feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-force-config")
+	if err != nil {
+		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add some changes to make it unmerged
+	testutil.WriteFile(t, dir, "force-config.txt", "unmerged content")
+	_, err = testutil.RunGit(t, dir, "add", "force-config.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add unmerged file")
+	if err != nil {
+		t.Fatalf("Failed to commit file: %v", err)
+	}
+
+	// Delete without --force flag (should succeed due to config)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "delete", "test-force-config")
+	if err != nil {
+		t.Fatalf("Expected delete to succeed with force config enabled: %v\nOutput: %s", err, output)
+	}
+
+	// Verify branch is deleted
+	if testutil.BranchExists(t, dir, "feature/test-force-config") {
+		t.Error("Expected feature branch to be deleted")
+	}
+}
+
+// TestDeleteNoForceOverridesConfig tests that --no-force overrides the config setting.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Enables force delete in config for feature branches
+// 3. Creates a feature branch with unmerged changes
+// 4. Deletes with --no-force flag (should fail despite config)
+// 5. Verifies the branch still exists
+func TestDeleteNoForceOverridesConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Enable force delete in config
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.delete.force", "true")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	// Create a feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-no-force")
+	if err != nil {
+		t.Fatalf("Failed to create feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add some changes to make it unmerged
+	testutil.WriteFile(t, dir, "no-force.txt", "unmerged content")
+	_, err = testutil.RunGit(t, dir, "add", "no-force.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add unmerged file")
+	if err != nil {
+		t.Fatalf("Failed to commit file: %v", err)
+	}
+
+	// Delete with --no-force flag (should fail despite config)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "delete", "test-no-force", "--no-force")
+	if err == nil {
+		t.Fatal("Expected delete to fail with --no-force flag")
+	}
+
+	// Verify branch still exists
+	if !testutil.BranchExists(t, dir, "feature/test-no-force") {
+		t.Error("Expected feature branch to still exist")
+	}
+}
+
+// TestDeleteForceConfigAcrossBranchTypes tests that force config works for different branch types.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Enables force delete in config for release branches
+// 3. Creates a release branch with unmerged changes
+// 4. Deletes without --force flag (should succeed due to config)
+// 5. Verifies the branch is deleted
+func TestDeleteForceConfigAcrossBranchTypes(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Enable force delete in config for release branches
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.release.delete.force", "true")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	// Create a release branch
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to create release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add some changes to make it unmerged
+	testutil.WriteFile(t, dir, "release-change.txt", "release content")
+	_, err = testutil.RunGit(t, dir, "add", "release-change.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add release file")
+	if err != nil {
+		t.Fatalf("Failed to commit file: %v", err)
+	}
+
+	// Delete without --force flag (should succeed due to config)
+	output, err = testutil.RunGitFlow(t, dir, "release", "delete", "1.0.0")
+	if err != nil {
+		t.Fatalf("Expected delete to succeed with force config enabled: %v\nOutput: %s", err, output)
+	}
+
+	// Verify branch is deleted
+	if testutil.BranchExists(t, dir, "release/1.0.0") {
+		t.Error("Expected release branch to be deleted")
+	}
+}

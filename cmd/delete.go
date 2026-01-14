@@ -11,7 +11,7 @@ import (
 )
 
 // DeleteCommand handles the deletion of a topic branch
-func DeleteCommand(branchType string, name string, force bool, remote *bool) {
+func DeleteCommand(branchType string, name string, force *bool, remote *bool) {
 	if err := executeDelete(branchType, name, force, remote); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
@@ -25,7 +25,7 @@ func DeleteCommand(branchType string, name string, force bool, remote *bool) {
 }
 
 // executeDelete performs the actual branch deletion logic and returns any errors
-func executeDelete(branchType string, name string, force bool, remote *bool) error {
+func executeDelete(branchType string, name string, force *bool, remote *bool) error {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -81,7 +81,7 @@ func executeDelete(branchType string, name string, force bool, remote *bool) err
 }
 
 // performDelete performs the actual delete operation (called within hooks wrapper)
-func performDelete(branchType, name, fullBranchName string, branchConfig config.BranchConfig, force bool, remote *bool, cfg *config.Config) error {
+func performDelete(branchType, name, fullBranchName string, branchConfig config.BranchConfig, force *bool, remote *bool, cfg *config.Config) error {
 	// Check if we're currently on the branch to be deleted
 	currentBranch, err := git.GetCurrentBranch()
 	if err != nil {
@@ -96,6 +96,20 @@ func performDelete(branchType, name, fullBranchName string, branchConfig config.
 			}
 		} else {
 			return &errors.GitError{Operation: "delete branch", Err: fmt.Errorf("cannot delete the current branch without a parent branch configured")}
+		}
+	}
+
+	// Determine if we should force delete the branch
+	forceDelete := false
+	if force != nil {
+		// Command line flag takes precedence
+		forceDelete = *force
+	} else {
+		// Check config if not specified
+		configKey := fmt.Sprintf("gitflow.%s.delete.force", branchType)
+		forceConfig, err := git.GetConfig(configKey)
+		if err == nil && forceConfig == "true" {
+			forceDelete = true
 		}
 	}
 
@@ -114,7 +128,7 @@ func performDelete(branchType, name, fullBranchName string, branchConfig config.
 	}
 
 	// Delete the branch with appropriate flag
-	deleteErr := git.DeleteBranch(fullBranchName, force)
+	deleteErr := git.DeleteBranch(fullBranchName, forceDelete)
 	if deleteErr != nil {
 		return &errors.GitError{Operation: fmt.Sprintf("delete branch '%s'", fullBranchName), Err: deleteErr}
 	}

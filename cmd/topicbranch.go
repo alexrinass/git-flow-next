@@ -270,8 +270,18 @@ func registerBranchCommand(branchType string) {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			force, _ := cmd.Flags().GetBool("force")
+			noForce, _ := cmd.Flags().GetBool("no-force")
 			remote, _ := cmd.Flags().GetBool("remote")
 			noRemote, _ := cmd.Flags().GetBool("no-remote")
+
+			// Convert force flags to a single *bool
+			var forcePtr *bool
+			if force {
+				forcePtr = &force
+			} else if noForce {
+				falseBool := false
+				forcePtr = &falseBool
+			}
 
 			// Convert remote flags to a single *bool
 			var remotePtr *bool
@@ -282,13 +292,14 @@ func registerBranchCommand(branchType string) {
 				remotePtr = &falseBool
 			}
 
-			DeleteCommand(branchType, args[0], force, remotePtr)
+			DeleteCommand(branchType, args[0], forcePtr, remotePtr)
 			return nil
 		},
 	}
 
 	// Add flags
 	deleteCmd.Flags().BoolP("force", "f", false, "Force delete the branch even if it has unmerged changes")
+	deleteCmd.Flags().Bool("no-force", false, "Don't force delete the branch (overrides config)")
 	deleteCmd.Flags().BoolP("remote", "r", false, "Delete the remote tracking branch")
 	deleteCmd.Flags().Bool("no-remote", false, "Don't delete the remote tracking branch")
 

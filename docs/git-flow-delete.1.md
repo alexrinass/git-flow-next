@@ -29,6 +29,9 @@ The delete operation removes the specified topic branch from the local repositor
 **--force**, **-f**
 : Force delete the branch even if it has unmerged changes
 
+**--no-force**
+: Don't force delete the branch even if configured (overrides config)
+
 **--remote**, **-r**
 : Delete the remote tracking branch in addition to the local branch
 
@@ -123,13 +126,22 @@ git flow feature delete reviewed-feature --remote
 
 Delete behavior can be influenced by Git configuration:
 
-### Branch Deletion Settings
+### Force Delete Settings
 ```bash
-# Require confirmation for branch deletion
-git config branch.delete.confirm true
+# Enable force delete by default for feature branches
+git config gitflow.feature.delete.force true
 
-# Default remote deletion behavior
-git config gitflow.delete.remote true
+# Enable force delete for release branches
+git config gitflow.release.delete.force true
+
+# Enable force delete for hotfix branches
+git config gitflow.hotfix.delete.force true
+```
+
+### Remote Deletion Settings
+```bash
+# Enable remote deletion by default for feature branches
+git config gitflow.branch.feature.deleteRemote true
 ```
 
 ## SAFETY CONSIDERATIONS

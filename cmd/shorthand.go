@@ -36,7 +36,14 @@ func RegisterShorthandCommands() {
 			if err != nil {
 				return err
 			}
-			force, _ := cmd.Flags().GetBool("force")
+			var force *bool
+			if cmd.Flags().Changed("force") {
+				f, _ := cmd.Flags().GetBool("force")
+				force = &f
+			} else if cmd.Flags().Changed("no-force") {
+				f := false
+				force = &f
+			}
 			var remote *bool
 			if cmd.Flags().Changed("remote") {
 				r, _ := cmd.Flags().GetBool("remote")
@@ -50,6 +57,7 @@ func RegisterShorthandCommands() {
 		},
 	}
 	deleteCmd.Flags().BoolP("force", "f", false, "Force delete even if unmerged")
+	deleteCmd.Flags().Bool("no-force", false, "Don't force delete (overrides config)")
 	deleteCmd.Flags().BoolP("remote", "r", false, "Delete remote tracking branch")
 	deleteCmd.Flags().Bool("no-remote", false, "Don't delete remote tracking branch")
 	rootCmd.AddCommand(deleteCmd)
