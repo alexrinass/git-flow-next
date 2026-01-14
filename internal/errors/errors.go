@@ -240,3 +240,14 @@ func (e *RemoteBranchNotFoundError) Error() string {
 func (e *RemoteBranchNotFoundError) ExitCode() ExitCode {
 	return ExitCodeBranchNotFound
 }
+
+// AlreadyInitializedError indicates git-flow is already configured
+type AlreadyInitializedError struct{}
+
+func (e *AlreadyInitializedError) Error() string {
+	return "git-flow is already initialized in this repository. Use --force to reconfigure"
+}
+
+func (e *AlreadyInitializedError) ExitCode() ExitCode {
+	return ExitCodeValidationError
+}
