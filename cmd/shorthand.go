@@ -93,17 +93,17 @@ func RegisterShorthandCommands() {
 	}
 	rootCmd.AddCommand(renameCmd)
 
-	// Publish (stub)
+	// Publish
 	publishCmd := &cobra.Command{
 		Use:   "publish",
 		Short: "Publish the current topic branch to remote",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			_, _, err := detectBranchTypeAndName()
+		Run: func(cmd *cobra.Command, args []string) {
+			branchType, name, err := detectBranchTypeAndName()
 			if err != nil {
-				return err
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
 			}
-			// TODO: Implement PublishCommand(branchType, name)
-			return fmt.Errorf("publish not implemented")
+			PublishCommand(branchType, name)
 		},
 	}
 	rootCmd.AddCommand(publishCmd)
