@@ -543,6 +543,288 @@ exit 0
 	}
 }
 
+// TestBuildHookArgsStart tests that start action returns 4 arguments.
+func TestBuildHookArgsStart(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "my-feature",
+		Origin:     "origin",
+		FullBranch: "feature/my-feature",
+		BaseBranch: "develop",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionStart, ctx)
+
+	if len(args) != 4 {
+		t.Fatalf("Expected 4 arguments for start action, got %d", len(args))
+	}
+	if args[0] != "my-feature" {
+		t.Errorf("Expected args[0] (name) to be 'my-feature', got '%s'", args[0])
+	}
+	if args[1] != "origin" {
+		t.Errorf("Expected args[1] (origin) to be 'origin', got '%s'", args[1])
+	}
+	if args[2] != "feature/my-feature" {
+		t.Errorf("Expected args[2] (branch) to be 'feature/my-feature', got '%s'", args[2])
+	}
+	if args[3] != "develop" {
+		t.Errorf("Expected args[3] (base) to be 'develop', got '%s'", args[3])
+	}
+}
+
+// TestBuildHookArgsFinish tests that finish action returns 3 arguments.
+func TestBuildHookArgsFinish(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "my-feature",
+		Origin:     "origin",
+		FullBranch: "feature/my-feature",
+		BaseBranch: "develop",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionFinish, ctx)
+
+	if len(args) != 3 {
+		t.Fatalf("Expected 3 arguments for finish action, got %d", len(args))
+	}
+	if args[0] != "my-feature" {
+		t.Errorf("Expected args[0] (name) to be 'my-feature', got '%s'", args[0])
+	}
+	if args[1] != "origin" {
+		t.Errorf("Expected args[1] (origin) to be 'origin', got '%s'", args[1])
+	}
+	if args[2] != "feature/my-feature" {
+		t.Errorf("Expected args[2] (branch) to be 'feature/my-feature', got '%s'", args[2])
+	}
+}
+
+// TestBuildHookArgsPublish tests that publish action returns 3 arguments.
+func TestBuildHookArgsPublish(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "1.0.0",
+		Origin:     "upstream",
+		FullBranch: "release/1.0.0",
+		BaseBranch: "main",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionPublish, ctx)
+
+	if len(args) != 3 {
+		t.Fatalf("Expected 3 arguments for publish action, got %d", len(args))
+	}
+	if args[0] != "1.0.0" {
+		t.Errorf("Expected args[0] (name) to be '1.0.0', got '%s'", args[0])
+	}
+	if args[1] != "upstream" {
+		t.Errorf("Expected args[1] (origin) to be 'upstream', got '%s'", args[1])
+	}
+	if args[2] != "release/1.0.0" {
+		t.Errorf("Expected args[2] (branch) to be 'release/1.0.0', got '%s'", args[2])
+	}
+}
+
+// TestBuildHookArgsTrack tests that track action returns 3 arguments.
+func TestBuildHookArgsTrack(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "remote-feature",
+		Origin:     "origin",
+		FullBranch: "feature/remote-feature",
+		BaseBranch: "develop",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionTrack, ctx)
+
+	if len(args) != 3 {
+		t.Fatalf("Expected 3 arguments for track action, got %d", len(args))
+	}
+}
+
+// TestBuildHookArgsDelete tests that delete action returns 3 arguments.
+func TestBuildHookArgsDelete(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "old-feature",
+		Origin:     "origin",
+		FullBranch: "feature/old-feature",
+		BaseBranch: "develop",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionDelete, ctx)
+
+	if len(args) != 3 {
+		t.Fatalf("Expected 3 arguments for delete action, got %d", len(args))
+	}
+}
+
+// TestBuildHookArgsUpdate tests that update action returns 4 arguments (git-flow-next extension).
+func TestBuildHookArgsUpdate(t *testing.T) {
+	ctx := hooks.HookContext{
+		BranchName: "my-feature",
+		Origin:     "origin",
+		FullBranch: "feature/my-feature",
+		BaseBranch: "develop",
+	}
+
+	args := hooks.BuildHookArgs(hooks.HookActionUpdate, ctx)
+
+	if len(args) != 4 {
+		t.Fatalf("Expected 4 arguments for update action, got %d", len(args))
+	}
+	if args[0] != "my-feature" {
+		t.Errorf("Expected args[0] (name) to be 'my-feature', got '%s'", args[0])
+	}
+	if args[1] != "origin" {
+		t.Errorf("Expected args[1] (origin) to be 'origin', got '%s'", args[1])
+	}
+	if args[2] != "feature/my-feature" {
+		t.Errorf("Expected args[2] (branch) to be 'feature/my-feature', got '%s'", args[2])
+	}
+	if args[3] != "develop" {
+		t.Errorf("Expected args[3] (base) to be 'develop', got '%s'", args[3])
+	}
+}
+
+// TestHookReceivesPositionalArguments tests that hooks receive positional arguments.
+func TestHookReceivesPositionalArguments(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a hook that outputs positional arguments
+	script := `#!/bin/sh
+echo "ARG1=$1"
+echo "ARG2=$2"
+echo "ARG3=$3"
+echo "ARG4=$4"
+`
+	createHookScript(t, dir, "pre-flow-feature-start", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	ctx := hooks.HookContext{
+		BranchType: "feature",
+		BranchName: "test-feature",
+		FullBranch: "feature/test-feature",
+		BaseBranch: "develop",
+		Origin:     "origin",
+	}
+
+	// Run hook and check it doesn't fail (arguments are passed correctly)
+	err := hooks.RunPreHook(gitDir, "feature", hooks.HookActionStart, ctx)
+	if err != nil {
+		t.Fatalf("RunPreHook failed: %v", err)
+	}
+}
+
+// TestHookPositionalArgsMatchEnvVars tests that positional args match environment variables.
+func TestHookPositionalArgsMatchEnvVars(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a hook that verifies args match env vars
+	script := `#!/bin/sh
+# Verify $1 equals $BRANCH_NAME
+if [ "$1" != "$BRANCH_NAME" ]; then
+    echo "Mismatch: \$1='$1' vs BRANCH_NAME='$BRANCH_NAME'" >&2
+    exit 1
+fi
+
+# Verify $2 equals $ORIGIN
+if [ "$2" != "$ORIGIN" ]; then
+    echo "Mismatch: \$2='$2' vs ORIGIN='$ORIGIN'" >&2
+    exit 1
+fi
+
+# Verify $3 equals $BRANCH
+if [ "$3" != "$BRANCH" ]; then
+    echo "Mismatch: \$3='$3' vs BRANCH='$BRANCH'" >&2
+    exit 1
+fi
+
+# Verify $4 equals $BASE_BRANCH (for start action)
+if [ "$4" != "$BASE_BRANCH" ]; then
+    echo "Mismatch: \$4='$4' vs BASE_BRANCH='$BASE_BRANCH'" >&2
+    exit 1
+fi
+
+echo "All args match env vars"
+exit 0
+`
+	createHookScript(t, dir, "pre-flow-feature-start", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	ctx := hooks.HookContext{
+		BranchType: "feature",
+		BranchName: "consistency-test",
+		FullBranch: "feature/consistency-test",
+		BaseBranch: "develop",
+		Origin:     "origin",
+	}
+
+	err := hooks.RunPreHook(gitDir, "feature", hooks.HookActionStart, ctx)
+	if err != nil {
+		t.Fatalf("Hook failed - positional args don't match env vars: %v", err)
+	}
+}
+
+// TestHookFinishReceives3Args tests that finish hooks receive exactly 3 arguments.
+func TestHookFinishReceives3Args(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a hook that verifies it receives exactly 3 arguments
+	script := `#!/bin/sh
+if [ $# -ne 3 ]; then
+    echo "Expected 3 arguments, got $#" >&2
+    exit 1
+fi
+echo "Received 3 args: $1 $2 $3"
+exit 0
+`
+	createHookScript(t, dir, "pre-flow-feature-finish", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	ctx := hooks.HookContext{
+		BranchType: "feature",
+		BranchName: "my-feature",
+		FullBranch: "feature/my-feature",
+		BaseBranch: "develop",
+		Origin:     "origin",
+	}
+
+	err := hooks.RunPreHook(gitDir, "feature", hooks.HookActionFinish, ctx)
+	if err != nil {
+		t.Fatalf("Finish hook failed: %v", err)
+	}
+}
+
+// TestHookStartReceives4Args tests that start hooks receive exactly 4 arguments.
+func TestHookStartReceives4Args(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create a hook that verifies it receives exactly 4 arguments
+	script := `#!/bin/sh
+if [ $# -ne 4 ]; then
+    echo "Expected 4 arguments, got $#" >&2
+    exit 1
+fi
+echo "Received 4 args: $1 $2 $3 $4"
+exit 0
+`
+	createHookScript(t, dir, "pre-flow-release-start", script)
+
+	gitDir := filepath.Join(dir, ".git")
+	ctx := hooks.HookContext{
+		BranchType: "release",
+		BranchName: "1.0.0",
+		FullBranch: "release/1.0.0",
+		BaseBranch: "main",
+		Origin:     "origin",
+		Version:    "1.0.0",
+	}
+
+	err := hooks.RunPreHook(gitDir, "release", hooks.HookActionStart, ctx)
+	if err != nil {
+		t.Fatalf("Start hook failed: %v", err)
+	}
+}
+
 // TestWithHooksInWorktree tests the WithHooks wrapper in a worktree context.
 func TestWithHooksInWorktree(t *testing.T) {
 	// Setup main repository

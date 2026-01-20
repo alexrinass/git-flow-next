@@ -592,12 +592,21 @@ func handleCreateTagStep(state *mergestate.MergeState, resolvedOptions *config.R
 			return &errors.GitError{Operation: "get git directory", Err: err}
 		}
 
+		// Load config to get remote name
+		cfg, cfgErr := config.LoadConfig()
+		remote := "origin"
+		if cfgErr == nil {
+			remote = cfg.Remote
+		}
+
 		ctx := hooks.FilterContext{
 			BranchType: state.BranchType,
 			BranchName: state.BranchName,
 			Version:    resolvedOptions.TagName,
 			TagMessage: resolvedOptions.TagMessage,
 			BaseBranch: state.ParentBranch,
+			FullBranch: state.FullBranchName,
+			Origin:     remote,
 		}
 
 		filteredMessage, err := hooks.RunTagMessageFilter(gitDir, state.BranchType, ctx)

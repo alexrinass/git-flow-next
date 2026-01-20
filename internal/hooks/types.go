@@ -34,6 +34,8 @@ type FilterContext struct {
 	Version    string // The version/name being filtered
 	TagMessage string // The tag message to filter
 	BaseBranch string // The base/parent branch
+	FullBranch string // The full branch name with prefix
+	Origin     string // The remote name
 }
 
 // HookPhase represents pre or post execution.

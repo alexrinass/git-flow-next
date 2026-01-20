@@ -67,6 +67,29 @@ func getCommonGitDir(gitDir string) string {
 	return gitDir
 }
 
+// BuildHookArgs constructs the positional arguments for a hook based on the action.
+// This matches git-flow-avh's argument passing convention for compatibility.
+//
+// Arguments by action:
+//   - start:   [name, origin, branch, base]
+//   - finish:  [name, origin, branch]
+//   - publish: [name, origin, branch]
+//   - track:   [name, origin, branch]
+//   - delete:  [name, origin, branch]
+//   - update:  [name, origin, branch, base] (git-flow-next extension)
+func BuildHookArgs(action HookAction, ctx HookContext) []string {
+	switch action {
+	case HookActionStart, HookActionUpdate:
+		// start/update: $1=name, $2=origin, $3=branch, $4=base
+		return []string{ctx.BranchName, ctx.Origin, ctx.FullBranch, ctx.BaseBranch}
+	case HookActionFinish, HookActionPublish, HookActionTrack, HookActionDelete:
+		// finish/publish/track/delete: $1=name, $2=origin, $3=branch
+		return []string{ctx.BranchName, ctx.Origin, ctx.FullBranch}
+	default:
+		return []string{ctx.BranchName, ctx.Origin, ctx.FullBranch}
+	}
+}
+
 // runHook executes a hook script and returns the result.
 func runHook(gitDir string, phase HookPhase, branchType string, action HookAction, ctx HookContext) HookResult {
 	hookName := fmt.Sprintf("%s-flow-%s-%s", phase, branchType, action)
@@ -91,8 +114,11 @@ func runHook(gitDir string, phase HookPhase, branchType string, action HookActio
 	// Build environment variables
 	env := buildHookEnv(ctx, phase)
 
-	// Execute hook
-	cmd := exec.Command(hookPath)
+	// Build positional arguments for git-flow-avh compatibility
+	args := BuildHookArgs(action, ctx)
+
+	// Execute hook with arguments
+	cmd := exec.Command(hookPath, args...)
 	cmd.Env = env
 	cmd.Dir = filepath.Dir(gitDir) // Repository root
 

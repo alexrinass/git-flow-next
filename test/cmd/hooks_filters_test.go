@@ -1008,6 +1008,268 @@ echo "BRANCH_NAME=$BRANCH_NAME" >> "` + markerFile + `"
 	}
 }
 
+// =============================================================================
+// Positional Arguments Tests - Verify git-flow-avh compatibility
+// =============================================================================
+
+// TestStartHookReceivesPositionalArguments tests that start hooks receive positional arguments
+// matching git-flow-avh convention: $1=name, $2=origin, $3=branch, $4=base.
+func TestStartHookReceivesPositionalArguments(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "start-args.txt")
+
+	// Create a pre-hook that records positional arguments
+	script := `#!/bin/sh
+echo "ARG1=$1" > "` + markerFile + `"
+echo "ARG2=$2" >> "` + markerFile + `"
+echo "ARG3=$3" >> "` + markerFile + `"
+echo "ARG4=$4" >> "` + markerFile + `"
+echo "ARG_COUNT=$#" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "pre-flow-feature-start", script)
+
+	// Start a feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "arg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Verify hook received correct positional arguments
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Hook did not run - marker file not found: %v", err)
+	}
+
+	contentStr := string(content)
+	// $1 = name (short branch name)
+	if !strings.Contains(contentStr, "ARG1=arg-test") {
+		t.Errorf("Expected ARG1=arg-test, got: %s", contentStr)
+	}
+	// $2 = origin
+	if !strings.Contains(contentStr, "ARG2=origin") {
+		t.Errorf("Expected ARG2=origin, got: %s", contentStr)
+	}
+	// $3 = full branch name
+	if !strings.Contains(contentStr, "ARG3=feature/arg-test") {
+		t.Errorf("Expected ARG3=feature/arg-test, got: %s", contentStr)
+	}
+	// $4 = base branch (for start action)
+	if !strings.Contains(contentStr, "ARG4=develop") {
+		t.Errorf("Expected ARG4=develop, got: %s", contentStr)
+	}
+	// Start hook should receive 4 arguments
+	if !strings.Contains(contentStr, "ARG_COUNT=4") {
+		t.Errorf("Expected ARG_COUNT=4, got: %s", contentStr)
+	}
+}
+
+// TestFinishHookReceivesPositionalArguments tests that finish hooks receive positional arguments
+// matching git-flow-avh convention: $1=name, $2=origin, $3=branch.
+func TestFinishHookReceivesPositionalArguments(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "finish-arg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit
+	testutil.WriteFile(t, dir, "test.txt", "test content")
+	_, _ = testutil.RunGit(t, dir, "add", "test.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add test file")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "finish-args.txt")
+
+	// Create a pre-hook that records positional arguments
+	script := `#!/bin/sh
+echo "ARG1=$1" > "` + markerFile + `"
+echo "ARG2=$2" >> "` + markerFile + `"
+echo "ARG3=$3" >> "` + markerFile + `"
+echo "ARG_COUNT=$#" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "pre-flow-feature-finish", script)
+
+	// Finish the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "finish", "finish-arg-test")
+	if err != nil {
+		t.Fatalf("Failed to finish feature: %v", err)
+	}
+
+	// Verify hook received correct positional arguments
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Hook did not run - marker file not found: %v", err)
+	}
+
+	contentStr := string(content)
+	// $1 = name (short branch name)
+	if !strings.Contains(contentStr, "ARG1=finish-arg-test") {
+		t.Errorf("Expected ARG1=finish-arg-test, got: %s", contentStr)
+	}
+	// $2 = origin
+	if !strings.Contains(contentStr, "ARG2=origin") {
+		t.Errorf("Expected ARG2=origin, got: %s", contentStr)
+	}
+	// $3 = full branch name
+	if !strings.Contains(contentStr, "ARG3=feature/finish-arg-test") {
+		t.Errorf("Expected ARG3=feature/finish-arg-test, got: %s", contentStr)
+	}
+	// Finish hook should receive 3 arguments
+	if !strings.Contains(contentStr, "ARG_COUNT=3") {
+		t.Errorf("Expected ARG_COUNT=3, got: %s", contentStr)
+	}
+}
+
+// TestUpdateHookReceivesPositionalArguments tests that update hooks receive positional arguments.
+// Update is a git-flow-next extension: $1=name, $2=origin, $3=branch, $4=base.
+func TestUpdateHookReceivesPositionalArguments(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow and create a feature branch
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "update-arg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop (so there's something to update from)
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/update-arg-test")
+
+	// Create a marker file path
+	markerFile := filepath.Join(dir, "update-args.txt")
+
+	// Create a post-hook that records positional arguments
+	script := `#!/bin/sh
+echo "ARG1=$1" > "` + markerFile + `"
+echo "ARG2=$2" >> "` + markerFile + `"
+echo "ARG3=$3" >> "` + markerFile + `"
+echo "ARG4=$4" >> "` + markerFile + `"
+echo "ARG_COUNT=$#" >> "` + markerFile + `"
+`
+	createHookScript(t, dir, "post-flow-feature-update", script)
+
+	// Update the feature
+	_, err = testutil.RunGitFlow(t, dir, "feature", "update", "update-arg-test")
+	if err != nil {
+		t.Fatalf("Failed to update feature: %v", err)
+	}
+
+	// Verify hook received correct positional arguments
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Hook did not run - marker file not found: %v", err)
+	}
+
+	contentStr := string(content)
+	// $1 = name (short branch name)
+	if !strings.Contains(contentStr, "ARG1=update-arg-test") {
+		t.Errorf("Expected ARG1=update-arg-test, got: %s", contentStr)
+	}
+	// $2 = origin
+	if !strings.Contains(contentStr, "ARG2=origin") {
+		t.Errorf("Expected ARG2=origin, got: %s", contentStr)
+	}
+	// $3 = full branch name
+	if !strings.Contains(contentStr, "ARG3=feature/update-arg-test") {
+		t.Errorf("Expected ARG3=feature/update-arg-test, got: %s", contentStr)
+	}
+	// $4 = base branch
+	if !strings.Contains(contentStr, "ARG4=develop") {
+		t.Errorf("Expected ARG4=develop, got: %s", contentStr)
+	}
+	// Update hook should receive 4 arguments
+	if !strings.Contains(contentStr, "ARG_COUNT=4") {
+		t.Errorf("Expected ARG_COUNT=4, got: %s", contentStr)
+	}
+}
+
+// TestHookPositionalArgsMatchEnvVars tests that positional arguments match environment variables.
+// This is critical for git-flow-avh compatibility.
+func TestHookPositionalArgsMatchEnvVars(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Create a hook that compares positional args with env vars
+	script := `#!/bin/sh
+# Verify $1 equals $BRANCH_NAME
+if [ "$1" != "$BRANCH_NAME" ]; then
+    echo "Mismatch: \$1='$1' vs BRANCH_NAME='$BRANCH_NAME'" >&2
+    exit 1
+fi
+
+# Verify $2 equals $ORIGIN
+if [ "$2" != "$ORIGIN" ]; then
+    echo "Mismatch: \$2='$2' vs ORIGIN='$ORIGIN'" >&2
+    exit 1
+fi
+
+# Verify $3 equals $BRANCH
+if [ "$3" != "$BRANCH" ]; then
+    echo "Mismatch: \$3='$3' vs BRANCH='$BRANCH'" >&2
+    exit 1
+fi
+
+# Verify $4 equals $BASE_BRANCH (for start action)
+if [ "$4" != "$BASE_BRANCH" ]; then
+    echo "Mismatch: \$4='$4' vs BASE_BRANCH='$BASE_BRANCH'" >&2
+    exit 1
+fi
+
+exit 0
+`
+	createHookScript(t, dir, "pre-flow-feature-start", script)
+
+	// Start a feature - hook will fail if args don't match env vars
+	output, err := testutil.RunGitFlow(t, dir, "feature", "start", "consistency-test")
+	if err != nil {
+		t.Fatalf("Hook failed - positional args don't match env vars: %v\nOutput: %s", err, output)
+	}
+
+	// Verify branch was created (operation succeeded)
+	if !testutil.BranchExists(t, dir, "feature/consistency-test") {
+		t.Error("Branch should have been created when hook passed")
+	}
+}
+
 // TestHotfixVersionFilter tests that version filters work with hotfix branch type.
 // This verifies filters work with branch types beyond just release.
 func TestHotfixVersionFilter(t *testing.T) {
