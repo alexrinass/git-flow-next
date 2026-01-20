@@ -88,7 +88,11 @@ func buildFilterEnv(ctx FilterContext) []string {
 		fmt.Sprintf("BRANCH_TYPE=%s", ctx.BranchType),
 		fmt.Sprintf("BRANCH_NAME=%s", ctx.BranchName),
 		fmt.Sprintf("BASE_BRANCH=%s", ctx.BaseBranch),
+		fmt.Sprintf("ORIGIN=%s", ctx.Origin),
 	)
+	if ctx.FullBranch != "" {
+		env = append(env, fmt.Sprintf("BRANCH=%s", ctx.FullBranch))
+	}
 	if ctx.Version != "" {
 		env = append(env, fmt.Sprintf("VERSION=%s", ctx.Version))
 	}

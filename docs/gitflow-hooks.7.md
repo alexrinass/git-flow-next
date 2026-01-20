@@ -141,9 +141,34 @@ Where:
 | `{pre,post}-flow-hotfix-{action}` | start, finish, publish, delete, update |
 | `{pre,post}-flow-support-{action}` | start, finish, publish, delete, update |
 
-### Environment Variables
+### Hook Input
 
-Hooks receive context via environment variables:
+Hooks receive context through both **positional arguments** (for git-flow-avh compatibility) and **environment variables** (for enhanced context). You can use either method or both.
+
+#### Positional Arguments
+
+For compatibility with git-flow-avh scripts, hooks receive positional arguments:
+
+| Action | Arguments |
+|--------|-----------|
+| start | `$1=name` `$2=origin` `$3=branch` `$4=base` |
+| finish | `$1=name` `$2=origin` `$3=branch` |
+| publish | `$1=name` `$2=origin` `$3=branch` |
+| track | `$1=name` `$2=origin` `$3=branch` |
+| delete | `$1=name` `$2=origin` `$3=branch` |
+| update | `$1=name` `$2=origin` `$3=branch` `$4=base` |
+
+Where:
+- `name` - Short branch name (e.g., `my-feature`)
+- `origin` - Remote name (e.g., `origin`)
+- `branch` - Full branch name (e.g., `feature/my-feature`)
+- `base` - Parent/base branch (e.g., `develop`)
+
+**Note:** The `update` action is a git-flow-next extension and follows the same pattern as `start`.
+
+#### Environment Variables
+
+Hooks also receive context via environment variables:
 
 | Variable | Description |
 |----------|-------------|
@@ -154,6 +179,10 @@ Hooks receive context via environment variables:
 | `ORIGIN` | Remote name |
 | `VERSION` | Version (for release/hotfix) |
 | `EXIT_CODE` | Post-hooks only: exit code of the operation |
+
+#### Compatibility Note
+
+Both methods provide the same core information. Existing git-flow-avh hook scripts using positional arguments (`$1`, `$2`, etc.) will work without modification. New scripts can use either method or both for maximum flexibility.
 
 ### Pre-hooks
 
@@ -296,14 +325,19 @@ fi
 echo "v$CLEAN_VERSION"
 ```
 
-### Complete Pre-hook
+### Complete Pre-hook (using positional arguments)
 
 ```bash
 #!/bin/sh
 # .git/hooks/pre-flow-feature-start
 # Ensures feature names follow conventions
+# Compatible with git-flow-avh
 
-NAME="$BRANCH_NAME"
+# Positional arguments: $1=name, $2=origin, $3=branch, $4=base
+NAME="$1"
+ORIGIN="$2"
+BRANCH="$3"
+BASE="$4"
 
 # Check for valid characters
 if ! echo "$NAME" | grep -qE '^[a-z0-9-]+$'; then
@@ -317,6 +351,31 @@ if [ ${#NAME} -lt 3 ]; then
     exit 1
 fi
 
+echo "Creating feature '$NAME' from '$BASE'"
+exit 0
+```
+
+### Complete Pre-hook (using environment variables)
+
+```bash
+#!/bin/sh
+# .git/hooks/pre-flow-feature-start
+# Ensures feature names follow conventions
+# Uses environment variables (git-flow-next style)
+
+# Check for valid characters
+if ! echo "$BRANCH_NAME" | grep -qE '^[a-z0-9-]+$'; then
+    echo "Error: Feature name must contain only lowercase letters, numbers, and hyphens" >&2
+    exit 1
+fi
+
+# Check minimum length
+if [ ${#BRANCH_NAME} -lt 3 ]; then
+    echo "Error: Feature name must be at least 3 characters long" >&2
+    exit 1
+fi
+
+echo "Creating $BRANCH_TYPE '$BRANCH_NAME' from '$BASE_BRANCH'"
 exit 0
 ```
 
