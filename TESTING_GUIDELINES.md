@@ -330,15 +330,16 @@ if state.Action != "finish" {
 
 1. **Always use testutil helpers** - Never execute Git commands directly
 2. **Avoid internal package imports in cmd tests** - Don't import `internal/git` or `internal/config` in command tests; use testutil functions instead (see [Working Directory Management](#working-directory-management-critical))
-3. **Include setup/cleanup** - Use defer to ensure cleanup happens
-4. **Test error conditions** - Verify failures behave correctly
-5. **Check intermediate state** - Don't just test final outcomes
-6. **Use descriptive assertions** - Include context in error messages
-7. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y
-8. **Test with remotes when relevant** - Many Git operations behave differently with remotes
-9. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
-10. **Create conflicts correctly** - Branch first, then add conflicting content (see [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md))
-11. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
+3. **Use long flag variants only** - Don't test both `-f` and `--force`; testing one variant is sufficient since Cobra handles flag parsing. Always use the long form (`--force`, `--defaults`) in tests for readability
+4. **Include setup/cleanup** - Use defer to ensure cleanup happens
+5. **Test error conditions** - Verify failures behave correctly
+6. **Check intermediate state** - Don't just test final outcomes
+7. **Use descriptive assertions** - Include context in error messages
+8. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y
+9. **Test with remotes when relevant** - Many Git operations behave differently with remotes
+10. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
+11. **Create conflicts correctly** - Branch first, then add conflicting content (see [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md))
+12. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
 
 ## Working Directory Management (CRITICAL)
 
