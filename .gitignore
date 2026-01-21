@@ -28,4 +28,7 @@ go.work
 .DS_Store
 Thumbs.db 
 /dist
-.claude
+
+# Workflow artifacts (local working documents)
+/workflows
+/.claude/settings.local.json

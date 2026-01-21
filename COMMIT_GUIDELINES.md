@@ -32,7 +32,7 @@ Use the following structure for commit messages:
 ### Footer (Optional)
 
 - **References**: Link to issues, pull requests, or breaking changes
-- **Format**: `Fixes #123`, `Closes #456`, `Refs #789`
+- **Format**: `Resolves #123`, `Closes #456`, `Refs #789`
 
 ## Commit Types
 
@@ -74,7 +74,7 @@ fix: Resolve state file corruption during interrupted operations
 
 Fixes issue where merge state file could become corrupted if the process was interrupted during JSON serialization. The fix adds atomic write operations using temporary files and proper error handling for filesystem issues.
 
-Fixes #456
+Resolves #456
 ```
 
 ### Refactoring

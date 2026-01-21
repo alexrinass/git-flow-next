@@ -53,7 +53,7 @@ By participating in this project, you agree to:
      Explain the problem that this commit is solving. Focus on why you
      are making this change as opposed to how.
 
-     Fixes #123
+     Resolves #123
      ```
 
 4. **Code Style**
