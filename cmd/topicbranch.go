@@ -397,7 +397,7 @@ func addFinishFlags(cmd *cobra.Command) {
 	// Operation Control Flags
 	cmd.Flags().BoolP("continue", "c", false, "Continue the finish operation after resolving conflicts")
 	cmd.Flags().BoolP("abort", "a", false, "Abort the finish operation and return to the original state")
-	cmd.Flags().BoolP("force", "f", false, "Force finish a non-standard branch using this branch type's strategy")
+	cmd.Flags().BoolP("force", "f", false, "Force finish: skip remote branch sync check and allow finishing non-standard branches")
 
 	// Tag-related Flags
 	cmd.Flags().Bool("tag", false, "Create a tag for the finished branch")
