@@ -2,7 +2,7 @@
 
 This document outlines the testing conventions and patterns used in the git-flow-next project.
 
-For detailed instructions on setting up specific Git test scenarios (merge conflicts, remotes, state verification), see [TEST_SCENARIOS.md](TEST_SCENARIOS.md).
+> **Important**: When implementing tests, you MUST read [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md) for detailed instructions on setting up Git test scenarios (merge conflicts, remotes, state verification). That document contains essential patterns for creating realistic test conditions.
 
 ## Test Function Naming
 
@@ -285,7 +285,7 @@ Available in `test/testutil/git.go`:
 - `AddRemote(t *testing.T, dir, name string, bare bool) (string, error)` - Adds a remote repository
 - `SetupTestRepoWithRemote(t *testing.T) (string, string)` - Creates repo with local remote
 
-For detailed examples of creating merge conflicts, setting up remotes, and verifying Git states, see [TEST_SCENARIOS.md](TEST_SCENARIOS.md).
+For detailed examples of creating merge conflicts, setting up remotes, and verifying Git states, see [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md).
 
 ## Test Organization
 
@@ -337,7 +337,7 @@ if state.Action != "finish" {
 7. **Match test setup to test goal** - If testing behavior X, don't create dependencies on unrelated feature Y
 8. **Test with remotes when relevant** - Many Git operations behave differently with remotes
 9. **Verify test helper implementations** - Don't trust placeholder functions that may not actually call commands
-10. **Create conflicts correctly** - Branch first, then add conflicting content (see [TEST_SCENARIOS.md](TEST_SCENARIOS.md))
+10. **Create conflicts correctly** - Branch first, then add conflicting content (see [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md))
 11. **Use Git internal state for verification** - Check `.git/` directory contents for reliable conflict state detection
 
 ## Working Directory Management (CRITICAL)
@@ -460,7 +460,7 @@ Common testing mistakes to avoid:
 3. **Incorrect rebase state verification** - Check `.git/rebase-merge/` instead of branch name
 4. **Testing multiple behaviors with fragile dependencies** - Keep tests focused on their stated purpose
 
-For detailed examples of these anti-patterns and their solutions, see [TEST_SCENARIOS.md](TEST_SCENARIOS.md#common-mistakes-to-avoid).
+For detailed examples of these anti-patterns and their solutions, see [GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md#common-mistakes-to-avoid).
 
 ## Test Execution Methods
 

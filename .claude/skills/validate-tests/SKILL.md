@@ -17,7 +17,7 @@ Review and improve the test plan in an implementation plan against TESTING_GUIDE
 
 2. **Read Testing Guidelines**
    - Load TESTING_GUIDELINES.md
-   - Load TEST_SCENARIOS.md if it exists
+   - Load GIT_TEST_SCENARIOS.md (required for setting up Git test scenarios)
 
 3. **Validate Against Guidelines**
 

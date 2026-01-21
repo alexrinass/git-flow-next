@@ -23,6 +23,7 @@ Execute the implementation plan, making code changes and committing according to
 3. **Load Guidelines**
    - Read CODING_GUIDELINES.md for implementation standards
    - Read COMMIT_GUIDELINES.md for commit format
+   - Read GIT_TEST_SCENARIOS.md when implementing tests (required for Git scenario setup)
 
 4. **Execute Tasks**
 

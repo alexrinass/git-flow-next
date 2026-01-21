@@ -168,7 +168,7 @@ For information about the project's architecture and technical overview, see [AR
 ### Testing Resources
 
 - **[TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)** - Testing conventions, patterns, and best practices
-- **[TEST_SCENARIOS.md](TEST_SCENARIOS.md)** - How to set up specific Git test scenarios (merge conflicts, local remotes, state verification)
+- **[GIT_TEST_SCENARIOS.md](GIT_TEST_SCENARIOS.md)** - How to set up specific Git test scenarios (merge conflicts, local remotes, state verification)
 
 ## License
 

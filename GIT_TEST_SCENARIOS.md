@@ -1,6 +1,8 @@
-# Test Scenario Setup Guide
+# Git Test Scenario Setup Guide
 
 This document provides instructions for setting up various Git scenarios in tests, including merge conflicts, remote operations, and state verification.
+
+> **Note**: This document is essential reading when implementing tests. It contains patterns for creating merge conflicts, setting up remotes, and verifying Git states.
 
 For general testing conventions and patterns, see [TESTING_GUIDELINES.md](TESTING_GUIDELINES.md).
 
