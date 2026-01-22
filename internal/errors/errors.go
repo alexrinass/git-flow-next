@@ -286,3 +286,14 @@ func lastSlashIndex(s string) int {
 	}
 	return -1
 }
+
+// AlreadyInitializedError indicates git-flow is already configured
+type AlreadyInitializedError struct{}
+
+func (e *AlreadyInitializedError) Error() string {
+	return "git-flow is already initialized in this repository. Use --force to reconfigure"
+}
+
+func (e *AlreadyInitializedError) ExitCode() ExitCode {
+	return ExitCodeValidationError
+}

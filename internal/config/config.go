@@ -284,6 +284,7 @@ func LoadConfig() (*Config, error) {
 }
 
 // IsInitialized checks if git-flow is initialized in the repository
+// This includes both git-flow-next and git-flow-avh configurations
 func IsInitialized() (bool, error) {
 	// Get current directory for git operations
 	currentDir, err := os.Getwd()
@@ -299,6 +300,24 @@ func IsInitialized() (bool, error) {
 
 	// Check for git-flow-avh configuration
 	if CheckGitFlowAVHConfig() {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// IsGitFlowNextInitialized checks if git-flow-next specifically is initialized
+// This only checks for our own configuration, not git-flow-avh
+func IsGitFlowNextInitialized() (bool, error) {
+	// Get current directory for git operations
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return false, fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Check for our own gitflow.version config
+	version, err := git.GetConfigInDir(currentDir, "gitflow.version")
+	if err == nil && version != "" {
 		return true, nil
 	}
 

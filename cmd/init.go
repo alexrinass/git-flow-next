@@ -28,6 +28,7 @@ If git-flow-avh configuration exists, it will be imported.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		useDefaults, _ := cmd.Flags().GetBool("defaults")
 		noCreateBranches, _ := cmd.Flags().GetBool("no-create-branches")
+		force, _ := cmd.Flags().GetBool("force")
 		preset, _ := cmd.Flags().GetString("preset")
 		custom, _ := cmd.Flags().GetBool("custom")
 		mainBranch, _ := cmd.Flags().GetString("main")
@@ -38,13 +39,13 @@ If git-flow-avh configuration exists, it will be imported.`,
 		hotfixPrefix, _ := cmd.Flags().GetString("hotfix")
 		supportPrefix, _ := cmd.Flags().GetString("support")
 		tagPrefix, _ := cmd.Flags().GetString("tag")
-		InitCommand(useDefaults, !noCreateBranches, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix)
+		InitCommand(useDefaults, !noCreateBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix)
 	},
 }
 
 // InitCommand is the implementation of the init command
-func InitCommand(useDefaults, createBranches bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) {
-	if err := initFlow(useDefaults, createBranches, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix); err != nil {
+func InitCommand(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) {
+	if err := initFlow(useDefaults, createBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -57,10 +58,44 @@ func InitCommand(useDefaults, createBranches bool, preset string, custom bool, m
 }
 
 // initFlow performs the actual initialization logic and returns any errors
-func initFlow(useDefaults, createBranches bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) error {
+func initFlow(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) error {
 	// Check if we're in a git repo
 	if !git.IsGitRepo() {
 		return &errors.GitError{Operation: "check if git repository", Err: fmt.Errorf("not a git repository. Please run 'git init' first")}
+	}
+
+	// Check if git-flow-next is already initialized (not just AVH config)
+	// AVH config should be allowed to be imported without --force
+	initialized, err := config.IsGitFlowNextInitialized()
+	if err != nil {
+		return &errors.GitError{Operation: "check if git-flow is initialized", Err: err}
+	}
+
+	if initialized && !force {
+		// Check if any configuration options are provided (non-interactive mode indicators)
+		hasConfigFlags := mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != ""
+		isNonInteractive := useDefaults || preset != "" || custom || hasConfigFlags
+
+		if isNonInteractive {
+			// Non-interactive mode without force flag
+			return &errors.AlreadyInitializedError{}
+		}
+
+		// Interactive mode - prompt for confirmation
+		fmt.Println("Git-flow is already configured in this repository.")
+		fmt.Print("Do you want to reconfigure? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+			fmt.Println("Reconfiguration cancelled.")
+			return nil
+		}
+	}
+
+	// If forcing reconfiguration, show a note
+	if initialized && force {
+		fmt.Println("Reconfiguring git-flow (--force specified)...")
 	}
 
 	var cfg *config.Config
@@ -563,6 +598,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 
 	// Add flags specific to init command
+	initCmd.Flags().BoolP("force", "f", false, "Force reconfiguration even if already initialized")
 	initCmd.Flags().BoolP("defaults", "d", false, "Use default branch naming conventions")
 	initCmd.Flags().Bool("no-create-branches", false, "Don't create branches even if they don't exist")
 	initCmd.Flags().StringP("preset", "p", "", "Use preset configuration (classic|github|gitlab)")
