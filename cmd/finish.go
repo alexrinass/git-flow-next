@@ -211,7 +211,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 
 	// Check if local branch is in sync with remote (unless --force)
 	if !force {
-		status, commitsBehind, err := git.CompareBranchWithRemote(name)
+		status, commitCount, err := git.CompareBranchWithRemote(name)
 		if err == nil { // Only check if we can get tracking info
 			switch status {
 			case git.SyncStatusBehind, git.SyncStatusDiverged:
@@ -219,12 +219,12 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 				return &errors.BranchBehindRemoteError{
 					BranchName:    name,
 					RemoteBranch:  trackingBranch,
-					CommitsBehind: commitsBehind,
+					CommitsBehind: commitCount,
 					BranchType:    branchType,
 				}
 			case git.SyncStatusAhead:
 				// Local is ahead - proceed (optionally warn)
-				fmt.Printf("Note: Local branch is %d commit(s) ahead of remote\n", commitsBehind)
+				fmt.Printf("Note: Local branch is %d commit(s) ahead of remote\n", commitCount)
 			}
 			// SyncStatusEqual or SyncStatusNoTracking - proceed normally
 		}

@@ -620,3 +620,104 @@ func TestFinishFeatureBranchEqualToRemote(t *testing.T) {
 		t.Error("Expected feature.txt to exist in develop branch")
 	}
 }
+
+// TestFinishFetchFailsButSyncCheckStillRuns tests that when fetch fails, the sync check still runs.
+// Steps:
+// 1. Sets up a test repository with remote and initializes git-flow
+// 2. Creates a feature branch and pushes it with tracking
+// 3. Simulates remote changes by cloning, committing, and pushing
+// 4. Fetches in original repo to update remote refs (so sync check has data)
+// 5. Breaks the remote URL so subsequent fetch fails
+// 6. Attempts to finish with --fetch flag (fetch is disabled by default)
+// 7. Verifies fetch failure is non-fatal (note is printed)
+// 8. Verifies sync check still runs and catches "behind" state
+func TestFinishFetchFailsButSyncCheckStillRuns(t *testing.T) {
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+	defer testutil.CleanupTestRepo(t, dir)
+	defer testutil.CleanupTestRepo(t, remoteDir)
+
+	// Create feature branch
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "test-fetch-fail")
+	if err != nil {
+		t.Fatalf("Failed to create feature branch: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	// Push with tracking
+	_, err = testutil.RunGit(t, dir, "push", "--set-upstream", "origin", "feature/test-fetch-fail")
+	if err != nil {
+		t.Fatalf("Failed to push branch: %v", err)
+	}
+
+	// Clone to a second working copy and make changes
+	secondDir := t.TempDir()
+	_, err = testutil.RunGit(t, secondDir, "clone", remoteDir, ".")
+	if err != nil {
+		t.Fatalf("Failed to clone: %v", err)
+	}
+
+	_, err = testutil.RunGit(t, secondDir, "checkout", "feature/test-fetch-fail")
+	if err != nil {
+		t.Fatalf("Failed to checkout feature branch in second repo: %v", err)
+	}
+
+	testutil.WriteFile(t, secondDir, "remote-change.txt", "remote content")
+	_, err = testutil.RunGit(t, secondDir, "add", "remote-change.txt")
+	if err != nil {
+		t.Fatalf("Failed to add file in second repo: %v", err)
+	}
+	_, err = testutil.RunGit(t, secondDir, "commit", "-m", "Remote commit")
+	if err != nil {
+		t.Fatalf("Failed to commit in second repo: %v", err)
+	}
+	_, err = testutil.RunGit(t, secondDir, "push", "origin", "feature/test-fetch-fail")
+	if err != nil {
+		t.Fatalf("Failed to push from second repo: %v", err)
+	}
+
+	// Fetch in original repo to update remote refs (so sync check has data to work with)
+	_, err = testutil.RunGit(t, dir, "fetch", "origin")
+	if err != nil {
+		t.Fatalf("Failed to fetch: %v", err)
+	}
+
+	// Break the remote URL so fetch will fail
+	_, err = testutil.RunGit(t, dir, "remote", "set-url", "origin", "/nonexistent/path/that/does/not/exist")
+	if err != nil {
+		t.Fatalf("Failed to change remote URL: %v", err)
+	}
+
+	// Attempt to finish with fetch explicitly enabled
+	// Fetch should fail but sync check should still run with previously fetched refs
+	output, err := testutil.RunGitFlow(t, dir, "feature", "finish", "--fetch", "test-fetch-fail")
+
+	// Verify failure due to being behind (not due to fetch failure)
+	if err == nil {
+		t.Error("Expected finish to fail when behind remote")
+	}
+
+	// Verify fetch failure note is printed (non-fatal)
+	if !strings.Contains(output, "Could not fetch") {
+		t.Errorf("Expected output to mention fetch failure. Output: %s", output)
+	}
+
+	// Verify sync check still ran and caught the "behind" state
+	if !strings.Contains(output, "behind") {
+		t.Errorf("Expected error message to mention 'behind' (sync check should still run). Output: %s", output)
+	}
+
+	// Verify branch still exists (finish was aborted)
+	if !testutil.BranchExists(t, dir, "feature/test-fetch-fail") {
+		t.Error("Expected feature branch to still exist after aborted finish")
+	}
+}
