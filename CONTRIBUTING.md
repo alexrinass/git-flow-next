@@ -42,16 +42,18 @@ By participating in this project, you agree to:
    ```
 
 3. **Commit Guidelines**
-   - Write clear, descriptive commit messages
-   - Use the present tense ("Add feature" not "Added feature")
-   - Reference issues and pull requests in the body
-   - Format:
-     ```
-     Short (72 chars or less) summary
 
-     More detailed explanatory text. Wrap it to 72 characters.
-     Explain the problem that this commit is solving. Focus on why you
-     are making this change as opposed to how.
+   Follow the commit message format defined in [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md). Key points:
+   - Use a `<type>:` prefix (`feat`, `fix`, `refactor`, `test`, `docs`, etc.)
+   - Imperative mood ("Add feature" not "Added feature")
+   - Subject line ≤50 characters
+   - Reference issues in the footer (`Resolves #123`)
+
+   Example:
+     ```
+     feat: Add support for custom merge strategies
+
+     Implements configurable merge strategies per branch type.
 
      Resolves #123
      ```
