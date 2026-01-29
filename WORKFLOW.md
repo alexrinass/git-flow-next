@@ -1,5 +1,7 @@
 # Development Workflow
 
+This project serves as an experiment in how much of the development and maintenance lifecycle can be automated with AI-assisted tooling, while also making it easy for contributors to follow a consistent, standardized workflow.
+
 This document describes our structured approach to development tasks, from issue creation through to merged pull requests.
 
 ## Overview
@@ -10,10 +12,10 @@ Our workflow follows a consistent pattern that ensures quality, traceability, an
 Issue/Concept → Planning → Implementation → Review → PR → Merge
 ```
 
-Key artifacts are stored in `workflows/`, organized by issue or feature:
+Key artifacts are stored in `.ai/`, organized by issue or feature:
 
 ```
-workflows/
+.ai/
 ├── issue-42-squash-merge/
 │   ├── analysis.md
 │   ├── plan.md
@@ -24,7 +26,7 @@ workflows/
     └── pr_summary.md
 ```
 
-> **Note**: The `workflows/` directory is not committed to git. These are working artifacts.
+> **Note**: The `.ai/` directory is not committed to git. These are working artifacts.
 
 ---
 
@@ -41,7 +43,7 @@ For bug fixes, improvements, and smaller features that don't require extensive u
 
 2. **Analyze & Document**
    - `/analyze-issue <number>` - Analyze the issue
-   - Creates folder `workflows/issue-<number>-<slug>/`
+   - Creates folder `.ai/issue-<number>-<slug>/`
    - Writes analysis to `analysis.md`
    - Include:
      - Root cause analysis (for bugs)
@@ -95,7 +97,7 @@ For significant new functionality that requires upfront design and planning.
 ### Process
 
 1. **Create Concept Document**
-   - Create folder `workflows/feature-<name>/`
+   - Create folder `.ai/feature-<name>/`
    - Write concept to `concept.md`
    - Include:
      - Problem statement / motivation
@@ -363,7 +365,7 @@ The final stage before code reaches the main branch.
 ## Directory Structure
 
 ```
-workflows/                              # Not committed to git
+.ai/                              # Not committed to git
 ├── issue-42-squash-merge/              # Issue-based work
 │   ├── analysis.md                     # Issue analysis
 │   ├── plan.md                         # Implementation plan
@@ -392,13 +394,13 @@ The following skills are used throughout this workflow:
 | Skill | Purpose | Output |
 |-------|---------|--------|
 | `/gh-issue` | Create GitHub issue following guidelines | GitHub issue |
-| `/analyze-issue` | Analyze issue, create workflow folder | `workflows/issue-*/analysis.md` |
-| `/create-plan` | Generate implementation plan | `workflows/*/plan.md` |
+| `/analyze-issue` | Analyze issue, create workflow folder | `.ai/issue-*/analysis.md` |
+| `/create-plan` | Generate implementation plan | `.ai/*/plan.md` |
 | `/validate-tests` | Check test approach against guidelines | Updates `plan.md` |
 | `/implement` | Execute plan, commit properly | Code + commits |
 | `/local-review` | Review code against guidelines | Review notes |
 | `/commit` | Commit following guidelines | Git commit |
-| `/pr-summary` | Generate PR summary | `workflows/*/pr_summary.md` |
+| `/pr-summary` | Generate PR summary | `.ai/*/pr_summary.md` |
 
 ---
 
@@ -410,7 +412,7 @@ The following skills are used throughout this workflow:
 # 1. Create GitHub issue (optional, if not exists)
 /gh-issue
 
-# 2. Analyze the issue (creates workflows/issue-42-squash-merge/)
+# 2. Analyze the issue (creates .ai/issue-42-squash-merge/)
 /analyze-issue 42
 
 # 3. Create feature branch
@@ -436,7 +438,7 @@ git flow feature publish 42-squash-merge
 
 ```bash
 # 1. Create workflow folder and write concept
-mkdir -p workflows/feature-my-feature
+mkdir -p .ai/feature-my-feature
 # Write concept.md manually or with Claude's help
 
 # 2. Create feature branch
