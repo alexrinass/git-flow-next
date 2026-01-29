@@ -118,11 +118,13 @@ COMMIT_SHA=$(gh pr view $PR_NUMBER --json headRefOid --jq '.headRefOid')
 
 cat > /tmp/review.json << 'EOF'
 {
-  "body": "Review summary here (general remarks, not file-specific)",
+  "body": "- **Code Quality**: Brief assessment...\n- **Test Coverage**: Brief assessment...\n- **Security**: No concerns.\n- **Commit Messages**: Follow guidelines.\n\n**Action Items:**\n- Fix ignored error in processUser()\n- Add input validation for email field",
   "event": "COMMENT",
   "commit_id": "SHA_PLACEHOLDER",
   "comments": [
-    {"path": "src/file.js", "line": 42, "body": "Inline feedback here"}
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation...\n\n<details>\n<summary>Fix prompt</summary>\n\n```prompt\nIn src/users.js, add input validation to processUser()...\n```\n\n</details>"},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value from `db.Save()`."},
+    {"path": "src/old.js", "line": 8, "side": "LEFT", "body": "**Issue:** This deleted validation was still needed."}
   ]
 }
 EOF
@@ -132,19 +134,48 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input /tmp/review.json
 ```
 
 **Review structure:**
-- `body`: General remarks and proposals not tied to specific files
-- `comments`: Array of inline comments on specific lines
+- `body`: ONLY the summary (formatted per REVIEW_GUIDELINES.md or default format). NEVER put file-specific feedback in the body.
+- `comments`: ALL file-specific findings MUST go here as inline comments on specific lines. Each comment targets a file and line number so it appears directly on the diff.
 - `event`: "COMMENT", "APPROVE", or "REQUEST_CHANGES"
 
-**Line numbers:**
-- `line` = line number in new file version (right side of diff)
-- For deleted lines, add `"side": "LEFT"` to comment object
+### Determining Line Numbers
+
+The `line` field in each comment must be the line number in the file (not the diff position). To find the correct line number from `gh pr diff` output:
+
+1. Find the relevant `@@` hunk header for your finding:
+   ```
+   @@ -196,12 +196,41 @@ func executeFinish(...)
+   ```
+   The `+196` means the new file version starts at line 196 in this hunk.
+
+2. Count lines from the hunk start. Only count `+` lines and context lines (lines without `+` or `-` prefix). Skip `-` lines entirely — they don't exist in the new file.
+
+3. **Worked example:**
+   ```diff
+   @@ -10,7 +10,9 @@ func process() {
+        existing line       // line 10 (context)
+        another line        // line 11 (context)
+   -    old code            // SKIP (deleted, not in new file)
+   +    new code            // line 12
+   +    added line          // line 13
+        unchanged           // line 14
+   ```
+   To comment on `added line`, use `"line": 13`.
+
+4. For deleted lines (prefixed with `-`), add `"side": "LEFT"` and use the line number from the **old** file (the `-10` side of the hunk header).
+
+**Important:** If you cannot confidently determine the exact line number, read the file at the PR's HEAD to verify:
+```bash
+gh api repos/$REPO/contents/PATH?ref=$COMMIT_SHA --jq '.content' | base64 -d | head -n 50
+```
 
 ---
 
 ## Action: Respond
 
 Handle @claude mentions that aren't review requests.
+
+**IMPORTANT:** In CI mode, you MUST post your response to GitHub. Do not just produce text output — the user cannot see your output, only GitHub comments. Your response is invisible unless you post it.
 
 ### Fetch Context
 
@@ -156,16 +187,22 @@ gh api repos/$REPO/pulls/$PR_NUMBER/comments --paginate
 gh api repos/$REPO/issues/$PR_NUMBER/comments --paginate
 ```
 
-### Responding
+### Posting the Response
+
+After formulating your response, you MUST post it to GitHub:
 
 ```bash
-# Reply to inline review comment
+# Reply to an inline review comment thread
 gh api repos/$REPO/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies \
   -f body="Response here"
 
-# Reply to general PR comment
+# Reply to a general PR/issue comment
 gh pr comment $PR_NUMBER --body "Response here"
 ```
+
+**Choose the right method:**
+- If the @claude mention is on an inline review comment → use the replies API with the comment ID
+- If the @claude mention is on a general PR comment → use `gh pr comment`
 
 Respond based on the question/request. If project guidelines specify a response format, use it.
 
