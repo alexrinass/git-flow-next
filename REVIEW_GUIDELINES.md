@@ -14,6 +14,8 @@ Is the test coverage sufficient and does it handle reasonable error and edge cas
 - [ ] Tests cover both success and error paths
 - [ ] Edge cases are tested (empty inputs, boundary conditions, invalid states)
 - [ ] Tests follow [TESTING_GUIDELINES.md](TESTING_GUIDELINES.md)
+- [ ] Tests actually verify correct behavior (not just "no error" assertions)
+- [ ] No redundant or overly trivial tests that add noise without value
 
 See [Testing Checklist](#testing-checklist) for detailed criteria.
 

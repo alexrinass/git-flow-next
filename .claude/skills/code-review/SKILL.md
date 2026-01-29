@@ -48,44 +48,7 @@ Before reviewing or responding, check for project-specific guidelines:
 2. **Follow references** - if CLAUDE.md mentions other files (e.g., "see `REVIEW_GUIDELINES.md`"), read them
 3. **Check common locations**: `REVIEW_GUIDELINES.md`, `.github/CONTRIBUTING.md`, `docs/code-standards.md`
 
-**Use project guidelines for:**
-- What to focus on in reviews
-- Review summary format
-- Inline comment format
-- Response format/tone
-
-**If no guidelines found, use defaults:**
-
-1. **Test Coverage** - Evaluate test additions and changes thoroughly (see Test Analysis below)
-2. **Guidelines & Architecture** - Follows coding guidelines and project patterns
-3. **Code Quality** - No ignored errors, unnecessary complexity, or dead code
-4. **Security** - No injection vulnerabilities, path traversal, or exposed secrets
-
-Use a concise and direct tone. Put detailed feedback in inline comments with fix prompts.
-
----
-
-## Test Analysis
-
-When reviewing tests, the **Test Coverage** section in the review summary must go beyond a one-line assessment. Include:
-
-1. **Overview** — Briefly list each test introduced or changed and what it covers.
-2. **Coverage completeness** — Are new/changed code paths covered? Call out any critical missing cases (error paths, edge cases, boundary conditions).
-3. **Test quality** — Do tests follow project patterns (naming, structure, testutil usage, one test per function)?
-4. **Test correctness** — Do tests actually verify the right behavior, or are they superficial (e.g., only asserting "no error" without checking output or state)?
-5. **Duplicates and low-value tests** — Flag tests that are redundant or test something too trivial to warrant their own test function.
-
-Format the Test Coverage section in the review summary like this:
-
-```
-- **Test Coverage**:
-  - `TestFoo`: Tests X when Y — good coverage of error path
-  - `TestBar`: Tests basic Z — missing: no test for Z with invalid input
-  - Missing: No test for the <scenario> code path, which is critical because <reason>
-  - `TestBaz` and `TestQux` overlap significantly — consider consolidating
-```
-
-Keep it concise but specific. Every test should be mentioned by name with a brief note on what it covers and any gaps.
+Follow `REVIEW_GUIDELINES.md` for review criteria, summary format, and inline comment format. If the project has no guidelines, fall back to general best practices for code quality, test coverage, security, and commit messages.
 
 ---
 
@@ -142,7 +105,7 @@ COMMIT_SHA=$(gh pr view $PR_NUMBER --json headRefOid --jq '.headRefOid')
 
 cat > /tmp/review.json << 'EOF'
 {
-  "body": "- **Code Quality**: Brief assessment...\n- **Test Coverage**:\n  - `TestProcessUser`: Tests happy path — good\n  - `TestProcessUserError`: Tests DB failure — missing: no test for invalid email input\n  - Missing: No test for concurrent access, which is critical for the new batch endpoint\n- **Security**: No concerns.\n- **Commit Messages**: Follow guidelines.\n\n**Action Items:**\n- Fix ignored error in processUser()\n- Add input validation for email field\n- Add test for invalid email input",
+  "body": "<Review summary formatted per REVIEW_GUIDELINES.md>",
   "event": "COMMENT",
   "commit_id": "SHA_PLACEHOLDER",
   "comments": [
@@ -245,7 +208,7 @@ DRY RUN - Review for PR #123
 
 ```json
 {
-  "body": "- **Code Quality**: ...\n- **Test Coverage**:\n  - `TestFoo`: ...\n  - Missing: ...\n- **Security**: ...\n...",
+  "body": "<Review summary formatted per REVIEW_GUIDELINES.md>",
   "event": "COMMENT",
   "commit_id": "abc123...",
   "comments": [
