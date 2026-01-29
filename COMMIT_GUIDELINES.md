@@ -24,9 +24,9 @@ Use the following structure for commit messages:
 
 ### Body (Optional but Recommended)
 
-- **Length**: Wrap at 72 characters per line
+- **Length**: Hard wrap lines at 72 characters
 - **Purpose**: Explain the "what" and "why", not the "how"
-- **Format**: Use flowing paragraphs without hard line breaks
+- **Format**: Use paragraphs separated by blank lines
 - **Lists**: Use bullet points for multiple related changes
 
 ### Footer (Optional)
@@ -119,7 +119,7 @@ Adds comprehensive documentation about git-flow default branches and settings to
 - **Don't exceed line limits**: Keep subject under 50 chars, body under 72
 - **Don't mix concerns**: Separate unrelated changes into different commits
 - **Don't include file lists**: Git tracks files automatically
-- **Don't use hard line breaks**: Let text flow naturally in paragraphs
+- **Don't exceed 72 characters per line**: Hard wrap the body at 72 columns
 - **Don't commit broken code**: Each commit should represent a working state
 - **Don't include AI attribution**: Avoid "Generated with Claude Code" or similar AI-generated footers
 
