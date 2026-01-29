@@ -146,22 +146,13 @@ By participating in this project, you agree to:
 
 ### Review Process
 
-1. **Initial Review**
-   - Code style and formatting
-   - Test coverage and quality
-   - Documentation completeness
-   - Performance implications
+All code changes are reviewed according to [REVIEW_GUIDELINES.md](REVIEW_GUIDELINES.md), which covers:
+- Code review checklist (architecture, style, testing, documentation)
+- Issue categories (blocking, warnings, suggestions)
+- Approval requirements
+- Merge process
 
-2. **Approval Requirements**
-   - At least one maintainer approval
-   - All CI checks passing
-   - Documentation updated
-   - Tests passing
-
-3. **Merge Process**
-   - Squash commits if requested
-   - Rebase on latest main branch
-   - Clean commit history
+Please review your changes against these guidelines before submitting a pull request.
 
 ## Getting Help
 
