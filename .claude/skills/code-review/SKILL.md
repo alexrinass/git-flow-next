@@ -212,17 +212,32 @@ Respond based on the question/request. If project guidelines specify a response 
 
 When `--dry-run` is passed OR running in local mode (no CI environment detected):
 - Analyze normally but DO NOT post to GitHub
-- Output what would be posted
+- Output the exact JSON that would be submitted, so the user sees exactly what would be posted
 
+For reviews, output the review JSON:
+
+````
+DRY RUN - Review for PR #123
+
+```json
+{
+  "body": "- **Code Quality**: ...\n- **Test Coverage**: ...\n...",
+  "event": "COMMENT",
+  "commit_id": "abc123...",
+  "comments": [
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** ..."},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** ..."}
+  ]
+}
 ```
-DRY RUN - No changes will be made
+````
 
-Would submit review to PR #123:
-  Event: COMMENT
-  Body: "..."
+For responses, output the comment body:
 
-Inline comments (3):
-  src/file.js:10 - "..."
-  src/file.js:25 - "..."
-  src/api.js:100 - "..."
+````
+DRY RUN - Response for PR #123
+
+```markdown
+Your response text here exactly as it would be posted...
 ```
+````
