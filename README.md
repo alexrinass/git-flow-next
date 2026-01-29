@@ -1,6 +1,12 @@
 # git-flow-next
 
-A modern, maintainable implementation of the git-flow branching model, written in Go.
+A modern implementation of the Git-flow branching model, written in Go. It is brought to you and maintaned by the team at <a href="https://www.git-tower.com" target="_blank" rel="noopener">Tower</a>, the most powerful Git client for Mac and Windows.
+
+<p>
+  <a href="https://www.git-tower.com" target="_blank" rel="noopener">
+    <img src=".github/assets/tower-logo-light.svg" alt="Tower logo" width="200">
+  </a>
+</p>
 
 ## About
 
