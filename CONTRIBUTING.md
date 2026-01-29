@@ -146,6 +146,10 @@ By participating in this project, you agree to:
    - Avoid unnecessary Git operations
    - Profile code for potential bottlenecks
 
+### Development Workflow
+
+For a detailed overview of our end-to-end development process — from issue analysis through planning, implementation, and PR creation — see [WORKFLOW.md](WORKFLOW.md).
+
 ### Review Process
 
 All code changes are reviewed according to [REVIEW_GUIDELINES.md](REVIEW_GUIDELINES.md), which covers:
