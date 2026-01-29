@@ -303,7 +303,7 @@ The final stage before code reaches the main branch.
    - `git flow feature publish <name>` or `git push -u origin <branch>`
 
 2. **Create PR Summary**
-   - `/pr-summary` - Generate PR summary following [PR_SUMMARY_GUIDELINES.md](.github/PULL_REQUEST_TEMPLATE.md)
+   - `/pr-summary` - Generate PR summary following the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
    - Writes to `pr_summary.md` in the workflow folder
    - Includes:
      - Summary of changes
