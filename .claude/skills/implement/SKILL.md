@@ -12,7 +12,7 @@ Execute the implementation plan, making code changes and committing according to
 
 1. **Find and Load Plan**
    - Detect workflow folder from current git branch
-   - Read `workflows/<folder>/plan.md`
+   - Read `.ai/<folder>/plan.md`
    - If no plan exists, suggest running `/create-plan` first
 
 2. **Verify Prerequisites**

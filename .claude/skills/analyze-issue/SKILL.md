@@ -1,6 +1,6 @@
 ---
 name: analyze-issue
-description: Analyze a GitHub issue and create detailed analysis in workflows/
+description: Analyze a GitHub issue and create detailed analysis in .ai/
 argument-hint: <issue-number>
 allowed-tools: Read, Grep, Glob, Write, Bash, mcp__github__get_issue
 context: fork
@@ -9,7 +9,7 @@ agent: Explore
 
 # Analyze Issue
 
-Perform detailed analysis of a GitHub issue and write the analysis to the workflows directory.
+Perform detailed analysis of a GitHub issue and write the analysis to the .ai directory.
 
 ## Instructions
 
@@ -18,9 +18,9 @@ Perform detailed analysis of a GitHub issue and write the analysis to the workfl
    - Extract: title, description, labels, any linked issues
 
 2. **Create Workflow Directory**
-   - Create `workflows/issue-<number>-<slug>/`
+   - Create `.ai/issue-<number>-<slug>/`
    - Slug: lowercase, hyphenated version of key words from title (max 4 words)
-   - Example: Issue #42 "Add squash merge support" → `workflows/issue-42-squash-merge/`
+   - Example: Issue #42 "Add squash merge support" → `.ai/issue-42-squash-merge/`
 
 3. **Explore the Codebase**
    - Search for related code, files, and patterns
@@ -38,7 +38,7 @@ Perform detailed analysis of a GitHub issue and write the analysis to the workfl
 
 ## Analysis Template
 
-Write to `workflows/issue-<number>-<slug>/analysis.md`:
+Write to `.ai/issue-<number>-<slug>/analysis.md`:
 
 ```markdown
 # Issue #<number>: <title>

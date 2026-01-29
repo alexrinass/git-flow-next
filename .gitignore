@@ -29,6 +29,6 @@ go.work
 Thumbs.db 
 /dist
 
-# Workflow artifacts (local working documents)
-/workflows
+# AI workflow artifacts (local working documents)
+/.ai
 /.claude/settings.local.json

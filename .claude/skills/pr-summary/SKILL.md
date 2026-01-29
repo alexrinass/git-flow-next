@@ -1,6 +1,6 @@
 ---
 name: pr-summary
-description: Generate a PR summary and write to workflows/ pr_summary.md
+description: Generate a PR summary and write to .ai/ pr_summary.md
 allowed-tools: Read, Grep, Glob, Write, Bash
 ---
 
@@ -37,7 +37,7 @@ Generate a comprehensive pull request summary based on branch changes.
 
 4. **Generate Summary**
 
-   Write to `workflows/<folder>/pr_summary.md`:
+   Write to `.ai/<folder>/pr_summary.md`:
 
    ```markdown
    # PR: <title>
