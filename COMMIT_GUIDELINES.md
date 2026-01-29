@@ -39,7 +39,7 @@ Use the following structure for commit messages:
 ### Primary Types
 
 - **feat**: New feature or functionality
-- **fix**: Bug fix or correction
+- **fix**: Bug fix or correction (user-facing issues only — not for internal tooling, CI, or infrastructure fixes; use the appropriate type instead)
 - **refactor**: Code restructuring without changing functionality
 - **perf**: Performance improvements
 - **test**: Adding or modifying tests
@@ -49,7 +49,7 @@ Use the following structure for commit messages:
 ### Secondary Types
 
 - **build**: Build system or dependency changes
-- **ci**: Continuous integration configuration
+- **ci**: Continuous integration configuration, workflows, and internal automation (including fixes to CI scripts and skills)
 - **chore**: Maintenance tasks, tool updates
 - **revert**: Reverting previous commits
 
