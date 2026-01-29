@@ -244,10 +244,10 @@ func (e *RemoteBranchNotFoundError) ExitCode() ExitCode {
 // BranchBehindRemoteError indicates the local branch is behind its remote tracking branch.
 // Finishing would discard the remote commits, which is likely unintended.
 type BranchBehindRemoteError struct {
-	BranchName    string
-	RemoteBranch  string
-	CommitsBehind int
-	BranchType    string
+	BranchName   string
+	RemoteBranch string
+	CommitCount  int
+	BranchType   string
 }
 
 func (e *BranchBehindRemoteError) Error() string {
@@ -268,7 +268,7 @@ To resolve:
 
 To finish anyway (discarding remote changes):
   git flow %s finish --force %s`,
-		e.BranchName, e.RemoteBranch, e.CommitsBehind,
+		e.BranchName, e.RemoteBranch, e.CommitCount,
 		e.BranchType, shortName,
 		e.BranchType, shortName)
 }

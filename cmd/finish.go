@@ -215,12 +215,15 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 		if err == nil { // Only check if we can get tracking info
 			switch status {
 			case git.SyncStatusBehind, git.SyncStatusDiverged:
-				trackingBranch, _ := git.GetTrackingBranch(name)
+				trackingBranch, err := git.GetTrackingBranch(name)
+				if err != nil {
+					trackingBranch = "remote tracking branch"
+				}
 				return &errors.BranchBehindRemoteError{
-					BranchName:    name,
-					RemoteBranch:  trackingBranch,
-					CommitsBehind: commitCount,
-					BranchType:    branchType,
+					BranchName:   name,
+					RemoteBranch: trackingBranch,
+					CommitCount:  commitCount,
+					BranchType:   branchType,
 				}
 			case git.SyncStatusAhead:
 				// Local is ahead - proceed (optionally warn)
