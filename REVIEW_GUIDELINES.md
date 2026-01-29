@@ -144,7 +144,11 @@ The PR summary comment should follow this structure:
 
 ```markdown
 - **Code Quality**: <Brief assessment against coding guidelines and architecture>
-- **Test Coverage**: <Brief assessment of coverage, quality, and correctness>
+- **Test Coverage**:
+  - `TestName`: <What it tests> — <assessment>
+  - `TestOther`: <What it tests> — <assessment>
+  - Missing: <Any critical untested code paths>
+  - <Flag duplicates or low-value tests if applicable>
 - **Security**: <Brief assessment of concerns, if any>
 - **Commit Messages**: <Brief assessment against COMMIT_GUIDELINES.md format>
 
@@ -152,6 +156,8 @@ The PR summary comment should follow this structure:
 - <Item that needs to be addressed>
 - <Item that needs to be addressed>
 ```
+
+The **Test Coverage** section should list every test introduced or changed by name, assess coverage completeness (especially critical missing cases), flag superficial assertions, and note any duplicate or low-value tests.
 
 ### Inline Comments
 
