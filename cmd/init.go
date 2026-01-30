@@ -229,22 +229,11 @@ func initFlow(useDefaults, createBranches, force bool, preset string, custom boo
 	}
 
 	// Save configuration with the appropriate scope
-	if scope == git.ConfigScopeDefault {
-		// Use existing non-scoped functions for backward compatibility
-		if err := config.SaveConfig(cfg); err != nil {
-			return &errors.GitError{Operation: "save configuration", Err: err}
-		}
-		if err := config.MarkRepoInitialized(); err != nil {
-			return &errors.GitError{Operation: "mark repository as initialized", Err: err}
-		}
-	} else {
-		// Use scoped functions
-		if err := config.SaveConfigWithScope(cfg, scope, scopeFile); err != nil {
-			return &errors.GitError{Operation: "save configuration", Err: err}
-		}
-		if err := config.MarkRepoInitializedWithScope(scope, scopeFile); err != nil {
-			return &errors.GitError{Operation: "mark repository as initialized", Err: err}
-		}
+	if err := config.SaveConfigWithScope(cfg, scope, scopeFile); err != nil {
+		return &errors.GitError{Operation: "save configuration", Err: err}
+	}
+	if err := config.MarkRepoInitializedWithScope(scope, scopeFile); err != nil {
+		return &errors.GitError{Operation: "mark repository as initialized", Err: err}
 	}
 
 	// Create branches if requested

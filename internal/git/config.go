@@ -118,7 +118,7 @@ func GetConfigWithScope(key string, scope ConfigScope, filePath string) (string,
 		args = append(args, "--system")
 	case ConfigScopeFile:
 		args = append(args, "--file", filePath)
-	// ConfigScopeDefault: no flag = merged config
+		// ConfigScopeDefault: no flag = merged config
 	}
 	args = append(args, "--get", key)
 	cmd := exec.Command("git", args...)
@@ -142,7 +142,7 @@ func SetConfigWithScope(key, value string, scope ConfigScope, filePath string) e
 		args = append(args, "--system")
 	case ConfigScopeFile:
 		args = append(args, "--file", filePath)
-	// ConfigScopeDefault: no flag = local (git's default for writes)
+		// ConfigScopeDefault: no flag = local (git's default for writes)
 	}
 	args = append(args, key, value)
 	cmd := exec.Command("git", args...)
@@ -165,7 +165,7 @@ func UnsetConfigWithScope(key string, scope ConfigScope, filePath string) error 
 		args = append(args, "--system")
 	case ConfigScopeFile:
 		args = append(args, "--file", filePath)
-	// ConfigScopeDefault: no flag = local (git's default for writes)
+		// ConfigScopeDefault: no flag = local (git's default for writes)
 	}
 	args = append(args, "--unset", key)
 	cmd := exec.Command("git", args...)
