@@ -119,6 +119,48 @@ func getGitConfig(t *testing.T, dir string, key string) string {
 	return strings.TrimSpace(stdout.String())
 }
 
+// getGitConfigWithScope gets a Git config value at a specific scope
+func getGitConfigWithScope(t *testing.T, dir string, key string, scope string) string {
+	args := []string{"config", "--" + scope, "--get", key}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	err := cmd.Run()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(stdout.String())
+}
+
+// getGitConfigFromFile reads a config value from a specific file
+func getGitConfigFromFile(t *testing.T, filePath string, key string) string {
+	cmd := exec.Command("git", "config", "--file", filePath, "--get", key)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	err := cmd.Run()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(stdout.String())
+}
+
+// runGitFlowWithEnv runs git-flow with custom environment variables.
+func runGitFlowWithEnv(t *testing.T, dir string, env []string, args ...string) (string, error) {
+	gitFlowPath, err := filepath.Abs(filepath.Join("..", "..", "git-flow"))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path to git-flow: %v", err)
+	}
+	cmd := exec.Command(gitFlowPath, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), env...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	return stdout.String() + stderr.String(), err
+}
+
 // branchExists checks if a branch exists in the repository
 func branchExists(t *testing.T, dir string, branch string) bool {
 	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
@@ -562,5 +604,364 @@ func TestInitWithDefaultsAndOverrides(t *testing.T) {
 		}
 	} else {
 		t.Error("Expected 'hotfix' branch configuration to exist")
+	}
+}
+
+// TestInitWithLocalScope tests that --local flag stores config in the repository's .git/config.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults --local'
+// 3. Verifies gitflow.version is stored in local config (.git/config)
+// 4. Verifies gitflow.branch.main.type is stored in local config
+func TestInitWithLocalScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--local")
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --local: %v\nOutput: %s", err, output)
+	}
+
+	// Verify config is in local scope
+	version := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in local scope to be '1.0', got: %s", version)
+	}
+
+	mainType := getGitConfigWithScope(t, dir, "gitflow.branch.main.type", "local")
+	if mainType != "base" {
+		t.Errorf("Expected gitflow.branch.main.type in local scope to be 'base', got: %s", mainType)
+	}
+}
+
+// TestInitWithGlobalScope tests that --global flag stores config in the global git config.
+// Steps:
+// 1. Sets up a test repository with isolated GIT_CONFIG_GLOBAL
+// 2. Runs 'git flow init --defaults --global' with isolated global config
+// 3. Verifies gitflow.version is stored in global config
+// 4. Verifies gitflow.version is NOT stored in local config
+func TestInitWithGlobalScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create isolated global config file
+	globalConfigFile := filepath.Join(t.TempDir(), "gitconfig-global")
+	env := []string{"GIT_CONFIG_GLOBAL=" + globalConfigFile}
+
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--global")
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --global: %v\nOutput: %s", err, output)
+	}
+
+	// Verify config is in global scope (read from the isolated file)
+	version := getGitConfigFromFile(t, globalConfigFile, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in global config to be '1.0', got: %s", version)
+	}
+
+	// Verify config is NOT in local scope
+	localVersion := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "" {
+		t.Errorf("Expected gitflow.version to NOT be in local config, got: %s", localVersion)
+	}
+}
+
+// TestInitWithFileScope tests that --file flag stores config in the specified file.
+// Steps:
+// 1. Sets up a test repository
+// 2. Creates a temp file path for config output
+// 3. Runs 'git flow init --defaults --file <path>'
+// 4. Verifies gitflow.version is stored in the specified file
+// 5. Verifies gitflow.version is NOT stored in local config
+func TestInitWithFileScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	configFile := filepath.Join(t.TempDir(), "custom-gitflow-config")
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--file", configFile)
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --file: %v\nOutput: %s", err, output)
+	}
+
+	// Verify config is in specified file
+	version := getGitConfigFromFile(t, configFile, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in file to be '1.0', got: %s", version)
+	}
+
+	// Verify config is NOT in local scope
+	localVersion := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "" {
+		t.Errorf("Expected gitflow.version to NOT be in local config, got: %s", localVersion)
+	}
+}
+
+// TestInitWithMutuallyExclusiveScopeFlags tests that using multiple scope flags produces an error.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults --local --global'
+// 3. Verifies the command fails
+// 4. Verifies the error message mentions mutual exclusivity
+func TestInitWithMutuallyExclusiveScopeFlags(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--local", "--global")
+	if err == nil {
+		t.Fatalf("Expected error when using --local and --global together, but succeeded\nOutput: %s", output)
+	}
+
+	if !strings.Contains(output, "cannot use multiple scope options") {
+		t.Errorf("Expected error about mutual exclusivity, got: %s", output)
+	}
+}
+
+// TestInitWithFileNonExistentDirectory tests that --file with non-existent parent directory fails.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults --file /nonexistent/dir/config'
+// 3. Verifies the command fails with "config file directory does not exist" error
+func TestInitWithFileNonExistentDirectory(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--file", "/nonexistent/dir/config")
+	if err == nil {
+		t.Fatalf("Expected error for non-existent directory, but succeeded\nOutput: %s", output)
+	}
+
+	// Error should mention the specific validation message
+	if !strings.Contains(output, "config file directory does not exist") {
+		t.Errorf("Expected error 'config file directory does not exist', got: %s", output)
+	}
+}
+
+// TestInitDefaultScopeIsLocal tests that no scope flag defaults to local scope for writes (backward compatibility).
+// This verifies the WRITE behavior of default scope. The READ behavior (merged config) is tested by
+// TestInitDefaultMergedConfigCheck and TestInitDefaultShowsGlobalSourceMessage.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults' without any scope flag
+// 3. Verifies gitflow.version is stored in local config (.git/config)
+func TestInitDefaultScopeIsLocal(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	output, err := runGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults: %v\nOutput: %s", err, output)
+	}
+
+	// Verify config is in local scope
+	version := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in local scope to be '1.0', got: %s", version)
+	}
+}
+
+// TestInitForceWithGlobalScope tests that --force works with --global scope flag.
+// Steps:
+// 1. Sets up a test repository with isolated GIT_CONFIG_GLOBAL
+// 2. Runs 'git flow init --defaults --global' to initialize
+// 3. Runs 'git flow init --defaults --force --global' to reinitialize
+// 4. Verifies the reconfiguration succeeds and config is in global scope
+func TestInitForceWithGlobalScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	globalConfigFile := filepath.Join(t.TempDir(), "gitconfig-global")
+	env := []string{"GIT_CONFIG_GLOBAL=" + globalConfigFile}
+
+	// First initialization
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--global")
+	if err != nil {
+		t.Fatalf("Failed initial git-flow init: %v\nOutput: %s", err, output)
+	}
+
+	// Second initialization with --force
+	output, err = runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--force", "--global")
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --force --global: %v\nOutput: %s", err, output)
+	}
+
+	// Verify global config is updated
+	version := getGitConfigFromFile(t, globalConfigFile, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in global config to be '1.0', got: %s", version)
+	}
+}
+
+// TestInitWithSystemScope tests that --system flag is accepted by the command.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults --system'
+// 3. Verifies the command fails due to permission error (expected in test env)
+// 4. Verifies the error is from git, not from flag parsing
+func TestInitWithSystemScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--system")
+	// System scope typically requires elevated privileges, so expect failure
+	if err == nil {
+		// If it succeeds (e.g., running as root), that's also acceptable
+		return
+	}
+
+	// The error should be from git (permission denied), NOT from unknown flag
+	if strings.Contains(output, "unknown flag") {
+		t.Errorf("--system flag was not recognized: %s", output)
+	}
+}
+
+// TestInitForceWithFileScope tests that --force works with --file scope flag.
+// Steps:
+// 1. Sets up a test repository
+// 2. Creates a temp file path for config output
+// 3. Runs 'git flow init --defaults --file <path>' to initialize
+// 4. Runs 'git flow init --defaults --force --file <path>' to reinitialize
+// 5. Verifies the reconfiguration succeeds and config is in the specified file
+func TestInitForceWithFileScope(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	configFile := filepath.Join(t.TempDir(), "custom-gitflow-config")
+
+	// First initialization
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--file", configFile)
+	if err != nil {
+		t.Fatalf("Failed initial git-flow init: %v\nOutput: %s", err, output)
+	}
+
+	// Second initialization with --force
+	output, err = runGitFlow(t, dir, "init", "--defaults", "--force", "--file", configFile)
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --force --file: %v\nOutput: %s", err, output)
+	}
+
+	// Verify config is in specified file
+	version := getGitConfigFromFile(t, configFile, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in file to be '1.0', got: %s", version)
+	}
+}
+
+// TestInitLocalScopeIgnoresGlobalConfig tests that --local creates local config even when global config exists.
+// This is the CORE FIX for issue #8 - explicit scope should check only that scope.
+// Steps:
+// 1. Sets up a test repository with isolated GIT_CONFIG_GLOBAL
+// 2. Initializes git-flow with --global to create global config
+// 3. Runs 'git flow init --defaults --local' in the same repo
+// 4. Verifies the command succeeds (not "already initialized")
+// 5. Verifies config is now in BOTH local and global scopes
+func TestInitLocalScopeIgnoresGlobalConfig(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create isolated global config file
+	globalConfigFile := filepath.Join(t.TempDir(), "gitconfig-global")
+	env := []string{"GIT_CONFIG_GLOBAL=" + globalConfigFile}
+
+	// First: initialize with --global
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--global")
+	if err != nil {
+		t.Fatalf("Failed to init with --global: %v\nOutput: %s", err, output)
+	}
+
+	// Verify global config exists
+	globalVersion := getGitConfigFromFile(t, globalConfigFile, "gitflow.version")
+	if globalVersion != "1.0" {
+		t.Fatalf("Expected global config to have gitflow.version='1.0', got: %s", globalVersion)
+	}
+
+	// Verify local config does NOT exist yet
+	localVersion := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "" {
+		t.Fatalf("Expected NO local config before --local init, got: %s", localVersion)
+	}
+
+	// Now: initialize with --local (should succeed, not report "already initialized")
+	output, err = runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--local")
+	if err != nil {
+		t.Fatalf("Expected --local init to succeed even with global config present: %v\nOutput: %s", err, output)
+	}
+
+	// Verify local config now exists
+	localVersion = getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "1.0" {
+		t.Errorf("Expected gitflow.version in local config to be '1.0', got: %s", localVersion)
+	}
+}
+
+// TestInitDefaultShowsGlobalSourceMessage tests that when initialized via global config,
+// the message indicates the source and suggests --local.
+// Steps:
+// 1. Sets up a test repository with isolated GIT_CONFIG_GLOBAL
+// 2. Initializes git-flow with --global to create global config
+// 3. Runs 'git flow init --defaults' (no scope flag) in the same repo
+// 4. Verifies the output mentions "global config" and "--local"
+func TestInitDefaultShowsGlobalSourceMessage(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create isolated global config file
+	globalConfigFile := filepath.Join(t.TempDir(), "gitconfig-global")
+	env := []string{"GIT_CONFIG_GLOBAL=" + globalConfigFile}
+
+	// First: initialize with --global
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--global")
+	if err != nil {
+		t.Fatalf("Failed to init with --global: %v\nOutput: %s", err, output)
+	}
+
+	// Now: run init with --defaults (no scope flag) - should report already initialized via global
+	output, err = runGitFlowWithEnv(t, dir, env, "init", "--defaults")
+	if err == nil {
+		t.Fatalf("Expected init to fail/report already initialized, but succeeded\nOutput: %s", output)
+	}
+
+	// Verify message mentions global config as source
+	if !strings.Contains(output, "global config") {
+		t.Errorf("Expected message to mention 'global config', got: %s", output)
+	}
+
+	// Verify message suggests --local
+	if !strings.Contains(output, "--local") {
+		t.Errorf("Expected message to suggest '--local', got: %s", output)
+	}
+}
+
+// TestInitDefaultMergedConfigCheck tests that default (no scope flag) checks merged config.
+// Steps:
+// 1. Sets up a test repository with isolated GIT_CONFIG_GLOBAL
+// 2. Initializes git-flow with --global to create global config
+// 3. Runs 'git flow init --defaults' (no scope flag)
+// 4. Verifies it reports already initialized (because merged config finds global)
+func TestInitDefaultMergedConfigCheck(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Create isolated global config file
+	globalConfigFile := filepath.Join(t.TempDir(), "gitconfig-global")
+	env := []string{"GIT_CONFIG_GLOBAL=" + globalConfigFile}
+
+	// First: initialize with --global
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--global")
+	if err != nil {
+		t.Fatalf("Failed to init with --global: %v\nOutput: %s", err, output)
+	}
+
+	// Now: run init --defaults (should see global config via merged read)
+	output, err = runGitFlowWithEnv(t, dir, env, "init", "--defaults")
+
+	// Should fail because already initialized (found via merged config)
+	if err == nil {
+		t.Fatalf("Expected init to report already initialized, but succeeded\nOutput: %s", output)
+	}
+
+	// The error indicates it found existing config
+	if !strings.Contains(strings.ToLower(output), "already") && !strings.Contains(strings.ToLower(output), "configured") {
+		t.Errorf("Expected error about already initialized/configured, got: %s", output)
 	}
 }
