@@ -6,6 +6,22 @@ import (
 	"strings"
 )
 
+// ConfigScope represents the scope for Git configuration operations
+type ConfigScope string
+
+const (
+	// ConfigScopeDefault uses merged config for reads, local for writes (Git's default behavior)
+	ConfigScopeDefault ConfigScope = ""
+	// ConfigScopeLocal reads/writes only local repository config (.git/config)
+	ConfigScopeLocal ConfigScope = "local"
+	// ConfigScopeGlobal reads/writes only global user config (~/.gitconfig)
+	ConfigScopeGlobal ConfigScope = "global"
+	// ConfigScopeSystem reads/writes only system-wide config (/etc/gitconfig)
+	ConfigScopeSystem ConfigScope = "system"
+	// ConfigScopeFile reads/writes only the specified file (requires filePath parameter)
+	ConfigScopeFile ConfigScope = "file"
+)
+
 // GetConfig gets a Git config value
 func GetConfig(key string) (string, error) {
 	cmd := exec.Command("git", "config", "--get", key)
@@ -81,6 +97,78 @@ func GetAllConfig(pattern string) (map[string]string, error) {
 // UnsetConfig unsets a Git config value
 func UnsetConfig(key string) error {
 	cmd := exec.Command("git", "config", "--unset", key)
+	_, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to unset git config %s: %w", key, err)
+	}
+	return nil
+}
+
+// GetConfigWithScope gets a Git config value at a specific scope.
+// For ConfigScopeDefault, reads merged config (git's standard behavior).
+// For specific scopes, reads only from that scope.
+func GetConfigWithScope(key string, scope ConfigScope, filePath string) (string, error) {
+	args := []string{"config"}
+	switch scope {
+	case ConfigScopeLocal:
+		args = append(args, "--local")
+	case ConfigScopeGlobal:
+		args = append(args, "--global")
+	case ConfigScopeSystem:
+		args = append(args, "--system")
+	case ConfigScopeFile:
+		args = append(args, "--file", filePath)
+	// ConfigScopeDefault: no flag = merged config
+	}
+	args = append(args, "--get", key)
+	cmd := exec.Command("git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get git config %s: %w", key, err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// SetConfigWithScope sets a Git config value at a specific scope.
+// For ConfigScopeDefault, writes to local (git's standard behavior).
+func SetConfigWithScope(key, value string, scope ConfigScope, filePath string) error {
+	args := []string{"config"}
+	switch scope {
+	case ConfigScopeLocal:
+		args = append(args, "--local")
+	case ConfigScopeGlobal:
+		args = append(args, "--global")
+	case ConfigScopeSystem:
+		args = append(args, "--system")
+	case ConfigScopeFile:
+		args = append(args, "--file", filePath)
+	// ConfigScopeDefault: no flag = local (git's default for writes)
+	}
+	args = append(args, key, value)
+	cmd := exec.Command("git", args...)
+	_, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to set git config %s: %w", key, err)
+	}
+	return nil
+}
+
+// UnsetConfigWithScope unsets a Git config value at a specific scope.
+func UnsetConfigWithScope(key string, scope ConfigScope, filePath string) error {
+	args := []string{"config"}
+	switch scope {
+	case ConfigScopeLocal:
+		args = append(args, "--local")
+	case ConfigScopeGlobal:
+		args = append(args, "--global")
+	case ConfigScopeSystem:
+		args = append(args, "--system")
+	case ConfigScopeFile:
+		args = append(args, "--file", filePath)
+	// ConfigScopeDefault: no flag = local (git's default for writes)
+	}
+	args = append(args, "--unset", key)
+	cmd := exec.Command("git", args...)
 	_, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to unset git config %s: %w", key, err)
