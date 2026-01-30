@@ -186,7 +186,7 @@ All documentation follows Unix manpage standards. See `docs/README.md` for detai
 - Implement both long and short flag variants
 - Add command examples and usage information
 - Validate inputs before executing operations
-- **Follow three-layer configuration precedence**: Branch config defaults → Git config overrides → Command-line flags (always win)
+- **Follow three-layer configuration precedence**: Branch config defaults (essential only) → Git config overrides → Command-line flags (always win). Some options intentionally skip Layer 1 (e.g., publish push-options).
 
 ## Commit Guidelines
 

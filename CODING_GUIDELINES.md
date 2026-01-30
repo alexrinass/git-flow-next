@@ -362,7 +362,7 @@ if name == "" {
 
 ### Configuration Override Pattern
 
-**CRITICAL**: All commands must implement a **three-layer precedence hierarchy** where command-line arguments always win:
+**CRITICAL**: All commands must implement a **three-layer precedence hierarchy** where command-line arguments always win. Branch defaults are reserved for essential branch-type configuration; some options intentionally skip Layer 1 and use only Layer 2 + Layer 3 (e.g., publish push-options).
 
 #### **Layer 1: Branch Configuration Defaults**
 Default values from branch type configuration in Git config under `gitflow.branch.*`
@@ -419,7 +419,7 @@ git flow feature finish my-feature --squash  # Forces squash merge
 
 #### **Required Implementation:**
 
-1. **Always check all three layers** in the correct order
+1. **Check the applicable layers** in the correct order (skip Layer 1 if the option has no branch default)
 2. **Use pointer types** (`*bool`, `*string`) for command-line options to distinguish between "not set" and "set to false/empty"
 3. **Command-line flags must always win** - no exceptions
 4. **Document the precedence** in command help text when relevant
@@ -566,7 +566,7 @@ if hasConfigFlags {
 
 **CLI Design Guidelines:**
 - **Detect explicit configuration** - Any provided config flags should prevent interactive mode
-- **Three-layer precedence** - Defaults → Git config → Command flags (highest priority)
+- **Three-layer precedence** - Defaults (when applicable) → Git config → Command flags (highest priority)
 - **Clear mode determination** - Make it obvious when interactive vs non-interactive mode is used
 - **Consistent flag handling** - Similar patterns across all commands that accept configuration
 

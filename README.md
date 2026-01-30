@@ -159,7 +159,7 @@ For detailed documentation, please visit our [documentation site](https://git-fl
 For comprehensive configuration information, see **[CONFIGURATION.md](CONFIGURATION.md)** which includes:
 - Complete list of all configuration options
 - Default values and examples
-- Configuration precedence hierarchy
+- Configuration precedence hierarchy (some options intentionally skip branch defaults)
 - Migration guide from git-flow-avh
 - Best practices and workflows
 

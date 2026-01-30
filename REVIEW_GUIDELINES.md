@@ -24,7 +24,7 @@ See [Testing Checklist](#testing-checklist) for detailed criteria.
 Does the implementation follow our coding guidelines and architecture?
 
 - [ ] Three-layer command pattern followed (Cobra → Wrapper → Execute)
-- [ ] Configuration precedence respected (defaults → git config → flags)
+- [ ] Configuration precedence respected (defaults → git config → flags), noting some options intentionally skip defaults (Layer 2 + 3 only)
 - [ ] Git operations use `internal/git/` wrappers
 - [ ] Error handling uses custom types from `internal/errors`
 - [ ] Code follows [CODING_GUIDELINES.md](CODING_GUIDELINES.md)

@@ -179,9 +179,9 @@ git flow config add topic hotfix production --starting-point=production --tag=tr
 
 ## CONFIGURATION HIERARCHY
 
-git-flow-next follows a three-layer configuration hierarchy:
+git-flow-next follows a three-layer configuration hierarchy. Branch defaults are intended for essential branch-type configuration; some options are configured only via command overrides and CLI flags (Layer 2 + Layer 3).
 
-1. **Branch defaults** (gitflow.branch.*) - Default behavior defined here
+1. **Branch defaults** (gitflow.branch.*) - Default behavior defined here (when applicable)
 2. **Command overrides** (gitflow.*type*.*command*.*) - Override defaults for specific operations
 3. **Command-line flags** - Always take precedence
 

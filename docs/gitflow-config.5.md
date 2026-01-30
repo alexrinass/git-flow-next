@@ -12,7 +12,7 @@ Configuration is stored in standard Git config files (**.git/config** for reposi
 
 ## CONFIGURATION HIERARCHY
 
-git-flow-next follows a strict three-layer configuration hierarchy:
+git-flow-next follows a strict three-layer configuration hierarchy, with the caveat that some options intentionally skip Layer 1:
 
 ### Layer 1: Branch Type Defaults
 **gitflow.branch.*name*.*property***
@@ -26,6 +26,8 @@ Overrides branch defaults for specific commands and operations.
 
 ### Layer 3: Command-Line Flags
 Command-line flags always take the highest precedence and override both configuration layers.
+
+Note: Branch defaults are reserved for essential branch-type configuration. Many command options (such as publish push-options) are configured only via Layer 2 and Layer 3.
 
 ## GLOBAL CONFIGURATION
 

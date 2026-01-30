@@ -4,7 +4,7 @@ This document provides a comprehensive reference for all git-flow-next configura
 
 ## Configuration Overview
 
-git-flow-next uses a hierarchical configuration system with **three levels of precedence**:
+git-flow-next uses a hierarchical configuration system with **three levels of precedence**. Branch defaults are intended for essential branch-type configuration (prefix, parent, start point, core behavior). Many command options do not have a branch-default layer; they are configured only via command-specific config (Layer 2) and CLI flags (Layer 3). For example, publish `push-options` should be resolved from Layer 2 and Layer 3 only.
 
 1. **Branch Type Configuration** (`gitflow.branch.*`) - Default behavior for branch types
 2. **Command-Specific Overrides** (`gitflow.<branchtype>.*`) - Override defaults for specific commands  
@@ -178,7 +178,7 @@ gitflow.release.downstreamStrategy=merge
 
 ## Configuration Precedence
 
-git-flow-next follows a strict three-layer precedence hierarchy:
+git-flow-next follows a strict three-layer precedence hierarchy, with the caveat that some options intentionally skip Layer 1:
 
 ### Layer 1: Branch Configuration (Lowest Priority)
 Default behavior from `gitflow.branch.<branchtype>.*` settings
@@ -197,6 +197,8 @@ Command-line flags **always win**
 ```bash
 git flow release finish v1.0 --tag  # Overrides all config
 ```
+
+Note: If an option has no branch default, Layer 2 becomes the base and CLI flags override it. Push-options for publish are an example of a Layer 2 + Layer 3 only setting.
 
 ## Legacy Compatibility
 
