@@ -4,7 +4,24 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+)
+
+// BranchSyncStatus represents the sync status between a local branch and its remote tracking branch
+type BranchSyncStatus string
+
+const (
+	// SyncStatusEqual indicates the local and remote branches are at the same commit
+	SyncStatusEqual BranchSyncStatus = "equal"
+	// SyncStatusAhead indicates the local branch has commits not on the remote
+	SyncStatusAhead BranchSyncStatus = "ahead"
+	// SyncStatusBehind indicates the remote branch has commits not on the local branch
+	SyncStatusBehind BranchSyncStatus = "behind"
+	// SyncStatusDiverged indicates both branches have commits the other doesn't have
+	SyncStatusDiverged BranchSyncStatus = "diverged"
+	// SyncStatusNoTracking indicates the branch has no remote tracking branch configured
+	SyncStatusNoTracking BranchSyncStatus = "no_tracking"
 )
 
 // IsGitRepo checks if the current directory is a Git repository
@@ -492,6 +509,83 @@ func CreateTrackingBranch(localBranch, remote, remoteBranch string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create tracking branch: %s", string(output))
+	}
+	return nil
+}
+
+// GetTrackingBranch returns the remote tracking branch for a local branch.
+// Returns the full tracking reference (e.g., "origin/feature/foo") or an error
+// if no tracking branch is configured.
+func GetTrackingBranch(branch string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", branch+"@{upstream}")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if the error is because there's no tracking branch
+		outputStr := string(output)
+		if strings.Contains(outputStr, "no upstream") || strings.Contains(outputStr, "does not track") {
+			return "", fmt.Errorf("branch '%s' has no upstream tracking branch", branch)
+		}
+		return "", fmt.Errorf("failed to get tracking branch for '%s': %s", branch, outputStr)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// CompareBranchWithRemote compares a local branch with its remote tracking branch.
+// Returns the sync status and the number of commits different.
+// For SyncStatusAhead, the count is commits ahead.
+// For SyncStatusBehind, the count is commits behind.
+// For SyncStatusDiverged, the count is total commits different (ahead + behind).
+func CompareBranchWithRemote(branch string) (BranchSyncStatus, int, error) {
+	// First get the tracking branch
+	trackingBranch, err := GetTrackingBranch(branch)
+	if err != nil {
+		return SyncStatusNoTracking, 0, err
+	}
+
+	// Use git rev-list to count commits ahead and behind
+	// Format: <ahead>\t<behind>
+	cmd := exec.Command("git", "rev-list", "--left-right", "--count", branch+"..."+trackingBranch)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to compare branches: %s", string(output))
+	}
+
+	// Parse the output (format: "ahead\tbehind")
+	parts := strings.Fields(strings.TrimSpace(string(output)))
+	if len(parts) != 2 {
+		return "", 0, fmt.Errorf("unexpected output format from rev-list: %s", string(output))
+	}
+
+	ahead, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to parse ahead count: %w", err)
+	}
+
+	behind, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to parse behind count: %w", err)
+	}
+
+	// Determine status based on ahead/behind counts
+	switch {
+	case ahead == 0 && behind == 0:
+		return SyncStatusEqual, 0, nil
+	case ahead > 0 && behind == 0:
+		return SyncStatusAhead, ahead, nil
+	case ahead == 0 && behind > 0:
+		return SyncStatusBehind, behind, nil
+	default:
+		return SyncStatusDiverged, ahead + behind, nil
+	}
+}
+
+// FetchBranch fetches a specific branch from a remote.
+// This is a targeted fetch that only updates the specified branch reference.
+func FetchBranch(remote, branch string) error {
+	cmd := exec.Command("git", "fetch", remote, branch)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to fetch branch '%s' from '%s': %s", branch, remote, strings.TrimSpace(string(output)))
 	}
 	return nil
 }

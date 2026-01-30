@@ -241,6 +241,52 @@ func (e *RemoteBranchNotFoundError) ExitCode() ExitCode {
 	return ExitCodeBranchNotFound
 }
 
+// BranchBehindRemoteError indicates the local branch is behind its remote tracking branch.
+// Finishing would discard the remote commits, which is likely unintended.
+type BranchBehindRemoteError struct {
+	BranchName   string
+	RemoteBranch string
+	CommitCount  int
+	BranchType   string
+}
+
+func (e *BranchBehindRemoteError) Error() string {
+	// Get the short name by extracting the part after the last slash if it exists
+	shortName := e.BranchName
+	if idx := lastSlashIndex(e.BranchName); idx != -1 {
+		shortName = e.BranchName[idx+1:]
+	}
+
+	return fmt.Sprintf(`local branch '%s' is behind '%s' by %d commit(s).
+
+The remote branch has commits not present locally. Finishing now
+would discard those changes.
+
+To resolve:
+  git flow %s update %s    # merge/rebase remote changes
+  git pull                       # or pull directly
+
+To finish anyway (discarding remote changes):
+  git flow %s finish --force %s`,
+		e.BranchName, e.RemoteBranch, e.CommitCount,
+		e.BranchType, shortName,
+		e.BranchType, shortName)
+}
+
+func (e *BranchBehindRemoteError) ExitCode() ExitCode {
+	return ExitCodeValidationError
+}
+
+// lastSlashIndex returns the index of the last slash in a string, or -1 if not found
+func lastSlashIndex(s string) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == '/' {
+			return i
+		}
+	}
+	return -1
+}
+
 // AlreadyInitializedError indicates git-flow is already configured
 type AlreadyInitializedError struct{}
 
