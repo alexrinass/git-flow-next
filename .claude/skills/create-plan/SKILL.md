@@ -12,8 +12,8 @@ Generate a detailed implementation plan based on existing analysis or concept do
 
 1. **Detect Current Context**
    - Check current git branch to determine workflow folder
-   - Branch `feature/42-something` → look for `workflows/issue-42-*/`
-   - Branch `feature/my-feature` → look for `workflows/feature-my-feature/`
+   - Branch `feature/42-something` → look for `.ai/issue-42-*/`
+   - Branch `feature/my-feature` → look for `.ai/feature-my-feature/`
 
 2. **Find Source Document**
    - Look for `analysis.md` (from /analyze-issue) or `concept.md` (for features)
@@ -32,14 +32,14 @@ Generate a detailed implementation plan based on existing analysis or concept do
 
 ## Plan Template
 
-Write to `workflows/<folder>/plan.md`:
+Write to `.ai/<folder>/plan.md`:
 
 ```markdown
 # Implementation Plan: <branch-name>
 
 ## Source
 - Issue: #<number> (<link>)
-- Analysis: `workflows/<folder>/analysis.md`
+- Analysis: `.ai/<folder>/analysis.md`
 
 ## Overview
 <Brief summary of what will be implemented>

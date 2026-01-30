@@ -138,29 +138,24 @@ func TestFinishFeatureBranchWithNoFetchFlag(t *testing.T) {
 	}
 }
 
-// TestFinishFeatureBranchDefaultNoFetch tests the default finish behavior (no fetch).
+// TestFinishFeatureBranchDefaultFetch tests the default finish behavior (fetch enabled).
 // Steps:
-// 1. Sets up a test repository and initializes git-flow
+// 1. Sets up a test repository with remote and initializes git-flow
 // 2. Creates a feature branch
 // 3. Adds a test file to the feature branch
 // 4. Commits changes to the feature branch
 // 5. Finishes the feature branch without fetch flags
-// 6. Verifies no fetch message appears in output (default is no fetch)
+// 6. Verifies fetch message appears in output (default is fetch)
 // 7. Verifies the branch is merged into develop
 // 8. Verifies the feature branch is deleted
-func TestFinishFeatureBranchDefaultNoFetch(t *testing.T) {
-	// Setup
-	dir := testutil.SetupTestRepo(t)
+func TestFinishFeatureBranchDefaultFetch(t *testing.T) {
+	// Setup test repository with remote (needed to verify fetch occurs)
+	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
 	defer testutil.CleanupTestRepo(t, dir)
-
-	// Initialize git-flow with defaults
-	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
-	if err != nil {
-		t.Fatalf("Failed to initialize git-flow: %v", err)
-	}
+	defer testutil.CleanupTestRepo(t, remoteDir)
 
 	// Create a feature branch
-	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-default")
+	_, err := testutil.RunGitFlow(t, dir, "feature", "start", "test-default")
 	if err != nil {
 		t.Fatalf("Failed to create feature branch: %v", err)
 	}
@@ -184,9 +179,9 @@ func TestFinishFeatureBranchDefaultNoFetch(t *testing.T) {
 		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
 	}
 
-	// Verify that no fetch occurred (default is no fetch)
-	if strings.Contains(output, "Fetching from remote") {
-		t.Error("Expected no fetch to occur by default")
+	// Verify that fetch occurred (default is fetch)
+	if !strings.Contains(output, "Fetching from remote") {
+		t.Error("Expected fetch to occur by default")
 	}
 
 	// Verify that feature branch is deleted
@@ -205,63 +200,66 @@ func TestFinishFeatureBranchDefaultNoFetch(t *testing.T) {
 	}
 }
 
-// TestFinishFeatureBranchFetchFromConfig tests finishing with fetch enabled via git config.
+// TestFinishFeatureBranchNoFetchFromConfig tests finishing with fetch disabled via git config.
 // Steps:
 // 1. Sets up a test repository and initializes git-flow
-// 2. Creates a local bare remote repository
-// 3. Pushes branches to establish tracking
-// 4. Configures gitflow.feature.finish.fetch = true in git config
-// 5. Creates a feature branch
-// 6. Adds a test file to the feature branch
-// 7. Commits changes to the feature branch
-// 8. Finishes the feature branch without flags
-// 9. Verifies fetch message appears in output (config enabled fetch)
-// 10. Verifies the branch is merged into develop
-// 11. Verifies the feature branch is deleted
-func TestFinishFeatureBranchFetchFromConfig(t *testing.T) {
-	// Setup test repository with remote
-	dir, remoteDir := testutil.SetupTestRepoWithRemote(t)
+// 2. Configures gitflow.feature.finish.fetch = false in git config
+// 3. Creates a feature branch
+// 4. Adds a test file to the feature branch
+// 5. Commits changes to the feature branch
+// 6. Finishes the feature branch without flags
+// 7. Verifies no fetch message appears in output (config disabled fetch)
+// 8. Verifies the branch is merged into develop
+// 9. Verifies the feature branch is deleted
+func TestFinishFeatureBranchNoFetchFromConfig(t *testing.T) {
+	// Setup test repository (no remote needed since we're testing no-fetch)
+	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
-	defer testutil.CleanupTestRepo(t, remoteDir)
 
-	// Configure fetch to be enabled for feature finish
-	_, err := testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "true")
+	// Initialize git-flow with defaults
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Configure fetch to be disabled for feature finish
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.fetch", "false")
 	if err != nil {
 		t.Fatalf("Failed to configure fetch option: %v", err)
 	}
 
 	// Create a feature branch
-	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-config-fetch")
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "test-config-no-fetch")
 	if err != nil {
 		t.Fatalf("Failed to create feature branch: %v", err)
 	}
 
 	// Create a test file
-	testutil.WriteFile(t, dir, "config-fetch-test.txt", "test content")
+	testutil.WriteFile(t, dir, "config-no-fetch-test.txt", "test content")
 
 	// Commit the changes
-	_, err = testutil.RunGit(t, dir, "add", "config-fetch-test.txt")
+	_, err = testutil.RunGit(t, dir, "add", "config-no-fetch-test.txt")
 	if err != nil {
 		t.Fatalf("Failed to add file: %v", err)
 	}
-	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add config fetch test file")
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add config no-fetch test file")
 	if err != nil {
 		t.Fatalf("Failed to commit file: %v", err)
 	}
 
 	// Finish without flags (should use config setting)
-	output, err := testutil.RunGitFlow(t, dir, "feature", "finish", "test-config-fetch")
+	output, err := testutil.RunGitFlow(t, dir, "feature", "finish", "test-config-no-fetch")
 	if err != nil {
 		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
 	}
 
-	// Verify that fetch occurred based on config
-	if !strings.Contains(output, "Fetching from remote") {
-		t.Error("Expected fetch to occur based on config setting")
+	// Verify that no fetch occurred based on config
+	if strings.Contains(output, "Fetching from remote") {
+		t.Error("Expected no fetch to occur based on config setting")
 	}
 
 	// Verify that feature branch is deleted
-	if testutil.BranchExists(t, dir, "feature/test-config-fetch") {
+	if testutil.BranchExists(t, dir, "feature/test-config-no-fetch") {
 		t.Error("Expected feature branch to be deleted")
 	}
 
@@ -271,8 +269,8 @@ func TestFinishFeatureBranchFetchFromConfig(t *testing.T) {
 		t.Fatalf("Failed to checkout develop: %v", err)
 	}
 
-	if !testutil.FileExists(t, dir, "config-fetch-test.txt") {
-		t.Error("Expected config-fetch-test.txt to exist in develop branch")
+	if !testutil.FileExists(t, dir, "config-no-fetch-test.txt") {
+		t.Error("Expected config-no-fetch-test.txt to exist in develop branch")
 	}
 }
 
@@ -497,8 +495,8 @@ func TestFinishFeatureBranchContinueDoesNotFetch(t *testing.T) {
 		t.Fatalf("Failed to checkout feature branch: %v", err)
 	}
 
-	// Try to finish without fetch (will conflict)
-	output, _ := testutil.RunGitFlow(t, dir, "feature", "finish", "test-continue-no-fetch")
+	// Try to finish with --no-fetch (will conflict)
+	output, _ := testutil.RunGitFlow(t, dir, "feature", "finish", "--no-fetch", "test-continue-no-fetch")
 
 	// Verify conflict was detected
 	if !strings.Contains(output, "conflict") && !strings.Contains(output, "CONFLICT") {

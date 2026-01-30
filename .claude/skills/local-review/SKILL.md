@@ -24,59 +24,14 @@ Perform a comprehensive self-review of changes before creating a pull request.
 
 3. **Review Against Guidelines**
 
-   ### CODING_GUIDELINES.md Checklist
-
-   **Architecture**
-   - [ ] Three-layer command pattern followed (Cobra → Wrapper → Execute)
-   - [ ] Config loaded once and passed through
-   - [ ] Using `internal/git/` wrappers, not direct git calls
-   - [ ] Custom error types from `internal/errors`
-
-   **Code Style**
-   - [ ] Imports organized: stdlib, third-party, local
-   - [ ] Naming conventions followed
-   - [ ] Exported functions documented
-   - [ ] No ignored errors
-
-   **Configuration Precedence**
-   - [ ] Three-layer hierarchy: defaults → git config → flags
-   - [ ] Pointer types for optional booleans
-   - [ ] Flags always win
-
-   **Anti-Engineering**
-   - [ ] No unnecessary abstractions
-   - [ ] No premature optimization
-   - [ ] Changes focused on the task
-
-   ### TESTING_GUIDELINES.md Checklist
-
-   **Test Structure**
-   - [ ] One test case per function (no table-driven for integration)
-   - [ ] Descriptive test names
-   - [ ] Test comments with Steps section
-
-   **Test Implementation**
-   - [ ] Using testutil helpers
-   - [ ] Proper setup/cleanup
-   - [ ] Testing success and error paths
-
-   **Working Directory**
-   - [ ] Using `cmd.Dir`, not `os.Chdir()` where possible
-   - [ ] If `os.Chdir()` used, proper save/restore
-
-   ### COMMIT_GUIDELINES.md Checklist
-
-   - [ ] Commit messages follow format
-   - [ ] Subject line ≤50 characters
-   - [ ] Type matches change (feat/fix/refactor/test/docs)
-   - [ ] Issue referenced in footer
-   - [ ] No AI attribution lines
-
-   ### Documentation Checklist
-
-   - [ ] Manpage updated if command/options changed
-   - [ ] Config documentation updated if config changed
-   - [ ] Help text updated
+   Review the code against **[REVIEW_GUIDELINES.md](../../../REVIEW_GUIDELINES.md)**, which covers:
+   - Architecture checklist
+   - Code style checklist
+   - Configuration precedence checklist
+   - Anti-over-engineering checklist
+   - Testing checklist
+   - Commit message checklist
+   - Documentation checklist
 
 4. **Code Quality Checks**
    ```bash

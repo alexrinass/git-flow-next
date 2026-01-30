@@ -1,6 +1,12 @@
 # git-flow-next
 
-A modern, maintainable implementation of the git-flow branching model, written in Go.
+A modern implementation of the Git-flow branching model, written in Go. It is brought to you and maintaned by the team at <a href="https://www.git-tower.com" target="_blank" rel="noopener">Tower</a>, the most powerful Git client for Mac and Windows.
+
+<p>
+  <a href="https://www.git-tower.com" target="_blank" rel="noopener">
+    <img src=".github/assets/tower-logo-light.svg" alt="Tower logo" width="200">
+  </a>
+</p>
 
 ## About
 
@@ -153,7 +159,7 @@ For detailed documentation, please visit our [documentation site](https://git-fl
 For comprehensive configuration information, see **[CONFIGURATION.md](CONFIGURATION.md)** which includes:
 - Complete list of all configuration options
 - Default values and examples
-- Configuration precedence hierarchy
+- Configuration precedence hierarchy (some options intentionally skip branch defaults)
 - Migration guide from git-flow-avh
 - Best practices and workflows
 

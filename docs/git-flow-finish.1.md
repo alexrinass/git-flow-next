@@ -41,7 +41,7 @@ The operation maintains a persistent state file that allows it to resume after c
 : Abort the finish operation and return to the original state
 
 **--force**, **-f**
-: Force finish a non-standard branch using this branch type's strategy
+: Force finish: skip remote branch sync check and allow finishing non-standard branches. When used, bypasses the safety check that prevents finishing when the local branch is behind its remote tracking branch.
 
 ### Tag Creation
 
@@ -127,10 +127,51 @@ The operation maintains a persistent state file that allows it to resume after c
 ### Remote Fetch Options
 
 **--fetch**
-: Fetch from remote before finishing the branch. This ensures the latest remote changes are incorporated before merging. Overrides git config setting `gitflow.<type>.finish.fetch`.
+: Fetch from remote before finishing the branch (default). This fetches both the base branch and the topic branch to ensure the latest remote changes are known before merging. Overrides git config setting `gitflow.<type>.finish.fetch`.
 
 **--no-fetch**
-: Don't fetch from remote before finishing. Overrides git config setting `gitflow.<type>.finish.fetch`.
+: Don't fetch from remote before finishing. Disables the default fetch behavior. Overrides git config setting `gitflow.<type>.finish.fetch`.
+
+## REMOTE SYNC CHECK
+
+Before performing the merge operation, the finish command checks if the local topic branch is in sync with its remote tracking branch. This safety check prevents accidental data loss when the remote has commits that are not present locally.
+
+### Sync Status Behavior
+
+**Equal**: Local and remote are at the same commit. Finish proceeds normally.
+
+**Ahead**: Local has commits not pushed to remote. Finish proceeds with an informational note about unpushed commits.
+
+**Behind**: Remote has commits not present locally. Finish **aborts with an error** to prevent discarding those changes.
+
+**Diverged**: Both local and remote have unique commits. Finish **aborts with an error** since the branches have diverged.
+
+**No Tracking**: Branch has no remote tracking branch configured. Finish proceeds normally (no remote to compare against).
+
+### Bypassing the Check
+
+Use the **--force** flag to bypass the remote sync check:
+
+```bash
+git flow feature finish --force my-feature
+```
+
+This is useful when you intentionally want to discard remote changes, such as when the remote commits were experimental or should not be included in the merge.
+
+### Resolving Sync Issues
+
+When finish aborts due to being behind the remote, you have several options:
+
+```bash
+# Option 1: Update your branch with remote changes first
+git flow feature update my-feature
+
+# Option 2: Pull changes directly
+git pull
+
+# Option 3: Force finish (discards remote changes)
+git flow feature finish --force my-feature
+```
 
 ## MERGE STRATEGIES
 

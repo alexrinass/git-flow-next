@@ -423,12 +423,13 @@ func resolveFinishNoFF(cfg *Config, branchType string, mergeOpts *MergeStrategyO
 
 // resolveFinishShouldFetch resolves whether to fetch from remote before finishing
 func resolveFinishShouldFetch(cfg *Config, branchType string, fetch *bool) bool {
-	// Layer 1: Default is not to fetch
-	shouldFetch := false
+	// Layer 1: Default is to fetch (ensures sync check has accurate data)
+	shouldFetch := true
 
-	// Layer 2: Check command-specific config
-	if fetchConfig := getCommandConfigBool(cfg, fmt.Sprintf("gitflow.%s.finish.fetch", branchType)); fetchConfig {
-		shouldFetch = true
+	// Layer 2: Check command-specific config (can set true OR false)
+	configKey := fmt.Sprintf("gitflow.%s.finish.fetch", branchType)
+	if value, exists := cfg.CommandConfig[configKey]; exists {
+		shouldFetch = value == "true"
 	}
 
 	// Layer 3: Command-line flags override config

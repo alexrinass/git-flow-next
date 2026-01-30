@@ -71,7 +71,7 @@ Default values   gitflow.*    --flag overrides
 - Define branch types (base vs. topic) and their relationships
 - Import git-flow-avh compatibility
 - Provide default configurations and presets
-- **Three-layer precedence resolver**: Branch defaults → Git config → CLI flags
+- **Three-layer precedence resolver**: Branch defaults (essential only) → Git config → CLI flags; some options intentionally skip Layer 1
 
 **Used by**: All commands during initialization and option resolution
 
@@ -233,7 +233,7 @@ gitflow.<type>.finish.keep                = "true|false"
 ## Module Interaction Flow
 
 ```
-Commands → config.ResolveFinishOptions() → Three-layer precedence resolution
+Commands → config.ResolveFinishOptions() → Three-layer precedence resolution (Layer 1 only where applicable)
         ↓                                        ↓
    git operations                         util.ValidateBranchName()
         ↓                                        ↓

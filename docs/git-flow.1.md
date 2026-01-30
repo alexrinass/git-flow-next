@@ -103,9 +103,9 @@ git-flow-next supports three workflow presets:
 
 ## CONFIGURATION
 
-git-flow-next uses Git's configuration system to store all settings under the **gitflow.*** namespace. Configuration follows a three-layer hierarchy:
+git-flow-next uses Git's configuration system to store all settings under the **gitflow.*** namespace. Configuration follows a three-layer hierarchy, but some options intentionally skip branch defaults:
 
-1. **Branch Type Defaults** (gitflow.branch.*) - Default behavior for branch types
+1. **Branch Type Defaults** (gitflow.branch.*) - Default behavior for branch types (when applicable)
 2. **Command Overrides** (gitflow.*type*.*command*.*) - Override defaults for specific operations  
 3. **Command-line Flags** - Always take highest precedence
 

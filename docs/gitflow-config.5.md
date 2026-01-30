@@ -61,7 +61,7 @@ git flow init --defaults --file=/shared/team-gitflow.config
 
 ## CONFIGURATION HIERARCHY
 
-git-flow-next follows a strict three-layer configuration hierarchy:
+git-flow-next follows a strict three-layer configuration hierarchy, with the caveat that some options intentionally skip Layer 1:
 
 ### Layer 1: Branch Type Defaults
 **gitflow.branch.*name*.*property***
@@ -75,6 +75,8 @@ Overrides branch defaults for specific commands and operations.
 
 ### Layer 3: Command-Line Flags
 Command-line flags always take the highest precedence and override both configuration layers.
+
+Note: Branch defaults are reserved for essential branch-type configuration. Many command options (such as publish push-options) are configured only via Layer 2 and Layer 3.
 
 ## GLOBAL CONFIGURATION
 
@@ -383,9 +385,10 @@ The finish command supports extensive merge strategy configuration through comma
 ### Remote Fetch Options
 
 **gitflow.*type*.finish.fetch**
-: Fetch from remote before finishing a topic branch. When enabled, performs `git fetch <remote>` to update remote tracking branches before merging the topic branch into its parent.
+: Fetch from remote before finishing a topic branch. When enabled, fetches both the base branch and the topic branch from the remote to ensure the latest remote state is known before merging.
+: After fetching, if the local topic branch is behind or diverged from its remote tracking branch, the finish operation will abort with an error to prevent accidental data loss. Use `--force` to bypass this safety check.
 : *Type*: boolean
-: *Default*: false
+: *Default*: true
 
 ### Strategy Precedence
 

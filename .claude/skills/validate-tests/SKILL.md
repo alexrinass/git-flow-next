@@ -12,7 +12,7 @@ Review and improve the test plan in an implementation plan against TESTING_GUIDE
 
 1. **Find the Plan**
    - Detect current workflow folder from git branch
-   - Read `workflows/<folder>/plan.md`
+   - Read `.ai/<folder>/plan.md`
    - If no plan exists, suggest running `/create-plan` first
 
 2. **Read Testing Guidelines**
