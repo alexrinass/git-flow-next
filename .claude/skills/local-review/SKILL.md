@@ -95,19 +95,4 @@ Perform a comprehensive self-review of changes before creating a pull request.
 
 ## Issue Categories
 
-### Blocking (must fix)
-- Test failures
-- Build errors
-- Missing error handling
-- Security concerns
-- Guideline violations
-
-### Warnings (should fix)
-- Missing documentation
-- Inconsistent naming
-- Suboptimal patterns
-
-### Suggestions (nice to have)
-- Code clarity improvements
-- Additional test cases
-- Performance optimizations
+Categorize findings using the severity levels defined in REVIEW_GUIDELINES.md (Blocking, Warnings, Suggestions).
