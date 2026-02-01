@@ -30,23 +30,13 @@ Execute the implementation plan, making code changes and committing according to
    For each task in the plan:
 
    ### Before Each Task
-   - Mark task as "in progress" mentally
-   - Review task requirements
-   - Identify all files to modify
-
-   ### Implementation Standards (from CODING_GUIDELINES.md)
-   - Follow three-layer command architecture
-   - Load config once, pass to functions
-   - Use custom error types from `internal/errors`
-   - Follow configuration precedence: defaults → git config → flags
-   - Document exported functions
-   - Use `internal/git/` wrappers, never direct git commands
+   - Review task requirements and identify all files to modify
+   - Read CODING_GUIDELINES.md rules relevant to the change
 
    ### Code Changes
    - Make focused, atomic changes
    - Follow existing patterns in the codebase
-   - Add appropriate error handling
-   - Keep changes minimal - don't over-engineer
+   - Keep changes minimal — don't over-engineer
 
    ### After Each Task
    - Verify build: `go build ./...`
@@ -54,24 +44,6 @@ Execute the implementation plan, making code changes and committing according to
    - Review changes: `git diff`
 
 5. **Commit Strategy**
-
-   Following COMMIT_GUIDELINES.md:
-
-   ### Commit Types
-   - `feat`: New feature or functionality
-   - `fix`: Bug fix
-   - `refactor`: Code restructuring
-   - `test`: Adding/modifying tests
-   - `docs`: Documentation changes
-
-   ### Commit Message Format
-   ```
-   <type>(<scope>): <subject>
-
-   <body explaining what and why>
-
-   Resolves #<issue-number>
-   ```
 
    ### When to Commit
    - After completing a logical unit of work
@@ -102,17 +74,6 @@ Execute the implementation plan, making code changes and committing according to
    - Check if it affects the plan
    - Adjust approach if needed
    - Ask for clarification if blocked
-
-## Anti-Patterns to Avoid
-
-From CODING_GUIDELINES.md:
-
-- Don't add unnecessary abstractions
-- Don't ignore errors
-- Don't call `config.LoadConfig()` multiple times
-- Don't create option structs just to reduce parameters
-- Don't use `os.Chdir()` in production code
-- Don't skip error checking
 
 ## Completion
 
