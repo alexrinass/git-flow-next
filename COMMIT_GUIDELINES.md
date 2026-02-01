@@ -7,20 +7,28 @@ This document establishes standards for commit messages in the git-flow-next pro
 Use the following structure for commit messages:
 
 ```
-<type>: <subject>
-
+<type>[(<scope>)]: <subject>
+                                        ← blank line
 <body>
-
+                                        ← blank line
 <footer>
 ```
 
 ### Subject Line (Required)
 
-- **Length**: Maximum 50 characters
+- **Length**: Maximum 50 characters (including type and scope)
 - **Case**: Use sentence case (first word capitalized)
 - **Tense**: Use imperative mood ("Add feature" not "Added feature")
 - **Punctuation**: No period at the end
-- **Format**: `<type>: <description>`
+- **Format**: `<type>: <description>` or `<type>(<scope>): <description>`
+
+### Scope (Optional)
+
+- **Purpose**: Narrow the area affected when the type alone is too broad
+- **Values**: Use the primary area affected — `finish`, `start`, `config`, `init`, `publish`, etc.
+- **Keep short**: One word, lowercase, no spaces
+- **When to use**: When the change targets a specific command or subsystem and the subject doesn't already make it obvious
+- **When to omit**: For cross-cutting changes, documentation-only changes, or when the subject is clear enough without it
 
 ### Body (Optional but Recommended)
 
