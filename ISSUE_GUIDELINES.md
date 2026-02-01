@@ -62,6 +62,8 @@ Use sections to break down details: proposed behavior, examples,
 commands to support, edge cases, etc. Keep it scannable.
 ```
 
+Describe the expected behavior as concretely as possible — example commands, expected output, or before/after comparisons help reviewers understand the proposal without ambiguity.
+
 ## Example
 
 A well-structured enhancement issue — brief intro, h3 sections, a priority table, and code examples showing proposed usage and output:
