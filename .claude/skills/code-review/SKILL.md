@@ -48,7 +48,7 @@ Before reviewing or responding, check for project-specific guidelines:
 2. **Follow references** - if CLAUDE.md mentions other files (e.g., "see `REVIEW_GUIDELINES.md`"), read them
 3. **Check common locations**: `REVIEW_GUIDELINES.md`, `.github/CONTRIBUTING.md`, `docs/code-standards.md`
 
-Follow `REVIEW_GUIDELINES.md` for review criteria, summary format, and inline comment format. If the project has no guidelines, fall back to general best practices for code quality, test coverage, security, and commit messages.
+Follow `REVIEW_GUIDELINES.md` for review criteria, summary format, and inline comment format.
 
 ---
 
