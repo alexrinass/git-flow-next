@@ -24,7 +24,7 @@ Use the following structure for commit messages:
 
 ### Body (Optional but Recommended)
 
-- **Length**: Hard wrap lines at 72 characters
+- **Length**: Hard wrap at 72 characters; fill lines to use the full width rather than wrapping short
 - **Purpose**: Explain the "what" and "why", not the "how"
 - **Format**: Use paragraphs separated by blank lines
 - **Lists**: Use bullet points for multiple related changes
