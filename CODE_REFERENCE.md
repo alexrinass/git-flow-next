@@ -1,4 +1,6 @@
-# Git-Flow-Next Architecture Overview
+# Git-Flow-Next Code Reference
+
+Quick navigation guide to the codebase: file paths, key structs, configuration keys, and implementation flows. For conceptual design and architectural rationale, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Command Invocation Flow
 

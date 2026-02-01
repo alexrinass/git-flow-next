@@ -2,6 +2,8 @@
 
 git-flow-next is a modern, flexible implementation of Git workflow management that builds upon the original git-flow concepts while providing extensive customization capabilities for modern development practices.
 
+> **See also:** [CODE_REFERENCE.md](CODE_REFERENCE.md) for a quick codebase navigation guide with file paths, struct definitions, and implementation details.
+
 ## Project Structure
 
 The project follows Go best practices with clear separation of concerns:
@@ -558,121 +560,9 @@ This architecture allows the command to:
 - Handle complex branching scenarios
 - Maintain consistency across interruptions
 
-#### Detailed State Machine Flow
+State is persisted to disk (`mergestate.MergeState`) so the operation can resume after conflict resolution via `--continue` or be cancelled with `--abort`. Each step has a dedicated handler, and child branch updates respect individual downstream strategies (see [Advanced Features > Child Branch Updates](#child-branch-updates) above).
 
-The finish command follows this strict state progression:
-
-1. **MERGE STATE**
-   - Creates merge state file with step "merge"
-   - Executes merge into parent branch using topic branch's upstream strategy
-   - On conflict: Saves state and exits for user to resolve
-   - On success: Advances to CREATE_TAG state
-
-2. **CREATE_TAG STATE**
-   - Creates tag if configured (should not fail under normal circumstances)
-   - Uses branch-specific tag configuration
-   - Advances to UPDATE_CHILDREN state
-
-3. **UPDATE_CHILDREN STATE**
-   - Identifies child branches with `autoUpdate=true`
-   - For each child branch:
-     * Checks out child branch
-     * Merges parent branch using child's downstream strategy
-     * On conflict: Saves state (including which child) and exits
-     * On success: Marks child as updated, continues with next
-   - When all children updated: Advances to DELETE_BRANCH state
-
-4. **DELETE_BRANCH STATE**
-   - Deletes topic branch (local/remote based on retention settings)
-   - Clears merge state file
-   - Operation complete
-
-#### Key Components
-
-**State Management**: Uses `mergestate.MergeState` to persist operation state across command invocations. This enables the `--continue` and `--abort` functionality.
-
-```go
-type MergeState struct {
-    Action          string   // "finish"
-    BranchType      string   // feature, release, hotfix, etc.
-    BranchName      string   // name of the branch being merged
-    CurrentStep     string   // current step (merge, create_tag, update_children, delete_branch)
-    ParentBranch    string   // target branch for the merge
-    MergeStrategy   string   // merge strategy being used
-    FullBranchName  string   // full name of the branch (with prefix)
-    ChildBranches   []string // child branches that need to be updated
-    UpdatedBranches []string // child branches that have been updated
-}
-```
-
-**Step Handlers**: Each step has a dedicated handler function:
-- `handleMergeStep()`: Executes the main merge operation
-- `handleCreateTagStep()`: Manages tag creation with full configuration support
-- `handleUpdateChildrenStep()`: Updates dependent child branches with AutoUpdate enabled
-- `handleDeleteBranchStep()`: Handles branch cleanup based on retention settings
-- `handleContinue()`: Orchestrates continuation after conflict resolution
-
-**Configuration Integration**: The command respects all branch-specific configuration settings for merge strategies, tag creation, and branch retention.
-
-#### Critical Requirements
-
-- **State Persistence**: State MUST be saved before exiting on conflicts
-- **Accurate State**: State must accurately reflect current branch and step
-- **Child Branch Tracking**: Must track which specific child branch is being updated
-- **Idempotent Operations**: All operations must be safe for repeated execution
-- **AutoUpdate Filtering**: Only update child branches with `autoUpdate=true`
-
-#### Main Execution Flow
-
-1. **Initialization**: Load configuration, validate inputs, resolve branch names
-2. **State Detection**: Determine if this is a new operation, continuation, or abort
-3. **Child Branch Discovery**: Find all child branches with `autoUpdate=true`
-4. **State Creation**: Create initial merge state with all necessary information
-5. **Step Execution**: Execute current step with conflict detection
-6. **State Persistence**: Save progress before any operation that might fail
-7. **Child Updates**: Automatically update dependent branches using their downstream strategies
-8. **Cleanup**: Remove branches and clear state
-
-#### Conflict Handling
-
-```go
-if strings.Contains(mergeErr.Error(), "conflict") {
-    // Save current state before returning
-    state.CurrentStep = stepMerge  // Or stepUpdateChildren if in child update
-    mergestate.SaveMergeState(state)
-
-    // Provide clear instructions
-    msg := fmt.Sprintf("Merge conflicts detected. Resolve conflicts and run 'git flow %s finish --continue %s'\n",
-                      state.BranchType, state.BranchName)
-    msg += fmt.Sprintf("To abort the merge, run 'git flow %s finish --abort %s'",
-                      state.BranchType, state.BranchName)
-    return &errors.UnresolvedConflictsError{}
-}
-```
-
-When conflicts occur:
-- Current state is saved with the problematic step
-- User receives clear instructions for resolution
-- Operation can be resumed with `--continue` or cancelled with `--abort`
-- State accurately reflects which branch (main or child) has the conflict
-
-#### Child Branch Cascading
-
-One of the most powerful features is automatic child branch updating:
-
-```bash
-# Finishing a hotfix into main automatically updates develop (if autoUpdate=true)
-git flow topic finish hotfix security-patch
-
-# The system will:
-# 1. Merge hotfix/security-patch into main using upstream strategy
-# 2. Create tag (if configured)
-# 3. Automatically update develop from main using develop's downstream strategy
-# 4. Update any other child branches with autoUpdate=true
-# 5. Delete the hotfix branch
-```
-
-This ensures consistency across the branch hierarchy without manual intervention. Each child branch uses its own configured downstream strategy for receiving updates.
+For implementation details—struct definitions, handler functions, and code examples—see [CODE_REFERENCE.md](CODE_REFERENCE.md#state-machine-finish-command).
 
 ## Integration Points
 
