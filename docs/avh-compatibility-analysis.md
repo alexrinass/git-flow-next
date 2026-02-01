@@ -10,7 +10,7 @@ This document provides a comprehensive compatibility analysis between git-flow-a
 gitflow.branch.master
 gitflow.branch.develop
 
-# Branch prefixes (legacy)  
+# Branch prefixes (legacy)
 gitflow.prefix.feature
 gitflow.prefix.release
 gitflow.prefix.hotfix
@@ -50,12 +50,15 @@ These git-flow-avh options are fully supported in git-flow-next:
 | AVH Option | git-flow-next Equivalent | Status |
 |------------|--------------------------|---------|
 | `gitflow.origin` | `gitflow.origin` | ✅ Direct match |
+| `gitflow.feature.start.fetch` | `gitflow.feature.start.fetch` | ✅ Direct match |
 | `gitflow.feature.finish.fetch` | `gitflow.feature.finish.fetch` | ✅ Direct match |
 | `gitflow.release.finish.sign` | `gitflow.release.finish.sign` | ✅ Direct match |
 | `gitflow.release.finish.signingkey` | `gitflow.release.finish.signingkey` | ✅ Direct match |
 | `gitflow.hotfix.finish.sign` | `gitflow.hotfix.finish.sign` | ✅ Direct match |
 | `gitflow.release.finish.keep` | `gitflow.release.finish.keep` | ✅ Direct match |
 | `gitflow.feature.finish.keep` | `gitflow.feature.finish.keep` | ✅ Direct match |
+| `gitflow.*.finish.no-ff` | `gitflow.*.finish.no-ff` | ✅ Direct match |
+| `gitflow.*.finish.preserve-merges` | `gitflow.*.finish.preserve-merges` | ✅ Direct match |
 
 ### 🔄 Requires Translation (Auto-Import)
 These AVH options need translation but are automatically handled during migration:
@@ -64,39 +67,33 @@ These AVH options need translation but are automatically handled during migratio
 |------------|--------------------------|-------|
 | `gitflow.branch.master` | `gitflow.branch.main` | Branch name modernization |
 | `gitflow.prefix.feature` | `gitflow.branch.feature.prefix` | New hierarchical format |
-| `gitflow.prefix.release` | `gitflow.branch.release.prefix` | New hierarchical format |  
+| `gitflow.prefix.release` | `gitflow.branch.release.prefix` | New hierarchical format |
 | `gitflow.prefix.hotfix` | `gitflow.branch.hotfix.prefix` | New hierarchical format |
 | `gitflow.prefix.support` | `gitflow.branch.support.prefix` | New hierarchical format |
 | `gitflow.prefix.versiontag` | `gitflow.branch.*.tagprefix` | Applied to all tag-creating types |
 
 ### 🔄 Strategy Translation Required
-These AVH boolean flags need translation to our strategy-based system:
+These AVH boolean flags need translation to our strategy-based system. The resolver handles `notag` at runtime (Layer 2), but the import does not auto-convert these to git-flow-next's preferred format:
 
 | AVH Option | git-flow-next Equivalent | Translation Rule |
 |------------|--------------------------|------------------|
 | `gitflow.feature.finish.rebase=true` | `gitflow.feature.finish.merge=rebase` | Boolean to strategy |
 | `gitflow.feature.finish.squash=true` | `gitflow.feature.finish.merge=squash` | Boolean to strategy |
 | `gitflow.release.finish.squash=true` | `gitflow.release.finish.merge=squash` | Boolean to strategy |
-| `gitflow.release.finish.notag=true` | `gitflow.branch.release.tag=false` | Inverted boolean |
-| `gitflow.hotfix.finish.notag=true` | `gitflow.branch.hotfix.tag=false` | Inverted boolean |
+| `gitflow.release.finish.notag=true` | `gitflow.branch.release.tag=false` | Inverted boolean (works at runtime via resolver, not migrated) |
+| `gitflow.hotfix.finish.notag=true` | `gitflow.branch.hotfix.tag=false` | Inverted boolean (works at runtime via resolver, not migrated) |
 
 ### ⚠️ Missing Options in git-flow-next
 These git-flow-avh options are **not currently supported** in git-flow-next:
 
-#### High Priority Missing Options
-| Missing Option | Description | Impact | Recommendation |
-|----------------|-------------|---------|----------------|
-| `gitflow.allowdirty` | Allow operations with dirty working tree | 🔴 High | **ADD SUPPORT** - Important for workflow flexibility |
-| `gitflow.*.start.fetch` | Fetch before starting branches | 🔴 High | **ADD SUPPORT** - Critical for team workflows |
-| `gitflow.*.finish.push` | Auto-push after finishing | 🔴 High | **ADD SUPPORT** - Common workflow requirement |
-| `gitflow.*.finish.force-delete` | Force delete branches | 🟡 Medium | **ADD SUPPORT** - Safety feature |
-| `gitflow.*.finish.preserve-merges` | Preserve merges during rebase | 🟡 Medium | **ADD SUPPORT** - Advanced rebase option |
-
-#### Medium Priority Missing Options  
-| Missing Option | Description | Impact | Recommendation |
-|----------------|-------------|---------|----------------|
-| `gitflow.support.rebase.interactive` | Interactive rebase for support | 🟡 Medium | Consider adding |
-| `gitflow.prefix.bugfix` | Bugfix branch type | 🟡 Medium | Consider adding as custom type |
+| Missing Option | Description | Impact |
+|----------------|-------------|--------|
+| `gitflow.allowdirty` | Allow operations with dirty working tree | 🔴 High |
+| `gitflow.*.finish.push` | Auto-push after finishing | 🔴 High |
+| `gitflow.*.finish.pushproduction` | Push to production branch after finish | 🟡 Medium |
+| `gitflow.*.finish.pushdevelop` | Push to develop branch after finish | 🟡 Medium |
+| `gitflow.*.finish.nobackmerge` | Skip back-merge to develop | 🟡 Medium |
+| `gitflow.*.finish.ff-master` | Fast-forward merge to master | 🟡 Medium |
 
 ### 🆕 git-flow-next Exclusive Features
 These features are **only available** in git-flow-next:
@@ -109,6 +106,7 @@ These features are **only available** in git-flow-next:
 | Downstream strategies | `gitflow.*.downstreamStrategy` | Control update merge behavior |
 | Universal branch properties | Common properties across all types | Consistent configuration |
 | Custom branch types | User-defined branch types | Workflow customization |
+| Config management | `git flow config` subcommands | Add, edit, rename, delete branch types |
 
 ## Migration Requirements
 
@@ -116,12 +114,16 @@ These features are **only available** in git-flow-next:
 ✅ Our `git flow init` automatically handles these conversions:
 - `gitflow.branch.master` → `gitflow.branch.main`
 - `gitflow.prefix.*` → `gitflow.branch.*.prefix`
+- `gitflow.prefix.versiontag` → `gitflow.branch.*.tagprefix`
 - Command options are preserved as-is
+
+### Runtime Compatibility (No Migration Needed)
+🔄 These AVH options work at runtime without conversion:
+- `gitflow.*.finish.notag` — handled by the config resolver at Layer 2
 
 ### Manual Translation Required
 🔄 These require user intervention or enhanced import logic:
-- Boolean strategy flags → strategy configuration
-- `notag` flags → inverted `tag` configuration
+- Boolean strategy flags (`rebase=true`, `squash=true`) → strategy configuration
 
 ### Missing Feature Implementation
 ❌ These require new feature development:
@@ -135,16 +137,7 @@ gitflow.allowdirty=true
 gitflow.allowdirty=true  # Add system-level support
 ```
 
-#### 2. Auto-Fetch on Start
-```bash  
-# AVH
-gitflow.feature.start.fetch=true
-
-# Needed in git-flow-next  
-gitflow.feature.start.fetch=true  # Add to start command options
-```
-
-#### 3. Auto-Push on Finish
+#### 2. Auto-Push on Finish
 ```bash
 # AVH
 gitflow.release.finish.push=true
@@ -153,174 +146,136 @@ gitflow.release.finish.push=true
 gitflow.release.finish.push=true  # Add to finish command options
 ```
 
-## Compatibility Score
-
-### Overall Compatibility: 75% ✅
-
-- **Core Features**: 100% compatible (branch management, merge strategies)
-- **Configuration Translation**: 90% automatic (prefix mapping, branch names)
-- **Command Options**: 60% compatible (missing push, fetch, dirty flags)
-- **Advanced Features**: 40% compatible (missing preserve-merges, interactive options)
-
-## Recommended Implementation Priority
-
-### Priority 1: Critical Compatibility (Required for migration)
-1. **`gitflow.allowdirty`** - Allow dirty working tree operations
-2. **`gitflow.*.start.fetch`** - Fetch before starting branches  
-3. **`gitflow.*.finish.push`** - Auto-push after finishing operations
-4. **Enhanced strategy translation** - Auto-convert boolean flags to strategies
-
-### Priority 2: Important Workflow Features  
-1. **`gitflow.*.finish.force-delete`** - Force delete branch options
-2. **`gitflow.*.finish.preserve-merges`** - Advanced rebase options
-3. **Better error messages** for unsupported AVH options
-
-### Priority 3: Nice-to-Have Features
-1. **`gitflow.support.rebase.interactive`** - Interactive rebase support
-2. **`gitflow.prefix.bugfix`** - Bugfix branch type support
-3. **Environment variable support** - `.gitflow_export` file support
-
-## Implementation Plan
-
-### Phase 1: Core Compatibility (High Priority Missing Options)
-- Add `allowdirty` system configuration
-- Add `fetch` options to start commands  
-- Add `push` options to finish commands
-- Add `force-delete` options to finish commands
-
-### Phase 2: Enhanced Translation
-- Auto-convert boolean strategy flags during import
-- Auto-convert `notag` to inverted `tag` configuration  
-- Provide migration warnings for unsupported options
-
-### Phase 3: Advanced Features
-- Add `preserve-merges` rebase option
-- Add interactive rebase support
-- Consider `bugfix` branch type addition
-
 ---
 
 ## Command Compatibility Analysis
 
-### Missing Commands Overview
+### Command Status Overview
 
-#### Completely Missing Operations
-- **`publish`** - Push branch to remote origin (all branch types)
-- **`track`** - Start tracking shared remote branch (all branch types)  
-- **`diff`** - Show changes compared to parent branch (all branch types)
-- **`rebase`** - Rebase branch on parent (all branch types)
-- **`pull`** - Pull branch from remote (all branch types)
-- **`config`** - Configuration management commands
-- **`config set`** - Update git-flow configuration
-- **`config base`** - Update base branch settings
+| Command | AVH | git-flow-next | Status |
+|---------|-----|---------------|--------|
+| `init` | ✅ | ✅ | ✅ Full parity (`-d/--defaults`, `-f/--force`) |
+| `start` | ✅ | ✅ | ✅ Full parity (`-F/--fetch`, `<base>` parameter) |
+| `finish` | ✅ | ✅ | 🟡 Most flags supported (see details) |
+| `publish` | ✅ | ✅ | ✅ Fully implemented |
+| `track` | ✅ | ✅ | ✅ Fully implemented |
+| `list` | ✅ | ✅ | 🟡 Missing `-v/--verbose` |
+| `checkout` | ✅ | ✅ | ✅ Complete |
+| `delete` | ✅ | ✅ | ✅ Complete parity |
+| `rename` | ✅ | ✅ | ✅ Complete |
+| `diff` | ✅ | ❌ | ❌ Not implemented |
+| `pull` | ✅ | ❌ | ❌ Not implemented |
+| `config` | ✅ | ✅ | 🟡 Different approach (add/edit/rename/delete vs set/base) |
 
-#### General Shorthand Commands Status
-git-flow-next **already implements** shorthand commands that work on the current branch:
-- ✅ **`git flow finish`** - Finish current branch (implemented)
-- ✅ **`git flow delete`** - Delete current branch (implemented)  
-- ✅ **`git flow rebase`** - Rebase current branch (implemented)
-- ✅ **`git flow update`** - Update current branch (implemented)
-- ✅ **`git flow rename`** - Rename current branch (implemented)
-- ❌ **`git flow publish`** - Publish current branch (stubbed, not implemented)
+### General Shorthand Commands
+git-flow-next implements shorthand commands that work on the current branch:
+- ✅ **`git flow finish`** — Finish current branch
+- ✅ **`git flow delete`** — Delete current branch
+- ✅ **`git flow rebase`** — Rebase current branch (via `update --rebase`)
+- ✅ **`git flow update`** — Update current branch
+- ✅ **`git flow rename`** — Rename current branch
+- ✅ **`git flow publish`** — Publish current branch
 
 ### Command-by-Command Option Analysis
 
 #### ✅ `init` Command
-**git-flow-next has:** `-d/--defaults`, `--no-create-branches`, branch name flags
+| Flag | AVH | git-flow-next |
+|------|-----|---------------|
+| `-d/--defaults` | ✅ | ✅ |
+| `-f/--force` | ✅ | ✅ |
+| `--no-create-branches` | ❌ | ✅ (git-flow-next exclusive) |
+| `--local/--global/--system/--file` | ✅ | ❌ |
 
-**git-flow-avh has:** `-d/--defaults`, `-f/--force`, config file location flags
+#### ✅ `start` Command
+| Flag | AVH | git-flow-next |
+|------|-----|---------------|
+| `-F/--fetch` | ✅ | ✅ |
+| `<base>` parameter | ✅ | ✅ |
+| `--showcommands` | ✅ | ❌ |
 
-**Missing:** `-f/--force`, `--local/--global/--system/--file` flags
-
-#### ✅ `start` Command  
-**git-flow-next has:** `-F/--fetch` flag support
-
-**git-flow-avh has:** `-F/--fetch`, `--showcommands`
-
-**Missing:** `--showcommands`, `<base>` parameter
-
-#### ✅ `finish` Command
-**git-flow-next has:** Extensive tag options, retention options, continue/abort operations
-
-**git-flow-avh has:** All finish flags plus some unique ones
-
-**Missing:** `--showcommands`, `-p/--preserve-merges`, `--no-ff`, `-p/--push`, `--pushproduction/--pushdevelop`, `-b/--nobackmerge`, `--ff-master`
+#### 🟡 `finish` Command
+| Flag | AVH | git-flow-next |
+|------|-----|---------------|
+| `-F/--fetch` | ✅ | ✅ |
+| `-r/--rebase` | ✅ | ✅ (via merge strategy) |
+| `-S/--squash` | ✅ | ✅ (via merge strategy) |
+| `-k/--keep` | ✅ | ✅ |
+| `-D/--force-delete` | ✅ | ✅ |
+| `--no-ff` / `--ff` | ✅ | ✅ |
+| `-p/--preserve-merges` | ✅ | ✅ |
+| `-s/--sign` | ✅ | ✅ |
+| `--signingkey` | ✅ | ✅ |
+| `-T/--tagname` | ✅ | ✅ |
+| `-m/--message` | ✅ | ✅ |
+| `--notag` | ✅ | ✅ |
+| `--continue/--abort` | ❌ | ✅ (git-flow-next exclusive) |
+| `-p/--push` | ✅ | ❌ |
+| `--pushproduction` | ✅ | ❌ |
+| `--pushdevelop` | ✅ | ❌ |
+| `-b/--nobackmerge` | ✅ | ❌ |
+| `--ff-master` | ✅ | ❌ |
+| `--showcommands` | ✅ | ❌ |
 
 #### Other Commands
-- **`list`** - Missing `-v/--verbose` flag
-- **`checkout`** - Missing `--showcommands` flag  
-- **`rename`** - Missing `--showcommands` flag
-- **`delete`** - ✅ Complete parity
-
-### Implementation Priority for Commands
-
-#### High Priority (Core Workflow)
-1. **`publish`** - Essential for team collaboration (complete stubbed implementation)
-2. **`track`** - Essential for team collaboration  
-3. **`rebase`** - Important workflow operation (beyond shorthand)
-4. **`diff`** - Useful for reviewing changes
-
-#### Medium Priority (Configuration & Advanced)
-1. **`config`** commands - Configuration management
-2. **Missing finish flags** - Advanced merge options
-3. **`--showcommands`** - Debug/learning aid (universal)
-4. **`pull`** - Remote operations
-
-#### Low Priority (Specialized)
-1. **`release branch`** - Specialized release operation
-2. **Interactive rebase** (`-i` flag)
-3. **Config file location flags** in init
-
-### Overall Compatibility Assessment
-
-#### Command Compatibility: 65% ✅
-- **Core Commands**: 85% compatible (start, finish, list, delete, checkout, rename)
-- **Shorthand Commands**: 85% compatible (missing only publish implementation)
-- **Remote Operations**: 20% compatible (missing publish, track, pull)
-- **Advanced Operations**: 30% compatible (missing rebase, diff, config)
-
-#### Combined Compatibility Score: 70% ✅
-
-- **Configuration**: 75% compatible
-- **Commands**: 65% compatible  
-- **Core Workflow**: 90% compatible (start, finish, delete work well)
-- **Team Collaboration**: 40% compatible (missing remote operations)
+| Command | Missing from git-flow-next |
+|---------|---------------------------|
+| `list` | `-v/--verbose` |
+| `checkout` | `--showcommands` (partial — present but not on all commands) |
+| `delete` | ✅ Complete parity |
+| `rename` | ✅ Complete parity |
 
 ---
 
-## Unified Implementation Roadmap
+## Compatibility Scores
 
-### Phase 1: Critical Compatibility (Required for migration)
+### Configuration Compatibility: 85%
+
+- **Core Features**: 100% compatible (branch management, merge strategies)
+- **Configuration Translation**: 90% automatic (prefix mapping, branch names)
+- **Command Options**: 75% compatible (most finish flags supported, missing push)
+- **Advanced Features**: 60% compatible (preserve-merges and no-ff now supported)
+
+### Command Compatibility: 80%
+
+- **Core Commands**: 95% compatible (start, finish, list, delete, checkout, rename)
+- **Shorthand Commands**: 100% compatible (all shorthands implemented)
+- **Remote Operations**: 70% compatible (publish and track implemented; pull missing)
+- **Advanced Operations**: 40% compatible (diff and full config parity still missing)
+
+### Combined Compatibility Score: 82%
+
+- **Core Workflow**: 95% compatible (start → work → finish → delete)
+- **Team Collaboration**: 75% compatible (publish and track work; push-on-finish missing)
+- **Configuration**: 85% compatible
+- **Commands**: 80% compatible
+
+---
+
+## Remaining Implementation Roadmap
+
+### Phase 1: Critical Gaps
 **Configuration:**
-1. **`gitflow.allowdirty`** - Allow dirty working tree operations
-2. **`gitflow.*.start.fetch`** - Fetch before starting branches  
-3. **`gitflow.*.finish.push`** - Auto-push after finishing operations
+1. **`gitflow.allowdirty`** — Allow dirty working tree operations
+2. **`gitflow.*.finish.push`** — Auto-push after finishing operations
 
 **Commands:**
-1. **Complete `publish` implementation** - Finish stubbed shorthand command
-2. **Add `track` command** - Start tracking remote branches
-3. **Add universal `--showcommands` flag** - Debug/learning aid
+1. **`diff` command** — Show changes compared to parent branch
 
 ### Phase 2: Important Workflow Features
-**Configuration:**  
-1. **`gitflow.*.finish.force-delete`** - Force delete branch options
-2. **Enhanced strategy translation** - Auto-convert boolean flags to strategies
-
-**Commands:**
-1. **Add `rebase` command** - Full rebase functionality beyond shorthand
-2. **Add `diff` command** - Show changes compared to parent
-3. **Add missing finish flags** - `-p/--preserve-merges`, `--no-ff`, etc.
-
-### Phase 3: Advanced Features  
 **Configuration:**
-1. **`gitflow.*.finish.preserve-merges`** - Advanced rebase options
-2. **Environment variable support** - `.gitflow_export` file support
+1. **Enhanced strategy translation** — Auto-convert boolean flags to strategies during import
 
 **Commands:**
-1. **Add `config` commands** - Configuration management
-2. **Add `pull` command** - Pull from remote
-3. **Interactive rebase support** - `-i` flag functionality
+1. **`--verbose` on list** — Detailed branch listing
+2. **Missing finish push flags** — `--pushproduction/--pushdevelop`
+3. **Universal `--showcommands` flag** — Debug/learning aid across all commands
+
+### Phase 3: Advanced Features
+**Commands:**
+1. **`pull` command** — Pull from remote
+2. **`--nobackmerge` / `--ff-master`** — Specialized finish merge options
+3. **Config file location flags** (`--local/--global/--system/--file`) in init
 
 ---
 
-*This comprehensive analysis ensures git-flow-next can achieve near-complete compatibility with git-flow-avh while providing enhanced modern features. The unified roadmap addresses both configuration and command gaps in priority order.*
+*Last updated: 2026-02-01*
