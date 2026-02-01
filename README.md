@@ -78,7 +78,7 @@ git-flow-next provides convenient shorthand commands that automatically detect y
 | `git flow rebase` | `git flow <type> update --rebase` | Rebase the current topic branch |
 | `git flow update` | `git flow <type> update` | Update the current topic branch |
 | `git flow rename` | `git flow <type> rename <name>` | Rename the current topic branch |
-| `git flow publish` | `git flow <type> publish` | Publish the current topic branch *(planned)* |
+| `git flow publish` | `git flow <type> publish` | Publish the current topic branch |
 | `git flow finish` | `git flow <type> finish` | Finish the current topic branch |
 
 ### How It Works
@@ -141,14 +141,6 @@ The shorthand commands work with all standard git-flow branch types:
 - **Release branches**: For preparing new releases
 - **Hotfix branches**: For critical bug fixes
 - **Support branches**: For maintaining older versions
-
-### Planned Features
-
-Some shorthand commands are currently planned for future releases:
-
-- **`git flow publish`**: Will be implemented as an alias to `git flow <type> publish`
-
-These commands currently show "not implemented" messages when used.
 
 ## Documentation
 
