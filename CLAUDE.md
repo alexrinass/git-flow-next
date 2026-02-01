@@ -186,7 +186,7 @@ All documentation follows Unix manpage standards. See `docs/README.md` for detai
 - Implement both long and short flag variants
 - Add command examples and usage information
 - Validate inputs before executing operations
-- **Follow three-layer configuration precedence**: Branch config defaults (essential only) → Git config overrides → Command-line flags (always win). Some options intentionally skip Layer 1 (e.g., publish push-options).
+- **Follow three-layer configuration precedence**: Layer 1 branch type definition (identity & process characteristics — what the type *is*) → Layer 2 command-specific config (operational settings — how commands *execute*) → Layer 3 CLI flags (always win). Layer 1 is for essential branch-type properties only; many options intentionally skip it (e.g., publish push-options, sign, keep).
 
 ## Commit Guidelines
 

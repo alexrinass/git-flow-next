@@ -30,10 +30,12 @@ cmd/topicbranch.go (Dynamic Registration)
 
 ### 4. Configuration Resolution - 3-Layer Precedence (`internal/config/resolver.go`)
 ```
-Branch Defaults ← Git Config ← CLI Flags
-     ↓              ↓            ↓ (highest priority)
-Default values   gitflow.*    --flag overrides
+Layer 1: Branch Type Definition    ← Layer 2: Command Config  ← Layer 3: CLI Flags
+gitflow.branch.<type>.*               gitflow.<type>.<cmd>.*     --flag overrides
+(identity & process characteristics)  (operational settings)     (highest priority)
 ```
+Layer 1 defines *what the branch type is* (structural role + process characteristics like tagging).
+Layer 2 controls *how commands execute* (operational knobs). Not all options have a Layer 1 equivalent.
 
 ### 5. Validation (`cmd/start.go:31-54`)
 - Check git-flow initialization: `config.IsInitialized()`
@@ -71,7 +73,7 @@ Default values   gitflow.*    --flag overrides
 - Define branch types (base vs. topic) and their relationships
 - Import git-flow-avh compatibility
 - Provide default configurations and presets
-- **Three-layer precedence resolver**: Branch defaults (essential only) → Git config → CLI flags; some options intentionally skip Layer 1
+- **Three-layer precedence resolver**: Branch type definition (identity & process characteristics) → Command config (operational settings) → CLI flags; many options intentionally skip Layer 1 because they don't describe a branch type characteristic
 
 **Used by**: All commands during initialization and option resolution
 
@@ -233,7 +235,7 @@ gitflow.<type>.finish.keep                = "true|false"
 ## Module Interaction Flow
 
 ```
-Commands → config.ResolveFinishOptions() → Three-layer precedence resolution (Layer 1 only where applicable)
+Commands → config.ResolveFinishOptions() → Three-layer precedence resolution (Layer 1 = branch type identity/process; Layer 2 = command behavior)
         ↓                                        ↓
    git operations                         util.ValidateBranchName()
         ↓                                        ↓

@@ -4,11 +4,23 @@ This document provides a comprehensive reference for all git-flow-next configura
 
 ## Configuration Overview
 
-git-flow-next uses a hierarchical configuration system with **three levels of precedence**. Branch defaults are intended for essential branch-type configuration (prefix, parent, start point, core behavior). Many command options do not have a branch-default layer; they are configured only via command-specific config (Layer 2) and CLI flags (Layer 3). For example, publish `push-options` should be resolved from Layer 2 and Layer 3 only.
+git-flow-next uses a hierarchical configuration system with **three levels of precedence**:
 
-1. **Branch Type Configuration** (`gitflow.branch.*`) - Default behavior for branch types
-2. **Command-Specific Overrides** (`gitflow.<branchtype>.*`) - Override defaults for specific commands  
-3. **Command-Line Arguments** - **Highest priority** - always override configuration
+1. **Branch Type Definition** (`gitflow.branch.*`) - The identity and process characteristics of a branch type
+2. **Command-Specific Configuration** (`gitflow.<branchtype>.*`) - How specific commands behave for a branch type
+3. **Command-Line Flags** - **Highest priority** - one-off overrides that always win
+
+### Understanding the Layers
+
+**Layer 1 defines what a branch type *is*** — its role in the workflow, not tunable defaults. These properties describe the branch type's identity (where it lives in the hierarchy, its naming convention) and its process characteristics (how it participates in the workflow). For example, `tag=true` on a release branch means "releases are the kind of branch that produces tags on finish" — it describes the release process, not merely a default that you toggle.
+
+**Layer 2 controls how commands execute** — operational settings like whether to fetch before an operation, sign tags, or keep branches after finishing. These are genuine behavioral knobs that adjust command execution without changing what the branch type fundamentally is.
+
+**Layer 3 provides one-off overrides** via CLI flags for ad-hoc situations.
+
+Many command options intentionally have no Layer 1 equivalent — they exist only in Layer 2 and Layer 3. For example, publish `push-options` are purely operational and don't define any branch type characteristic.
+
+> **For developers adding new options**: Most new options need only Layer 2 + Layer 3. Add Layer 1 support only when the option defines a branch type characteristic. See [CODING_GUIDELINES.md](CODING_GUIDELINES.md) → "Adding New Configuration Options" for the full decision guide and checklist.
 
 ## Core System Configuration
 
@@ -21,34 +33,38 @@ git-flow-next uses a hierarchical configuration system with **three levels of pr
 | `gitflow.origin` | Remote name to use for operations | `origin` | `upstream` |
 | `gitflow.remote` | Alias for `gitflow.origin` | `origin` | `upstream` |
 
-## Branch Type Configuration
+## Branch Type Configuration (Layer 1)
 
-Branch type configuration defines the default behavior for each branch type using the pattern:
+Branch type configuration defines the **identity and process characteristics** of each branch type using the pattern:
 `gitflow.branch.<branchname>.<property>`
 
-### Universal Branch Properties
+These properties describe *what the branch type is* — its structural role and how it participates in the workflow. They should only contain essential branch-type-relevant configuration.
 
-All branch types (both base and topic) support these properties:
+### Structural Properties
+
+Define where the branch type fits in the hierarchy:
 
 | Property | Description | Values | Default |
 |----------|-------------|--------|---------|
 | `type` | Branch type classification | `base`, `topic` | Required |
 | `parent` | Parent branch for this branch type | Branch name | Varies by type |
-| `startPoint` | Default branch to start from | Branch name | Same as parent |
-| `upstreamStrategy` | Strategy when merging TO parent | `merge`, `rebase`, `squash` | `merge` |
-| `downstreamStrategy` | Strategy when updating FROM parent | `merge`, `rebase` | `merge` |
-| `autoUpdate` | Auto-update from parent on finish | `true`, `false` | `false` |
+| `startPoint` | Branch to start new branches from | Branch name | Same as parent |
+| `prefix` | Branch name prefix (topic only) | String ending in `/` | `<type>/` |
 
-### Topic Branch Additional Properties
+### Process Characteristics
 
-Topic branches support additional properties:
+Define how the branch type participates in the workflow:
 
 | Property | Description | Values | Default |
 |----------|-------------|--------|---------|
-| `prefix` | Branch name prefix | String ending in `/` | `<type>/` |
-| `tag` | Create tags on finish | `true`, `false` | `false` |
-| `tagprefix` | Prefix for created tags | String | `""` |
-| `deleteRemote` | Delete remote branch by default | `true`, `false` | `false` |
+| `upstreamStrategy` | How changes flow TO parent on finish | `merge`, `rebase`, `squash` | `merge` |
+| `downstreamStrategy` | How updates flow FROM parent | `merge`, `rebase` | `merge` |
+| `tag` | Branch type produces tags on finish (topic only) | `true`, `false` | `false` |
+| `tagprefix` | Prefix for created tags (topic only) | String | `""` |
+| `autoUpdate` | Auto-update from parent on finish (base only) | `true`, `false` | `false` |
+| `deleteRemote` | Delete remote branch on finish (topic only) | `true`, `false` | `false` |
+
+For example, setting `tag=true` on release branches means "releases produce tags" — it characterizes the release process. This can still be overridden per-command (Layer 2: `gitflow.release.finish.notag`) or per-invocation (Layer 3: `--notag`), but the branch config establishes the branch type's intended role.
 
 ### Default Branch Types
 
@@ -121,10 +137,12 @@ gitflow.branch.support.tag=true
 gitflow.branch.support.tagprefix=support-
 ```
 
-## Command-Specific Configuration
+## Command-Specific Configuration (Layer 2)
 
-Command-specific configuration overrides branch defaults using the pattern:
+Command-specific configuration controls **how commands execute** for a branch type, using the pattern:
 `gitflow.<branchtype>.<command>.<option>`
+
+These are operational settings — they adjust command behavior without changing the branch type's identity. Some of these can override Layer 1 process characteristics (e.g., `notag` overrides the branch type's `tag` setting), while others exist only at this layer (e.g., `sign`, `keep`, `fetch`).
 
 ### Finish Command Options
 
@@ -178,27 +196,27 @@ gitflow.release.downstreamStrategy=merge
 
 ## Configuration Precedence
 
-git-flow-next follows a strict three-layer precedence hierarchy, with the caveat that some options intentionally skip Layer 1:
+git-flow-next follows a strict three-layer precedence hierarchy:
 
-### Layer 1: Branch Configuration (Lowest Priority)
-Default behavior from `gitflow.branch.<branchtype>.*` settings
+### Layer 1: Branch Type Definition (Lowest Priority)
+Defines the branch type's identity and process characteristics via `gitflow.branch.<branchtype>.*`
 ```bash
-gitflow.branch.release.tag=true
+gitflow.branch.release.tag=true    # "Releases produce tags" — a process characteristic
 ```
 
-### Layer 2: Command-Specific Overrides (Medium Priority)
-Command-specific settings from `gitflow.<branchtype>.<command>.*`
+### Layer 2: Command-Specific Configuration (Medium Priority)
+Operational settings that control how commands execute via `gitflow.<branchtype>.<command>.*`
 ```bash
-gitflow.release.finish.notag=true  # Overrides branch default
+gitflow.release.finish.notag=true  # Override: skip tagging for this command
 ```
 
-### Layer 3: Command-Line Arguments (Highest Priority)
-Command-line flags **always win**
+### Layer 3: Command-Line Flags (Highest Priority)
+One-off overrides that **always win**
 ```bash
-git flow release finish v1.0 --tag  # Overrides all config
+git flow release finish v1.0 --tag  # Force tagging for this invocation
 ```
 
-Note: If an option has no branch default, Layer 2 becomes the base and CLI flags override it. Push-options for publish are an example of a Layer 2 + Layer 3 only setting.
+Not every option spans all three layers. Layer 1 is reserved for essential branch-type properties — many command options exist only at Layer 2 and Layer 3. For example, `sign`, `keep`, and publish `push-options` are purely operational and have no Layer 1 equivalent.
 
 ## Legacy Compatibility
 

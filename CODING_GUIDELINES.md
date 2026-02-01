@@ -424,6 +424,25 @@ git flow feature finish my-feature --squash  # Forces squash merge
 3. **Command-line flags must always win** - no exceptions
 4. **Document the precedence** in command help text when relevant
 
+#### **Adding New Configuration Options:**
+
+When adding a new option, the key question is: **does this describe what the branch type *is*, or how a command *executes*?**
+
+**Most new options need only Layer 2 + Layer 3.** Operational settings like `fetch`, `sign`, `keep`, `push-options`, or `force-delete` control command behavior — they don't define a branch type characteristic. These belong in `gitflow.<branchtype>.<command>.<option>` (Layer 2) with a corresponding CLI flag (Layer 3).
+
+**Add Layer 1 support only if the option defines a branch type's identity or process characteristic** — something inherent to what the branch type *is*. Ask yourself: "Would this make sense as part of the branch type's definition when someone sets up a new workflow?" Examples:
+- `tag` — "releases produce tags" describes the release process → Layer 1
+- `upstreamStrategy` — "features merge into develop" describes the feature workflow → Layer 1
+- `sign` — "sign this tag with GPG" is an operational detail → Layer 2 + 3 only
+- `keep` — "keep the branch after finishing" is a command behavior → Layer 2 + 3 only
+
+**Checklist for new options:**
+
+1. **Always** add Layer 3 (CLI flag) — users must be able to override per-invocation
+2. **Always** add Layer 2 (`gitflow.<type>.<command>.<option>`) — users must be able to set persistent command behavior
+3. **Only if it's a branch type characteristic** add Layer 1 (`gitflow.branch.<type>.<property>`) — and add it to the `BranchConfig` struct
+4. **Update documentation** — add to `docs/gitflow-config.5.md` and `CONFIGURATION.md` in the appropriate layer sections
+
 ### Input Validation
 
 Always validate inputs early in the execute function:

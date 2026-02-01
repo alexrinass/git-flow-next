@@ -101,13 +101,15 @@ All topic branches use the same `start` and `finish` commands, with behavior det
 
 ### Configurable Behavior
 
-Topic branch behavior is defined through Git configuration, allowing complete customization of:
+Topic branch behavior is defined through Git configuration at two levels. **Branch type configuration** (Layer 1) defines the branch type's identity and process characteristics:
 
-- **Parent branch**: Which base branch to branch from
-- **Start point**: Where to create the branch (can differ from parent)
-- **Merge strategies**: How changes flow upstream and downstream
-- **Tag creation**: Whether to create tags when finishing
-- **Child branch updates**: Automatic updating of child base branches after finish
+- **Parent branch**: Which base branch to branch from (structural)
+- **Start point**: Where to create the branch (structural)
+- **Merge strategies**: How changes flow upstream and downstream (process)
+- **Tag creation**: Whether the branch type produces tags on finish (process)
+- **Child branch updates**: Automatic updating of child base branches after finish (process)
+
+**Command-specific configuration** (Layer 2) then controls operational details like fetch behavior, tag signing, and branch retention. CLI flags (Layer 3) override everything for one-off situations.
 
 ## Configuration System
 
@@ -254,20 +256,24 @@ Topic branch types are configured with the same key format:
     downstreamStrategy = squash-merge
 ```
 
-### Configurable Properties
+### Configurable Properties (Layer 1 — Branch Type Definition)
+
+These properties define the branch type's identity and process characteristics. They describe *what the branch type is*, not how individual commands behave.
 
 #### For Base Branches:
-- **parent**: The parent base branch for dependency tracking
-- **upstreamStrategy**: How to merge changes to parent (`merge`, `rebase`, `none`)
-- **downstreamStrategy**: How to receive changes from parent (`merge`, `rebase`, `squash`, `none`)
+- **parent**: The parent base branch for dependency tracking (structural)
+- **upstreamStrategy**: How changes flow to parent (process)
+- **downstreamStrategy**: How updates flow from parent (process)
+- **autoUpdate**: Whether the branch receives updates automatically on finish (process)
 
 #### For Topic Branch Types (using gitflow.branch.* keys):
-- **parent**: Default parent base branch
-- **startPoint**: Branch to create from (can differ from parent)
-- **upstreamStrategy**: How to merge back to parent
-- **downstreamStrategy**: How to receive updates from parent
-- **tag**: Whether to create tags when finishing
-- **tagPrefix**: Prefix for created tags
+- **parent**: Default parent base branch (structural)
+- **startPoint**: Branch to create from — can differ from parent (structural)
+- **prefix**: Branch name prefix (structural)
+- **upstreamStrategy**: How to merge back to parent on finish (process)
+- **downstreamStrategy**: How to receive updates from parent (process)
+- **tag**: Whether the branch type produces tags on finish (process)
+- **tagPrefix**: Prefix for created tags (process)
 
 ### Merge Strategies
 

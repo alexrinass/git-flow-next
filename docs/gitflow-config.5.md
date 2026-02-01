@@ -12,22 +12,24 @@ Configuration is stored in standard Git config files (**.git/config** for reposi
 
 ## CONFIGURATION HIERARCHY
 
-git-flow-next follows a strict three-layer configuration hierarchy, with the caveat that some options intentionally skip Layer 1:
+git-flow-next follows a strict three-layer configuration hierarchy:
 
-### Layer 1: Branch Type Defaults
+### Layer 1: Branch Type Definition
 **gitflow.branch.*name*.*property***
 
-Defines default behavior for branch types (base and topic branches).
+Defines the **identity and process characteristics** of a branch type — what it *is* and how it participates in the workflow. This includes structural properties (type, parent, prefix) and process characteristics (merge strategies, tagging, auto-update). For example, `tag=true` on a release branch means "releases are the kind of branch that produces tags on finish" — it describes the release process, not merely a tunable default.
 
-### Layer 2: Command-Specific Overrides  
+Layer 1 is reserved for essential branch-type configuration only.
+
+### Layer 2: Command-Specific Configuration
 **gitflow.*branchtype*.*command*.*option***
 
-Overrides branch defaults for specific commands and operations.
+Controls **how commands execute** for a branch type. These are operational settings (fetch, sign, keep, push-options) that adjust command behavior without changing the branch type's identity. Some options at this layer can override Layer 1 process characteristics (e.g., `notag` overrides the branch type's `tag` setting).
+
+Many command options exist only at Layer 2 — they have no Layer 1 equivalent because they don't describe a branch type characteristic.
 
 ### Layer 3: Command-Line Flags
-Command-line flags always take the highest precedence and override both configuration layers.
-
-Note: Branch defaults are reserved for essential branch-type configuration. Many command options (such as publish push-options) are configured only via Layer 2 and Layer 3.
+Command-line flags always take the highest precedence and override both configuration layers. Use these for one-off overrides.
 
 ## GLOBAL CONFIGURATION
 
@@ -49,7 +51,11 @@ Note: Branch defaults are reserved for essential branch-type configuration. Many
 
 Branch configuration uses the pattern: **gitflow.branch.*name*.*property***
 
-### Branch Properties
+These properties define the branch type's identity and process characteristics (Layer 1). They describe *what the branch type is*, not how individual commands behave.
+
+### Structural Properties
+
+Define where the branch type fits in the hierarchy:
 
 **type**
 : Branch type. Values: **base**, **topic**
@@ -59,7 +65,7 @@ Branch configuration uses the pattern: **gitflow.branch.*name*.*property***
 : Parent branch name for hierarchical relationships.
 : *Optional for base branches (trunk branches have no parent)*
 
-**startPoint**  
+**startPoint**
 : Branch to start new branches from (topic branches only).
 : *Default*: Same as parent
 
@@ -67,31 +73,37 @@ Branch configuration uses the pattern: **gitflow.branch.*name*.*property***
 : Prefix for branch names (topic branches only).
 : *Default*: *branchname*/ (e.g., "feature/")
 
+### Process Characteristics
+
+Define how the branch type participates in the workflow:
+
 **upstreamStrategy**
-: Merge strategy when merging TO parent branch.
+: How changes flow TO parent branch on finish.
 : *Values*: **none**, **merge**, **rebase**, **squash**
 : *Default*: **merge**
 
 **downstreamStrategy**
-: Merge strategy when merging FROM parent branch.  
+: How updates flow FROM parent branch.
 : *Values*: **none**, **merge**, **rebase**
 : *Default*: **merge**
 
 **autoUpdate**
-: Automatically update from parent branch (base branches only).
+: Branch automatically receives updates from parent on finish (base branches only).
 : *Default*: false
 
 **tag**
-: Create tags when finishing branches (topic branches only).
+: Branch type produces tags on finish (topic branches only). Setting this to **true** means the branch type's process includes tagging — e.g., releases and hotfixes produce tags as part of their workflow.
 : *Default*: false
 
 **tagprefix**
-: Prefix for created tags.
+: Prefix for created tags (topic branches only).
 : *Default*: "" (no prefix)
 
 ## COMMAND OVERRIDES
 
-Command overrides use the pattern: **gitflow.*branchtype*.*command*.*option***
+Command overrides (Layer 2) control **how commands execute** for a branch type, using the pattern: **gitflow.*branchtype*.*command*.*option***
+
+These are operational settings that adjust command behavior. Some can override Layer 1 process characteristics (e.g., **notag** overrides a branch type's **tag** setting), while others exist only at this layer.
 
 ### Common Commands
 
@@ -343,9 +355,9 @@ The finish command supports extensive merge strategy configuration through comma
 
 ### Strategy Precedence
 
-1. **Command-line flags** (highest priority)
-2. **gitflow.*type*.finish.*** configuration
-3. **gitflow.branch.*type*.upstreamstrategy** (lowest priority)
+1. **Command-line flags** (Layer 3 — highest priority, one-off overrides)
+2. **gitflow.*type*.finish.*** configuration (Layer 2 — operational command settings)
+3. **gitflow.branch.*type*.upstreamstrategy** (Layer 1 — branch type process characteristic)
 
 ### Examples
 
@@ -429,17 +441,17 @@ Translation happens at runtime without modifying existing configuration.
 Configuration with multiple layers:
 
 ```bash
-# Layer 1: Branch default
+# Layer 1: Branch type process characteristic — "features merge into parent"
 git config gitflow.branch.feature.upstreamStrategy merge
 
-# Layer 2: Command override (takes precedence)
+# Layer 2: Command-specific override — "but finish uses rebase"
 git config gitflow.feature.finish.rebase true
 
-# Layer 3: Command flag (highest precedence)  
+# Layer 3: CLI flag — "this time, squash instead"
 git flow feature finish --squash
 ```
 
-Final merge strategy: **squash** (from command flag)
+Final merge strategy: **squash** (Layer 3 CLI flag always wins)
 
 ## MIGRATION
 
