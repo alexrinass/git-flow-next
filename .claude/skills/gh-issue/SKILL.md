@@ -28,7 +28,7 @@ Create a new GitHub issue for the gittower/git-flow-next repository following pr
    - `documentation` - Documentation improvements
 
 4. **Create the Issue**
-   - Use clear, descriptive title (imperative mood: "Add...", "Fix...", "Update...")
+   - Use clear, descriptive title in imperative mood
    - Structure the body with appropriate sections based on type
 
 ## Issue Body Templates
