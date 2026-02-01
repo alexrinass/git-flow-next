@@ -148,7 +148,7 @@ By participating in this project, you agree to:
 
 ### Development Workflow
 
-For a detailed overview of our end-to-end development process — from issue analysis through planning, implementation, and PR creation — see [WORKFLOW.md](WORKFLOW.md).
+For a detailed overview of our end-to-end development process — from issue analysis through planning, implementation, and PR creation — see [DEV_WORKFLOW.md](DEV_WORKFLOW.md).
 
 ### Review Process
 
