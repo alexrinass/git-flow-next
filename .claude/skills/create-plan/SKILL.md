@@ -76,10 +76,7 @@ Write to `.ai/<folder>/plan.md`:
 - [ ] Add `Test<FunctionName>` - <what it tests>
 - [ ] Add `Test<FunctionName>WithError` - <error case>
 
-**Test Requirements** (per TESTING_GUIDELINES.md):
-- One test case per function
-- Structured comments with Steps
-- Use testutil helpers, not os.Chdir
+**Test Requirements**: Per TESTING_GUIDELINES.md
 
 ## Test Plan
 
@@ -113,10 +110,7 @@ After each checkpoint, verify:
 
 ## Commit Strategy
 
-Following COMMIT_GUIDELINES.md, plan these commits:
-1. `<type>(<scope>): <description>` - <what's included>
-2. `test(<scope>): <description>` - test additions
-3. `docs(<scope>): <description>` - documentation updates
+Plan commits following COMMIT_GUIDELINES.md.
 
 ## Estimated Scope
 - Files to modify: <count>
