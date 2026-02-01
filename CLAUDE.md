@@ -41,7 +41,7 @@ go run main.go                            # Run directly
 ## Additional Documentation
 
 For comprehensive development information, see:
-- **[AI_ARCHITECTURE.md](AI_ARCHITECTURE.md)** - Quick architecture reference optimized for AI agents
+- **[CODE_REFERENCE.md](CODE_REFERENCE.md)** - Quick codebase reference and navigation guide
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and design overview
 - **[CODING_GUIDELINES.md](CODING_GUIDELINES.md)** - Coding standards and conventions
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration reference and examples
