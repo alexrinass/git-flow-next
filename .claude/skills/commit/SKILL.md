@@ -48,7 +48,7 @@ Create a well-formatted commit following the project's COMMIT_GUIDELINES.md.
 
 6. **Write Body** (if needed)
    - Explain WHAT and WHY, not HOW
-   - Wrap at 72 characters
+   - Write as continuous flowing prose first, then hard wrap at 72 characters — each line should fill close to the limit, not wrap early at 55-65 characters
    - Use bullet points for multiple items
    - Leave blank line after subject
 
