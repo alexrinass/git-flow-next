@@ -53,7 +53,7 @@ These options control where git-flow configuration is stored. Only one scope opt
 : Read and write configuration in the system-wide **/etc/gitconfig** file. Typically requires administrator privileges.
 
 **--file**=*path*
-: Read and write configuration in the specified file. The parent directory must exist. Useful for managing shared configuration files.
+: Read and write configuration in the specified file. The parent directory must exist and be writable. Paths may be absolute or relative to the current working directory. Useful for managing shared configuration files.
 
 ### Branch Name Overrides
 

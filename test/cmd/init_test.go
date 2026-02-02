@@ -1019,6 +1019,43 @@ func TestInitGlobalScopeIgnoresLocalConfig(t *testing.T) {
 	}
 }
 
+// TestInitWithFileRelativePath tests that --file works with relative paths.
+// Steps:
+// 1. Sets up a test repository
+// 2. Runs 'git flow init --defaults --file ./custom-config' with a relative path
+// 3. Verifies gitflow.version is stored in the file at the relative path
+// 4. Verifies the file is created in the expected location (repo directory)
+func TestInitWithFileRelativePath(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Use a relative path
+	relativeConfigPath := "./custom-gitflow-config"
+	expectedAbsPath := filepath.Join(dir, "custom-gitflow-config")
+
+	output, err := runGitFlow(t, dir, "init", "--defaults", "--file", relativeConfigPath)
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --file with relative path: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the file was created at the expected absolute path
+	if _, err := os.Stat(expectedAbsPath); os.IsNotExist(err) {
+		t.Fatalf("Expected config file to exist at %s, but it does not", expectedAbsPath)
+	}
+
+	// Verify config is in specified file
+	version := getGitConfigFromFile(t, expectedAbsPath, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in file to be '1.0', got: %s", version)
+	}
+
+	// Verify config is NOT in local scope
+	localVersion := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "" {
+		t.Errorf("Expected gitflow.version to NOT be in local config, got: %s", localVersion)
+	}
+}
+
 // TestInitForceWithLocalScope tests that --force works with --local scope flag.
 // Steps:
 // 1. Sets up a test repository
