@@ -2,8 +2,6 @@
 name: local-review
 description: Review current changes against project guidelines before PR
 allowed-tools: Read, Write, Grep, Glob, Bash
-context: fork
-agent: reviewer
 ---
 
 # Local Review
