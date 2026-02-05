@@ -154,6 +154,9 @@ func registerBranchCommand(branchType string) {
 			fetch, _ := cmd.Flags().GetBool("fetch")
 			noFetch, _ := cmd.Flags().GetBool("no-fetch")
 
+			// Get hook bypass flag
+			noVerify, _ := cmd.Flags().GetBool("no-verify")
+
 			// Determine branch name - use provided arg or detect from current branch
 			var name string
 			if len(args) > 0 {
@@ -219,7 +222,7 @@ func registerBranchCommand(branchType string) {
 			}
 
 			// Call the generic finish command with the branch type and name
-			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, getBoolFlag(fetch, noFetch))
+			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, getBoolFlag(fetch, noFetch), getSingleBoolPtr(noVerify))
 		},
 	}
 
@@ -441,6 +444,9 @@ func addFinishFlags(cmd *cobra.Command) {
 	// Fetch Flags
 	cmd.Flags().Bool("fetch", false, "Fetch from remote before finishing")
 	cmd.Flags().Bool("no-fetch", false, "Don't fetch from remote before finishing")
+
+	// Hook Control Flags
+	cmd.Flags().Bool("no-verify", false, "Bypass pre-commit and commit-msg hooks during merge and commit operations")
 }
 
 // getBoolFlag converts two opposite boolean flags into a single *bool value
@@ -464,4 +470,13 @@ func getStringPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// getSingleBoolPtr converts a bool to a *bool, returning nil for false
+// This is used for flags that only have a positive form (e.g., --no-verify)
+func getSingleBoolPtr(b bool) *bool {
+	if !b {
+		return nil
+	}
+	return &b
 }

@@ -29,6 +29,7 @@ func UpdateBranchFromParentWithMessage(branchName string, parentBranch string, s
 	}
 
 	// Use the configured merge strategy
+	// Note: noVerify is false for update operations (only finish supports --no-verify)
 	var mergeErr error
 	switch strings.ToLower(strategy) {
 	case "rebase":
@@ -37,16 +38,16 @@ func UpdateBranchFromParentWithMessage(branchName string, parentBranch string, s
 	case "squash":
 		fmt.Printf("Using squash strategy for '%s'\n", branchName)
 		if customMessage != "" {
-			mergeErr = git.MergeSquashWithMessage(parentBranch, customMessage)
+			mergeErr = git.MergeSquashWithMessage(parentBranch, customMessage, false)
 		} else {
-			mergeErr = git.SquashMerge(parentBranch)
+			mergeErr = git.SquashMerge(parentBranch, false)
 		}
 	default:
 		fmt.Printf("Using merge strategy for '%s'\n", branchName)
 		if customMessage != "" {
-			mergeErr = git.MergeWithMessage(parentBranch, customMessage, true)
+			mergeErr = git.MergeWithMessage(parentBranch, customMessage, true, false)
 		} else {
-			mergeErr = git.Merge(parentBranch)
+			mergeErr = git.Merge(parentBranch, false)
 		}
 	}
 

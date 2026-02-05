@@ -188,8 +188,14 @@ func CreateInitialCommit(branch string) error {
 }
 
 // Merge merges a branch into the current branch
-func Merge(branch string) error {
-	cmd := exec.Command("git", "merge", "--no-ff", branch)
+func Merge(branch string, noVerify bool) error {
+	args := []string{"merge", "--no-ff"}
+	if noVerify {
+		args = append(args, "--no-verify")
+	}
+	args = append(args, branch)
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
@@ -226,8 +232,14 @@ func Rebase(branch string) error {
 }
 
 // SquashMerge performs a squash merge of a branch into the current branch
-func SquashMerge(branch string) error {
-	cmd := exec.Command("git", "merge", "--squash", branch)
+func SquashMerge(branch string, noVerify bool) error {
+	args := []string{"merge", "--squash"}
+	if noVerify {
+		args = append(args, "--no-verify")
+	}
+	args = append(args, branch)
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "conflict") {
@@ -237,7 +249,11 @@ func SquashMerge(branch string) error {
 	}
 
 	// Commit the squashed changes
-	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("Squashed commit of branch '%s'", branch))
+	commitArgs := []string{"commit", "-m", fmt.Sprintf("Squashed commit of branch '%s'", branch)}
+	if noVerify {
+		commitArgs = append(commitArgs, "--no-verify")
+	}
+	cmd = exec.Command("git", commitArgs...)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to commit squashed changes: %s", string(output))
@@ -412,10 +428,13 @@ func RebaseWithOptions(targetBranch string, preserveMerges bool) error {
 }
 
 // MergeWithOptions merges a branch into current branch with optional no-fast-forward
-func MergeWithOptions(branchName string, noFF bool) error {
+func MergeWithOptions(branchName string, noFF bool, noVerify bool) error {
 	args := []string{"merge"}
 	if noFF {
 		args = append(args, "--no-ff")
+	}
+	if noVerify {
+		args = append(args, "--no-verify")
 	}
 	args = append(args, branchName)
 
@@ -443,10 +462,13 @@ func MergeWithOptions(branchName string, noFF bool) error {
 }
 
 // MergeWithMessage merges a branch into current branch with a custom commit message
-func MergeWithMessage(branchName string, message string, noFF bool) error {
+func MergeWithMessage(branchName string, message string, noFF bool, noVerify bool) error {
 	args := []string{"merge"}
 	if noFF {
 		args = append(args, "--no-ff")
+	}
+	if noVerify {
+		args = append(args, "--no-verify")
 	}
 	args = append(args, "-m", message, branchName)
 
@@ -474,8 +496,12 @@ func MergeWithMessage(branchName string, message string, noFF bool) error {
 }
 
 // Commit creates a commit with the given message
-func Commit(message string) error {
-	cmd := exec.Command("git", "commit", "-m", message)
+func Commit(message string, noVerify bool) error {
+	args := []string{"commit", "-m", message}
+	if noVerify {
+		args = append(args, "--no-verify")
+	}
+	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to commit: %s", string(output))
@@ -502,8 +528,14 @@ func RebaseContinue() error {
 }
 
 // MergeSquashWithMessage performs a squash merge with a custom commit message
-func MergeSquashWithMessage(branchName string, message string) error {
-	cmd := exec.Command("git", "merge", "--squash", branchName)
+func MergeSquashWithMessage(branchName string, message string, noVerify bool) error {
+	args := []string{"merge", "--squash"}
+	if noVerify {
+		args = append(args, "--no-verify")
+	}
+	args = append(args, branchName)
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "conflict") {
@@ -513,7 +545,11 @@ func MergeSquashWithMessage(branchName string, message string) error {
 	}
 
 	// Commit the squashed changes with custom message
-	cmd = exec.Command("git", "commit", "-m", message)
+	commitArgs := []string{"commit", "-m", message}
+	if noVerify {
+		commitArgs = append(commitArgs, "--no-verify")
+	}
+	cmd = exec.Command("git", commitArgs...)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to commit squashed changes: %s", string(output))

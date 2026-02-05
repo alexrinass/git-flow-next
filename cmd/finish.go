@@ -80,8 +80,8 @@ const (
 // =============================================================================
 
 // FinishCommand is the implementation of the finish command for topic branches
-func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool) {
-	if err := executeFinish(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, fetch); err != nil {
+func FinishCommand(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool, noVerify *bool) {
+	if err := executeFinish(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, fetch, noVerify); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -98,7 +98,7 @@ func FinishCommand(branchType string, name string, continueOp bool, abortOp bool
 // =============================================================================
 
 // executeFinish performs the actual branch finishing logic and returns any errors
-func executeFinish(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool) error {
+func executeFinish(branchType string, name string, continueOp bool, abortOp bool, force bool, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool, noVerify *bool) error {
 	// Get configuration early
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -130,7 +130,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 
 		if continueOp {
 			// Resolve options for continue operation
-			resolvedOptions := config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, tagOptions, retentionOptions, mergeOptions, fetch)
+			resolvedOptions := config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, tagOptions, retentionOptions, mergeOptions, fetch, noVerify)
 			return handleContinue(cfg, state, stateBranchConfig, resolvedOptions, mergeOptions)
 		}
 
@@ -165,7 +165,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 			fmt.Printf("1. Merge it into '%s' using the %s strategy\n", branchConfig.Parent, branchConfig.UpstreamStrategy)
 
 			// Resolve options early for confirmation dialog
-			resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
+			resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch, noVerify)
 
 			if resolvedOptions.ShouldTag {
 				fmt.Printf("2. Create a tag '%s'\n", resolvedOptions.TagName)
@@ -192,7 +192,7 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 	}
 
 	// Resolve all options once before starting operations
-	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
+	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch, noVerify)
 
 	// Perform fetch if enabled (only on initial finish, not continue)
 	if resolvedOptions.ShouldFetch {
@@ -236,10 +236,10 @@ func executeFinish(branchType string, name string, continueOp bool, abortOp bool
 	}
 
 	// Regular finish command flow
-	return finishBranch(cfg, branchType, name, branchConfig, tagOptions, retentionOptions, mergeOptions, fetch)
+	return finishBranch(cfg, branchType, name, branchConfig, tagOptions, retentionOptions, mergeOptions, fetch, noVerify)
 }
 
-func finishBranch(cfg *config.Config, branchType string, name string, branchConfig config.BranchConfig, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool) error {
+func finishBranch(cfg *config.Config, branchType string, name string, branchConfig config.BranchConfig, tagOptions *config.TagOptions, retentionOptions *config.BranchRetentionOptions, mergeOptions *config.MergeStrategyOptions, fetch *bool, noVerify *bool) error {
 	// Validate that git-flow is initialized
 	initialized, err := config.IsInitialized()
 	if err != nil {
@@ -290,7 +290,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 	}
 
 	// Resolve all options once at the beginning
-	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch)
+	resolvedOptions := config.ResolveFinishOptions(cfg, branchType, shortName, tagOptions, retentionOptions, mergeOptions, fetch, noVerify)
 
 	// Run pre-hook before starting finish operation
 	gitDir, err := git.GetGitDir()
@@ -329,6 +329,7 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		SquashMessage:   resolvedOptions.SquashMessage,
 		MergeMessage:    resolvedOptions.MergeMessage,
 		UpdateMessage:   resolvedOptions.UpdateMessage,
+		NoVerify:        resolvedOptions.NoVerify,
 	}
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
@@ -403,9 +404,9 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			}
 			if mergeMsg != "" {
 				expandedMsg := util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
-				err = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+				err = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward, state.NoVerify)
 			} else {
-				err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+				err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward, state.NoVerify)
 			}
 			if err != nil {
 				return &errors.GitError{Operation: "merge rebased branch", Err: err}
@@ -418,7 +419,7 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			if mergeOptions != nil && mergeOptions.SquashMessage != nil && *mergeOptions.SquashMessage != "" {
 				squashMsg = *mergeOptions.SquashMessage
 			}
-			err = git.Commit(squashMsg)
+			err = git.Commit(squashMsg, state.NoVerify)
 			if err != nil {
 				return &errors.GitError{Operation: "commit squashed changes", Err: err}
 			}
@@ -435,7 +436,7 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			} else {
 				mergeMsg = util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
 			}
-			err = git.Commit(mergeMsg)
+			err = git.Commit(mergeMsg, state.NoVerify)
 			if err != nil {
 				return &errors.GitError{Operation: "commit merge", Err: err}
 			}
@@ -514,7 +515,7 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 				// For child updates, the "branch" is the child and "parent" is the source
 				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
 			}
-			err = git.Commit(updateMsg)
+			err = git.Commit(updateMsg, state.NoVerify)
 			if err != nil {
 				return &errors.GitError{Operation: "commit squashed child update", Err: err}
 			}
@@ -533,7 +534,7 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 				// For child updates, the "branch" is the child and "parent" is the source
 				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
 			}
-			err = git.Commit(updateMsg)
+			err = git.Commit(updateMsg, state.NoVerify)
 			if err != nil {
 				return &errors.GitError{Operation: "commit child branch update", Err: err}
 			}
@@ -622,19 +623,19 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 			// Use custom merge message if provided, otherwise use default
 			if resolvedOptions.MergeMessage != "" {
 				expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
-				mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+				mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward, resolvedOptions.NoVerify)
 			} else {
-				mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+				mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward, resolvedOptions.NoVerify)
 			}
 		}
 	case strategySquash:
-		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, resolvedOptions.SquashMessage)
+		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, resolvedOptions.SquashMessage, resolvedOptions.NoVerify)
 	case strategyMerge:
 		if resolvedOptions.MergeMessage != "" {
 			expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
-			mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+			mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward, resolvedOptions.NoVerify)
 		} else {
-			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward, resolvedOptions.NoVerify)
 		}
 	default:
 		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", resolvedOptions.MergeStrategy), Err: nil}
@@ -919,7 +920,7 @@ func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.
 			var resolvedOptions *config.ResolvedFinishOptions
 			if cfg != nil {
 				// Try to resolve options for better tag information in message
-				resolvedOptions = config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, nil, nil, nil, nil)
+				resolvedOptions = config.ResolveFinishOptions(cfg, state.BranchType, state.BranchName, nil, nil, nil, nil, nil)
 			}
 
 			// Generate and print detailed conflict message
