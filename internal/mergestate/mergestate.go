@@ -51,6 +51,10 @@ type MergeState struct {
 
 	// Squash merge options
 	SquashMessage string `json:"squashMessage,omitempty"` // Custom commit message for squash merge
+
+	// Custom merge commit messages
+	MergeMessage  string `json:"mergeMessage,omitempty"`  // Custom commit message for upstream merge
+	UpdateMessage string `json:"updateMessage,omitempty"` // Custom commit message for child updates
 }
 
 // SaveMergeState saves the current merge state to a file

@@ -613,6 +613,477 @@ func TestSquashMessageOverrideOnContinue(t *testing.T) {
 	}
 }
 
+// TestFinishFeatureBranchWithMergeMessage tests that a custom merge message is used for the upstream merge.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch and adds a commit
+// 3. Finishes the feature branch with --merge-message "feat: custom merge message"
+// 4. Verifies the merge commit message matches the custom message
+// 5. Verifies the feature branch is deleted
+func TestFinishFeatureBranchWithMergeMessage(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "merge-msg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Switch to develop and add a commit to prevent fast-forward merge
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to switch to develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch with custom merge message
+	customMessage := "feat: custom merge message for feature"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "merge-msg-test", "--merge-message", customMessage)
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify that the feature file exists in develop
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	if !testutil.FileExists(t, dir, "feature.txt") {
+		t.Error("Expected feature.txt to exist in develop branch")
+	}
+
+	// Get the last commit message
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", customMessage, strings.TrimSpace(commitMsg))
+	}
+
+	// Verify feature branch was deleted
+	if testutil.BranchExists(t, dir, "feature/merge-msg-test") {
+		t.Error("Expected feature branch to be deleted")
+	}
+}
+
+// TestFinishReleaseBranchWithUpdateMessage tests that a custom update message is used for child branch updates.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a release branch and adds a commit
+// 3. Finishes the release branch with --update-message "chore: sync develop from main"
+// 4. Verifies the release merges into main successfully
+// 5. Verifies the develop branch update uses the custom message
+func TestFinishReleaseBranchWithUpdateMessage(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to release branch
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to start release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to release branch
+	testutil.WriteFile(t, dir, "release.txt", "release content")
+	_, err = testutil.RunGit(t, dir, "add", "release.txt")
+	if err != nil {
+		t.Fatalf("Failed to add release file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add release file")
+	if err != nil {
+		t.Fatalf("Failed to commit release file: %v", err)
+	}
+
+	// Finish release branch with custom update message
+	customUpdateMessage := "chore: sync develop from main after release 1.0.0"
+	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "1.0.0", "--update-message", customUpdateMessage)
+	if err != nil {
+		t.Fatalf("Failed to finish release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify that release file exists in main
+	_, err = testutil.RunGit(t, dir, "checkout", "main")
+	if err != nil {
+		t.Fatalf("Failed to checkout main: %v", err)
+	}
+
+	if !testutil.FileExists(t, dir, "release.txt") {
+		t.Error("Expected release.txt to exist in main branch")
+	}
+
+	// Checkout develop and verify the update commit message
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	if !testutil.FileExists(t, dir, "release.txt") {
+		t.Error("Expected release.txt to exist in develop branch")
+	}
+
+	// Get the last commit message on develop (should be the update commit)
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customUpdateMessage {
+		t.Errorf("Expected update message '%s', got '%s'", customUpdateMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishWithMergeMessagePersistsThroughConflict tests that custom message survives --continue.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates a feature branch with changes
+// 3. Creates conflicting changes on develop
+// 4. Attempts to finish the feature with --merge-message "custom: merge"
+// 5. Verifies merge conflict occurs
+// 6. Resolves the conflict and stages files
+// 7. Runs finish --continue
+// 8. Verifies the final merge commit uses the custom message
+func TestFinishWithMergeMessagePersistsThroughConflict(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create conflicting content in develop
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version\nLine 2\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Develop changes")
+
+	// Create feature with conflicting changes
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "merge-msg-conflict")
+	if err != nil {
+		t.Fatalf("Failed to create feature: %v\nOutput: %s", err, output)
+	}
+
+	testutil.WriteFile(t, dir, "conflict.txt", "Feature version\nLine 2 modified\nLine 3")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Feature changes")
+
+	// Meanwhile, add more changes to develop to create conflict
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version updated\nLine 2\nLine 3 modified")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "More develop changes")
+
+	// Try to finish feature with custom merge message (will conflict)
+	customMessage := "feat: merged after conflict resolution"
+	testutil.RunGit(t, dir, "checkout", "feature/merge-msg-conflict")
+	output, _ = testutil.RunGitFlow(t, dir, "feature", "finish", "merge-msg-conflict", "--merge-message", customMessage)
+
+	// Verify conflict detected
+	if !strings.Contains(output, "conflict") {
+		t.Fatal("Expected merge conflict to be detected")
+	}
+
+	// Verify merge state exists with merge message
+	state, err := testutil.LoadMergeState(t, dir)
+	if err != nil || state == nil {
+		t.Fatal("Expected merge state to exist after conflict")
+	}
+
+	if state.MergeMessage != customMessage {
+		t.Errorf("Expected MergeMessage in state to be '%s', got: '%s'", customMessage, state.MergeMessage)
+	}
+
+	// Resolve conflict
+	testutil.WriteFile(t, dir, "conflict.txt", "Resolved version\nLine 2 resolved\nLine 3 resolved")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+
+	// Continue finish operation WITHOUT --merge-message (should use preserved message from state)
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--continue", "merge-msg-conflict")
+	if err != nil {
+		t.Fatalf("Failed to continue finish: %v\nOutput: %s", err, output)
+	}
+
+	// Verify success
+	if !strings.Contains(output, "Successfully finished") {
+		t.Error("Expected successful finish message")
+	}
+
+	// Verify the commit message in develop uses the preserved message
+	testutil.RunGit(t, dir, "checkout", "develop")
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", customMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishWithMergeMessageUsedAfterRebaseStrategy tests message is used for final merge after rebase.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates a feature branch with commits
+// 3. Adds commits to develop to make rebase meaningful
+// 4. Finishes with --rebase --merge-message "custom: rebase merge"
+// 5. Verifies the final merge commit (after rebase) uses the custom message
+func TestFinishWithMergeMessageUsedAfterRebaseStrategy(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "rebase-msg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Switch to develop and add a commit
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to switch to develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch with rebase and custom merge message, using --no-ff to force merge commit
+	customMessage := "feat: rebased and merged with custom message"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "rebase-msg-test", "--rebase", "--merge-message", customMessage, "--no-ff")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify that rebase strategy was used
+	if !strings.Contains(output, "Merging using strategy: rebase") {
+		t.Errorf("Expected output to indicate rebase strategy, got: %s", output)
+	}
+
+	// Verify the commit message in develop
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the last commit message (should be the merge commit with custom message)
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != customMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", customMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishWithoutMergeMessageUsesDefault tests that default message is used when flag is omitted.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates and finishes a feature branch without --merge-message (using --no-ff to force merge commit)
+// 3. Verifies the merge commit uses the default "Merge branch 'feature/...' into develop" format
+func TestFinishWithoutMergeMessageUsesDefault(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "default-msg-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Switch to develop and add a commit to prevent fast-forward merge
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to switch to develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch without custom merge message
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "default-msg-test")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the commit message in develop
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the last commit message
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	// It should be a default merge commit message
+	if !strings.Contains(commitMsg, "Merge branch") && !strings.Contains(commitMsg, "feature/default-msg-test") {
+		t.Errorf("Expected default merge commit message with branch name, got: '%s'", commitMsg)
+	}
+}
+
+// TestFinishMergeMessageStatePersistence tests that messages are correctly saved in state file.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates a feature branch with conflicting changes
+// 3. Runs finish with --merge-message and --update-message
+// 4. Verifies the merge state file contains both messages
+// 5. Aborts the finish operation to clean up
+func TestFinishMergeMessageStatePersistence(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create conflicting content in develop
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Develop changes")
+
+	// Create feature with conflicting changes
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "state-persist")
+	if err != nil {
+		t.Fatalf("Failed to create feature: %v\nOutput: %s", err, output)
+	}
+
+	testutil.WriteFile(t, dir, "conflict.txt", "Feature version")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "Feature changes")
+
+	// Meanwhile, add more changes to develop to create conflict
+	testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "conflict.txt", "Develop version updated")
+	testutil.RunGit(t, dir, "add", "conflict.txt")
+	testutil.RunGit(t, dir, "commit", "-m", "More develop changes")
+
+	// Try to finish feature with both custom messages (will conflict)
+	mergeMessage := "feat: custom merge message"
+	updateMessage := "chore: custom update message"
+	testutil.RunGit(t, dir, "checkout", "feature/state-persist")
+	output, _ = testutil.RunGitFlow(t, dir, "feature", "finish", "state-persist",
+		"--merge-message", mergeMessage,
+		"--update-message", updateMessage)
+
+	// Verify conflict detected
+	if !strings.Contains(output, "conflict") {
+		t.Fatal("Expected merge conflict to be detected")
+	}
+
+	// Verify merge state exists with both messages
+	state, err := testutil.LoadMergeState(t, dir)
+	if err != nil || state == nil {
+		t.Fatal("Expected merge state to exist after conflict")
+	}
+
+	if state.MergeMessage != mergeMessage {
+		t.Errorf("Expected MergeMessage in state to be '%s', got: '%s'", mergeMessage, state.MergeMessage)
+	}
+
+	if state.UpdateMessage != updateMessage {
+		t.Errorf("Expected UpdateMessage in state to be '%s', got: '%s'", updateMessage, state.UpdateMessage)
+	}
+
+	// Abort to clean up
+	_, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--abort", "state-persist")
+	if err != nil {
+		t.Logf("Abort may have partial failure (expected): %v", err)
+	}
+}
+
 // TestMergeStrategyConfigUsedByDefault tests that branch configuration is used when no flags are provided.
 // Steps:
 // 1. Sets up a test repository and initializes git-flow with defaults

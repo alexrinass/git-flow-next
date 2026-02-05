@@ -112,6 +112,12 @@ The operation maintains a persistent state file that allows it to resume after c
 **--squash-message** *message*
 : Custom commit message for squash merge. This is a CLI-only option with no git config equivalent, as squash messages are specific to each branch being finished.
 
+**--merge-message**, **-M** *message*
+: Custom commit message for the upstream merge operation (topic branch to parent). This is a CLI-only option with no git config equivalent, as merge messages are specific to each branch being finished. Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected.
+
+**--update-message** *message*
+: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. This is a CLI-only option with no git config equivalent.
+
 **--preserve-merges**
 : Preserve merges during rebase operations
 
@@ -285,6 +291,20 @@ Squash with custom commit message:
 git flow feature finish my-feature --squash --squash-message "feat: add login functionality"
 ```
 
+### Custom Merge Commit Messages
+
+Use custom merge message for conventional commits:
+```bash
+git flow feature finish my-feature --merge-message "feat(auth): add user authentication"
+```
+
+Custom messages for both merge and child updates:
+```bash
+git flow release finish 1.2.0 \
+  --merge-message "release: version 1.2.0" \
+  --update-message "chore: sync develop with main after release 1.2.0"
+```
+
 ### Branch Retention
 
 Keep branch for backporting:
@@ -380,7 +400,9 @@ git config gitflow.<type>.finish.fetch true
 - **--preserve-merges** flag only applies to rebase operations
 - **--squash** and **--rebase** flags are mutually exclusive when both set explicitly
 - Use **--continue** and **--abort** for conflict resolution
-- Tag creation behavior varies by topic branch type configuration  
+- Tag creation behavior varies by topic branch type configuration
 - The **git-flow finish** shorthand automatically detects current topic branch type
 - Child branches are automatically updated when their parent changes
 - Some topic branch types (like releases and hotfixes) may create tags by default
+- Custom merge messages (**--merge-message**, **--update-message**, **--squash-message**) are CLI-only options with no git config equivalent
+- Custom messages are preserved in merge state and survive conflict resolution

@@ -28,6 +28,10 @@ type ResolvedFinishOptions struct {
 
 	// Fetch options
 	ShouldFetch bool // Whether to fetch from remote before finishing
+
+	// Custom merge commit messages
+	MergeMessage  string // Custom commit message for upstream merge
+	UpdateMessage string // Custom commit message for child updates
 }
 
 // TagOptions represents command-line tag options
@@ -59,6 +63,8 @@ type MergeStrategyOptions struct {
 	NoFF           *bool   // --no-ff/--ff
 	Squash         *bool   // --squash/--no-squash override
 	SquashMessage  *string // --squash-message custom commit message
+	MergeMessage   *string // --merge-message custom commit message for upstream merge
+	UpdateMessage  *string // --update-message custom commit message for child updates
 }
 
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
@@ -99,6 +105,10 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 
 		// Fetch resolution
 		ShouldFetch: resolveFinishShouldFetch(cfg, branchType, fetch),
+
+		// Merge commit message resolution
+		MergeMessage:  resolveMergeMessage(fullBranchName, branchConfig.Parent, mergeOpts),
+		UpdateMessage: resolveUpdateMessage(mergeOpts),
 	}
 }
 
@@ -451,4 +461,30 @@ func resolveSquashMessage(fullBranchName string, mergeOpts *MergeStrategyOptions
 
 	// Default message
 	return fmt.Sprintf("Squashed commit of branch '%s'", fullBranchName)
+}
+
+// resolveMergeMessage resolves the merge commit message.
+// This is CLI-only (no git config support) because merge messages are specific
+// to each branch being finished.
+func resolveMergeMessage(fullBranchName string, parentBranch string, mergeOpts *MergeStrategyOptions) string {
+	// Command-line flag overrides default
+	if mergeOpts != nil && mergeOpts.MergeMessage != nil && *mergeOpts.MergeMessage != "" {
+		return *mergeOpts.MergeMessage
+	}
+
+	// Empty string signals to use Git's default merge message
+	return ""
+}
+
+// resolveUpdateMessage resolves the update commit message for child branch updates.
+// This is CLI-only (no git config support) because update messages are specific
+// to each finish operation.
+func resolveUpdateMessage(mergeOpts *MergeStrategyOptions) string {
+	// Command-line flag overrides default
+	if mergeOpts != nil && mergeOpts.UpdateMessage != nil && *mergeOpts.UpdateMessage != "" {
+		return *mergeOpts.UpdateMessage
+	}
+
+	// Empty string signals to use the default auto-generated message
+	return ""
 }

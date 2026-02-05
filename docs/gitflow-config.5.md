@@ -402,6 +402,16 @@ The finish command supports extensive merge strategy configuration through comma
 : *Type*: boolean
 : *Default*: true
 
+### CLI-Only Merge Message Options
+
+The following options are CLI-only and have **no git config equivalent**. They are designed for per-operation customization rather than persistent configuration because merge messages are specific to each branch being finished:
+
+- **--merge-message**: Custom commit message for upstream merge (topic → parent)
+- **--update-message**: Custom commit message for child branch updates (parent → child)
+- **--squash-message**: Custom commit message for squash merges
+
+These options are useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages would be rejected.
+
 ### Strategy Precedence
 
 1. **Command-line flags** (Layer 3 — highest priority, one-off overrides)
