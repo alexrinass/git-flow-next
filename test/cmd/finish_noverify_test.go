@@ -531,3 +531,203 @@ func TestFinishFeatureDefaultDoesNotSkipVerify(t *testing.T) {
 		t.Error("Feature branch should still exist when finish failed due to hook")
 	}
 }
+
+// TestFinishFeatureSquashWithNoVerify tests that --no-verify works with squash merge strategy.
+// When using squash merge, a separate Commit call is made after the squash operation.
+// This test verifies that --no-verify is correctly passed to both the merge and the final commit.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Configures squash merge strategy for feature finish
+// 3. Creates a feature branch and adds a test file
+// 4. Adds a commit on develop to force non-fast-forward merge
+// 5. Installs pre-merge-commit and pre-commit hooks that reject (exit code 1)
+// 6. Finishes the feature branch with --no-verify flag
+// 7. Verifies the finish operation succeeds (hooks bypassed for both merge and commit)
+// 8. Verifies the feature branch is deleted
+// 9. Verifies changes are squashed into develop
+func TestFinishFeatureSquashWithNoVerify(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Configure squash merge strategy for feature finish
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.merge", "squash")
+	if err != nil {
+		t.Fatalf("Failed to set squash merge strategy: %v", err)
+	}
+
+	// Start a feature branch
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "squash-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop to ensure we're actually doing a squash merge
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch for finish command
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/squash-test")
+
+	// Install rejecting hooks AFTER setting up the branches
+	createRejectingHooks(t, dir)
+
+	// Finish with --no-verify and squash strategy - should succeed (hooks bypassed)
+	output, err := testutil.RunGitFlow(t, dir, "feature", "finish", "--no-fetch", "--no-verify", "squash-test")
+	if err != nil {
+		t.Fatalf("Expected squash finish with --no-verify to succeed, but it failed: %v\nOutput: %s", err, output)
+	}
+
+	// Verify feature branch is deleted
+	if testutil.BranchExists(t, dir, "feature/squash-test") {
+		t.Error("Feature branch should be deleted after successful finish")
+	}
+
+	// Verify we're on develop
+	currentBranch := testutil.GetCurrentBranch(t, dir)
+	if currentBranch != "develop" {
+		t.Errorf("Expected to be on develop branch, got: %s", currentBranch)
+	}
+
+	// Verify the feature file exists on develop (changes squashed)
+	featureFile := filepath.Join(dir, "feature.txt")
+	if _, err := os.Stat(featureFile); os.IsNotExist(err) {
+		t.Error("Feature file should exist on develop after squash merge")
+	}
+}
+
+// TestFinishFeatureShorthandWithNoVerify tests that --no-verify works with shorthand command.
+// The shorthand 'git flow finish' auto-detects the branch type from the current branch.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates a feature branch and adds a test file
+// 3. Adds a commit on develop to force non-fast-forward merge
+// 4. Switches back to feature branch
+// 5. Installs pre-merge-commit and pre-commit hooks that reject (exit code 1)
+// 6. Finishes using shorthand: finish --no-verify (auto-detects current branch)
+// 7. Verifies the finish operation succeeds (hook bypassed)
+// 8. Verifies the feature branch is deleted
+func TestFinishFeatureShorthandWithNoVerify(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Start a feature branch
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "shorthand-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop to force a non-fast-forward merge
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch for finish command
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/shorthand-test")
+
+	// Install rejecting hooks
+	createRejectingHooks(t, dir)
+
+	// Finish using shorthand 'finish' (auto-detects branch type from current branch)
+	// This tests the shorthand command path in shorthand.go
+	output, err := testutil.RunGitFlow(t, dir, "finish", "--no-fetch", "--no-verify")
+	if err != nil {
+		t.Fatalf("Expected shorthand finish with --no-verify to succeed, but it failed: %v\nOutput: %s", err, output)
+	}
+
+	// Verify feature branch is deleted
+	if testutil.BranchExists(t, dir, "feature/shorthand-test") {
+		t.Error("Feature branch should be deleted after successful finish")
+	}
+
+	// Verify we're on develop
+	currentBranch := testutil.GetCurrentBranch(t, dir)
+	if currentBranch != "develop" {
+		t.Errorf("Expected to be on develop branch, got: %s", currentBranch)
+	}
+}
+
+// TestFinishFeatureInvalidNoVerifyConfig tests behavior with invalid noVerify config value.
+// Git's config system treats non-boolean values specially - we verify the behavior is predictable.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow
+// 2. Creates a feature branch and adds a test file
+// 3. Adds a commit on develop to force non-fast-forward merge
+// 4. Sets invalid config: gitflow.feature.finish.noVerify=invalid
+// 5. Installs pre-merge-commit and pre-commit hooks that reject (exit code 1)
+// 6. Attempts to finish without --no-verify flag
+// 7. Verifies behavior (invalid config is treated as false, hook blocks merge)
+func TestFinishFeatureInvalidNoVerifyConfig(t *testing.T) {
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow
+	_, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v", err)
+	}
+
+	// Set invalid noVerify config value (not a valid boolean)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.noVerify", "invalid")
+	if err != nil {
+		t.Fatalf("Failed to set noVerify config: %v", err)
+	}
+
+	// Start a feature branch
+	_, err = testutil.RunGitFlow(t, dir, "feature", "start", "invalid-config-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature: %v", err)
+	}
+
+	// Add a commit to the feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, _ = testutil.RunGit(t, dir, "add", "feature.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+
+	// Add a commit to develop to force a non-fast-forward merge
+	_, _ = testutil.RunGit(t, dir, "checkout", "develop")
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, _ = testutil.RunGit(t, dir, "add", "develop.txt")
+	_, _ = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+
+	// Switch back to feature branch for finish command
+	_, _ = testutil.RunGit(t, dir, "checkout", "feature/invalid-config-test")
+
+	// Install rejecting hooks
+	createRejectingHooks(t, dir)
+
+	// Try to finish WITHOUT --no-verify flag - invalid config should be treated as false
+	_, err = testutil.RunGitFlow(t, dir, "feature", "finish", "--no-fetch", "invalid-config-test")
+	if err == nil {
+		t.Fatal("Expected finish to fail due to pre-merge-commit hook (invalid config treated as false), but it succeeded")
+	}
+
+	// Verify feature branch still exists (finish was blocked)
+	if !testutil.BranchExists(t, dir, "feature/invalid-config-test") {
+		t.Error("Feature branch should still exist when finish failed due to hook")
+	}
+}
