@@ -1,7 +1,7 @@
 ---
 name: local-review
 description: Review current changes against project guidelines before PR
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Write, Grep, Glob, Bash
 context: fork
 agent: reviewer
 ---
@@ -10,19 +10,82 @@ agent: reviewer
 
 Perform a comprehensive self-review of changes before creating a pull request.
 
+## Arguments
+
+`/local-review [target] [--output path]`
+
+### Target (optional)
+
+Specifies what to review. Can be:
+
+- **Nothing** - auto-detect new commits on current branch vs main (default)
+- **Commit range** - review specific commits (e.g., `HEAD~3..HEAD`, `abc123..def456`)
+- **Single commit** - review one commit (e.g., `HEAD~1`, `abc123`)
+- **Branch comparison** - review branch diff (e.g., `main..feature/foo`)
+
+### Output (optional)
+
+`--output path` or `-o path` - where to write the review:
+
+- A folder name within `.ai/` (e.g., `issue-59-add-no-verify-option`)
+- A relative path (e.g., `.ai/issue-59-add-no-verify-option`)
+- If omitted with auto-detect mode: auto-detects from branch name, writes to `.ai/`
+- If omitted with explicit target: outputs directly to conversation (no file)
+
+### Examples
+
+```bash
+# Auto-detect new commits vs main (writes to .ai/)
+/local-review
+
+# Auto-detect, specify output folder
+/local-review --output issue-59-add-no-verify-option
+/local-review -o .ai/my-feature
+
+# Review specific commits (outputs to conversation)
+/local-review HEAD~3..HEAD
+/local-review abc123
+/local-review main..feature/foo
+
+# Review commits and save to file
+/local-review HEAD~5..HEAD --output code-audit
+```
+
 ## Instructions
 
-1. **Gather Context**
-   - Get current branch name
-   - Find associated workflow folder
-   - Read the original issue/concept and plan
+1. **Parse Arguments**
+   - Check if a commit/range target was provided
+   - Check if `--output` or `-o` flag was provided
+   - Determine review mode: "auto-detect" (default) or "explicit"
 
-2. **Get Changes**
-   - Run `git diff main...HEAD` to see all changes
-   - Run `git log main...HEAD --oneline` to see commits
+2. **Gather Context**
+
+   For **auto-detect mode** (no target specified):
+   - Get current branch name
+   - Find associated workflow folder in `.ai/`
+   - Read the original issue/concept and plan if available
+
+   For **explicit mode** (target specified):
+   - Validate the commit range/ref exists
+   - No workflow folder lookup needed
+
+3. **Detect and Get Changes**
+
+   For **auto-detect mode**:
+   - Determine the main branch: run `git config gitflow.branch.main.name` (fallback to `main`)
+   - Detect new commits: run `git log <main>..HEAD --oneline`
+   - If no new commits exist, inform the user and stop
+   - Get the diff for those commits: `git diff <main>...HEAD`
+   - List the commits being reviewed
+
+   For **explicit mode**:
+   - If range (contains `..`): `git diff <range>` and `git log <range> --oneline`
+   - If single commit: `git show <commit> --stat` and `git log -1 <commit>`
+
+   For both modes:
    - List all modified files
 
-3. **Review Against Guidelines**
+4. **Review Against Guidelines**
 
    Review the code against **[REVIEW_GUIDELINES.md](../../../REVIEW_GUIDELINES.md)**, which covers:
    - Architecture checklist
@@ -33,7 +96,11 @@ Perform a comprehensive self-review of changes before creating a pull request.
    - Commit message checklist
    - Documentation checklist
 
-4. **Code Quality Checks**
+5. **Code Quality Checks** (auto-detect mode only)
+
+   Skip this step for explicit mode (reviewing historical commits).
+
+   For auto-detect mode, run:
    ```bash
    # Build check
    go build ./...
@@ -48,18 +115,43 @@ Perform a comprehensive self-review of changes before creating a pull request.
    go vet ./...
    ```
 
-5. **Generate Review Report**
+6. **Determine Output Location**
 
-   Create a summary with:
+   If `--output` / `-o` was provided:
+   - If it starts with `.ai/`, use it directly
+   - Otherwise, treat it as a folder name within `.ai/` (prepend `.ai/`)
+   - Create the folder if it doesn't exist
+   - Write to `<folder>/review.md`
+
+   If no `--output` and **auto-detect mode**:
+   - Extract issue number from branch name (e.g., `feature/59-...` → `59`)
+   - Look for existing `.ai/issue-<number>-*` folder
+   - If no `.ai/` folder exists, create one based on the branch name pattern
+   - Write to `<folder>/review.md`
+
+   If no `--output` and **explicit mode**:
+   - Output directly to the conversation (no file written)
+
+   Examples:
+   - `-o issue-59-foo` → `.ai/issue-59-foo/review.md`
+   - `-o .ai/my-feature` → `.ai/my-feature/review.md`
+   - Auto-detect mode, no flag → `.ai/issue-59-add-no-verify-option/review.md`
+   - Explicit mode, no flag → output to conversation
+
+7. **Generate Review Report**
+
+   Write the review to file OR output directly to conversation based on step 6.
+
+   Use this format:
 
    ```markdown
-   # Local Review: <branch-name>
+   # Local Review: <branch-name or commit-range>
 
    ## Summary
    - Files changed: <count>
    - Lines added: <count>
    - Lines removed: <count>
-   - Commits: <count>
+   - Commits reviewed: <count> (list the commit SHAs/subjects)
 
    ## Checklist Results
 
@@ -74,7 +166,7 @@ Perform a comprehensive self-review of changes before creating a pull request.
    ### Warnings
    - <warning 1>
 
-   ## Quality Checks
+   ## Quality Checks (auto-detect mode only)
    - Build: PASS/FAIL
    - Tests: PASS/FAIL (<count> passed)
    - Format: PASS/FAIL
@@ -84,14 +176,17 @@ Perform a comprehensive self-review of changes before creating a pull request.
    1. <recommendation>
    2. <recommendation>
 
-   ## Ready for PR?
+   ## Ready for PR? (auto-detect mode only)
    <YES/NO - explain if NO>
    ```
 
-6. **Report Findings**
+   For explicit mode, omit "Quality Checks" and "Ready for PR?" sections.
+
+8. **Report Findings**
    - If issues found, list them with specific file:line references
    - Suggest fixes for each issue
-   - Indicate if changes are PR-ready
+   - For auto-detect mode: indicate if changes are PR-ready
+   - For explicit mode: provide code review feedback directly in conversation
 
 ## Issue Categories
 
