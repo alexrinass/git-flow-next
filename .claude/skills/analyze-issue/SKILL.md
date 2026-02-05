@@ -3,8 +3,6 @@ name: analyze-issue
 description: Analyze a GitHub issue and create detailed analysis in .ai/
 argument-hint: <issue-number>
 allowed-tools: Read, Grep, Glob, Write, Bash, mcp__github__get_issue
-context: fork
-agent: Explore
 ---
 
 # Analyze Issue
