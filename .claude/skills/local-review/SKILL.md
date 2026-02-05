@@ -115,26 +115,43 @@ Specifies what to review. Can be:
 
 6. **Determine Output Location**
 
+   **Filename includes revision(s) being reviewed:**
+
+   ```bash
+   # For auto-detect mode: use HEAD short SHA
+   HEAD_SHA=$(git rev-parse --short HEAD)
+   FILENAME="review-${HEAD_SHA}.md"
+
+   # For commit range (abc123..def456): use both endpoints
+   START_SHA=$(git rev-parse --short abc123)
+   END_SHA=$(git rev-parse --short def456)
+   FILENAME="review-${START_SHA}-${END_SHA}.md"
+
+   # For single commit: use that commit's short SHA
+   COMMIT_SHA=$(git rev-parse --short abc123)
+   FILENAME="review-${COMMIT_SHA}.md"
+   ```
+
    If `--output` / `-o` was provided:
    - If it starts with `.ai/`, use it directly
    - Otherwise, treat it as a folder name within `.ai/` (prepend `.ai/`)
    - Create the folder if it doesn't exist
-   - Write to `<folder>/review.md`
+   - Write to `<folder>/<filename>`
 
    If no `--output` and **auto-detect mode**:
    - Extract issue number from branch name (e.g., `feature/59-...` → `59`)
    - Look for existing `.ai/issue-<number>-*` folder
    - If no `.ai/` folder exists, create one based on the branch name pattern
-   - Write to `<folder>/review.md`
+   - Write to `<folder>/<filename>`
 
    If no `--output` and **explicit mode**:
    - Output directly to the conversation (no file written)
 
    Examples:
-   - `-o issue-59-foo` → `.ai/issue-59-foo/review.md`
-   - `-o .ai/my-feature` → `.ai/my-feature/review.md`
-   - Auto-detect mode, no flag → `.ai/issue-59-add-no-verify-option/review.md`
-   - Explicit mode, no flag → output to conversation
+   - Auto-detect at HEAD `c9625f7` → `.ai/issue-59-foo/review-c9625f7.md`
+   - Range `abc123..def456` with `-o issue-59-foo` → `.ai/issue-59-foo/review-abc123-def456.md`
+   - Single commit `abc123` with `-o .ai/my-feature` → `.ai/my-feature/review-abc123.md`
+   - Explicit mode, no flag → output to conversation (no file)
 
 7. **Generate Review Report**
 
@@ -146,6 +163,7 @@ Specifies what to review. Can be:
    # Local Review: <branch-name or commit-range>
 
    ## Summary
+   - Revision(s): `<start-sha>` to `<end-sha>` (or single `<sha>`)
    - Files changed: <count>
    - Lines added: <count>
    - Lines removed: <count>
