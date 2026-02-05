@@ -6,13 +6,13 @@ allowed-tools: Read, Grep, Glob, Write, Bash
 
 # Create PR Summary
 
-Generate a comprehensive pull request summary based on branch changes.
+Generate a pull request summary based on branch changes.
 
 ## Instructions
 
 1. **Gather Context**
    - Get current branch name
-   - Find workflow folder for this branch
+   - Find workflow folder for this branch (`.ai/issue-<number>-*` or `.ai/<feature>/`)
    - Read analysis.md and plan.md if they exist
    - Get associated issue number from branch name or commits
 
@@ -28,93 +28,37 @@ Generate a comprehensive pull request summary based on branch changes.
    git diff main...HEAD --name-only
    ```
 
-3. **Categorize Changes**
-   - New features added
-   - Bugs fixed
-   - Tests added/modified
-   - Documentation updates
-   - Refactoring
+3. **Generate Summary**
 
-4. **Generate Summary**
+   Follow the format from `.github/PULL_REQUEST_TEMPLATE.md`.
 
    Write to `.ai/<folder>/pr_summary.md`:
 
    ```markdown
-   # PR: <title>
+   <Summary prose — no header. Describe what changed and why in 1-3 sentences.
+   Mention key areas touched and important decisions.
+   Link to resolved issues with "Resolves #ISSUE".>
 
-   ## Summary
-   <1-3 bullet points describing the key changes>
+   ## Notes
 
-   ## Related Issues
-   - Resolves #<number>
-   - Relates to #<number>
-
-   ## Changes
-
-   ### Features
-   - <New feature 1>
-   - <New feature 2>
-
-   ### Bug Fixes
-   - <Fix 1>
-
-   ### Code Changes
-   | File | Change Type | Description |
-   |------|-------------|-------------|
-   | `path/to/file.go` | Modified | <brief description> |
-   | `path/to/new.go` | Added | <brief description> |
-
-   ### Tests
-   - Added `TestXxx` - <what it tests>
-   - Added `TestYyy` - <what it tests>
-
-   ### Documentation
-   - Updated `docs/xxx.md` - <what changed>
-
-   ## Implementation Notes
-   <Any important technical details reviewers should know>
-
-   ## Test Plan
-   Verification steps for reviewers:
-
-   - [ ] Clone branch and build: `go build ./...`
-   - [ ] Run tests: `go test ./...`
-   - [ ] <Manual verification step 1>
-   - [ ] <Manual verification step 2>
-
-   ## Screenshots
-   <If applicable - command output examples>
-
-   ## Breaking Changes
-   <None, or list breaking changes with migration steps>
-
-   ## Checklist
-   - [x] Code follows project guidelines
-   - [x] Tests added for new functionality
-   - [x] Documentation updated
-   - [x] All tests pass
-   - [x] No breaking changes (or documented above)
+   <Optional. Call out risks, edge cases, breaking changes, or scope clarifications.
+   Remove this section if not applicable.>
    ```
 
-5. **Create PR Command**
+   **Guidelines:**
+   - Keep it concise — prose, not bullet lists or tables
+   - Focus on what and why, not line-by-line details
+   - Do NOT include checklists — those are for author verification only
 
-   Also output the `gh pr create` command:
+4. **Create PR Command**
+
+   Output the `gh pr create` command:
 
    ```bash
-   gh pr create --title "<title>" --body "$(cat <<'EOF'
-   ## Summary
-   <summary bullets>
-
-   ## Test Plan
-   <test steps>
-
-   ---
-   Generated with Claude Code
-   EOF
-   )"
+   gh pr create --title "<title>" --body "$(cat .ai/<folder>/pr_summary.md)"
    ```
 
-6. **Report Completion**
+5. **Report Completion**
    - Show path to pr_summary.md
    - Show the PR creation command
    - Remind to push branch first if not already pushed
@@ -124,11 +68,3 @@ Generate a comprehensive pull request summary based on branch changes.
 - Use imperative mood: "Add feature" not "Added feature"
 - Be specific but concise
 - Include issue number if applicable: "Add squash merge support (#42)"
-
-## Body Best Practices
-
-- Lead with the most important information
-- Keep summary bullets scannable
-- Include enough context for reviewers
-- Make test plan actionable
-- Note any deployment considerations

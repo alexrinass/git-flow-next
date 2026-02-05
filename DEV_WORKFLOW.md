@@ -331,34 +331,21 @@ The final stage before code reaches the main branch.
    - Delete feature branch after merge
    - Close related issues
 
-### PR Summary Template
+### PR Summary Format
+
+Follow the format defined in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md):
 
 ```markdown
-# PR: <title>
+<Summary prose — no header. Describe what changed and why in 1-3 sentences.
+Link to resolved issues with "Resolves #ISSUE".>
 
-## Summary
-<1-3 bullet points describing the changes>
+## Notes
 
-## Related Issues
-- Resolves #<number>
-- Relates to #<number>
-
-## Changes
-
-### <Category>
-- <Change 1>
-- <Change 2>
-
-## Test Plan
-- [ ] <Verification step 1>
-- [ ] <Verification step 2>
-
-## Breaking Changes
-<None, or list of breaking changes>
-
-## Screenshots
-<If applicable>
+<Optional. Call out risks, edge cases, breaking changes, or scope clarifications.
+Remove this section if not applicable.>
 ```
+
+Keep it concise. The checklist in the template is for author verification only — do not include it in the final PR summary.
 
 ---
 
