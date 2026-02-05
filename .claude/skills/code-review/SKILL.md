@@ -131,6 +131,8 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input /tmp/review.json
 - `comments`: ALL file-specific findings MUST go here as inline comments on specific lines. Each comment targets a file and line number so it appears directly on the diff.
 - `event`: "COMMENT", "APPROVE", or "REQUEST_CHANGES"
 
+**CRITICAL: Single review per trigger.** Submit exactly ONE review via the Reviews API. NEVER post separate issue comments (`gh pr comment`) for initial reviews — all feedback (summary + inline comments) goes in a single review submission. The only exception is responding to re-review requests or @claude mentions, which use issue comments to reply.
+
 ### Determining Line Numbers
 
 The `line` field in each comment must be the line number in the file (not the diff position). To find the correct line number from `gh pr diff` output:
