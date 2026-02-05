@@ -1,3 +1,9 @@
+---
+name: code-review
+description: PR code review mechanics via GitHub API
+allowed-tools: Bash, Read, Grep, Glob
+---
+
 # Code Review Skill
 
 PR code review mechanics: create reviews via GitHub API, post inline comments, respond to mentions.
