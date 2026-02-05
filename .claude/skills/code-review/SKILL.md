@@ -104,65 +104,72 @@ When force-push detected:
 
 ### Submitting the Review
 
-Use GitHub's Reviews API to submit review with inline comments:
+Use `gh api` to submit the review with inline comments:
 
 ```bash
+# Get HEAD commit SHA
 COMMIT_SHA=$(gh pr view $PR_NUMBER --json headRefOid --jq '.headRefOid')
 
-cat > /tmp/review.json << 'EOF'
-{
-  "body": "<Review summary formatted per REVIEW_GUIDELINES.md>",
-  "event": "COMMENT",
-  "commit_id": "SHA_PLACEHOLDER",
-  "comments": [
-    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation...\n\n<details>\n<summary>Fix prompt</summary>\n\n```prompt\nIn src/users.js, add input validation to processUser()...\n```\n\n</details>"},
-    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value from `db.Save()`."},
-    {"path": "src/old.js", "line": 8, "side": "LEFT", "body": "**Issue:** This deleted validation was still needed."}
-  ]
-}
-EOF
-
-sed -i.bak "s/SHA_PLACEHOLDER/$COMMIT_SHA/" /tmp/review.json && rm /tmp/review.json.bak
-gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input /tmp/review.json
+# Submit review (use jq to construct JSON properly)
+jq -n \
+  --arg body "Review summary here" \
+  --arg event "COMMENT" \
+  --arg commit_id "$COMMIT_SHA" \
+  '{body: $body, event: $event, commit_id: $commit_id, comments: [
+    {path: "src/users.js", line: 42, body: "**Issue:** Missing input validation..."},
+    {path: "src/api.js", line: 15, body: "**Issue:** Ignored error return value."}
+  ]}' | gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input -
 ```
 
 **Review structure:**
-- `body`: ONLY the summary (formatted per REVIEW_GUIDELINES.md or default format). NEVER put file-specific feedback in the body.
-- `comments`: ALL file-specific findings MUST go here as inline comments on specific lines. Each comment targets a file and line number so it appears directly on the diff.
+- `body`: The summary (formatted per REVIEW_GUIDELINES.md). If some findings cannot be attached as inline comments (line number uncertain), include them here with file path context.
+- `comments`: File-specific findings with confident line numbers. Each comment targets a file and line number so it appears directly on the diff.
 - `event`: "COMMENT", "APPROVE", or "REQUEST_CHANGES"
 
-**CRITICAL: Single review per trigger.** Submit exactly ONE review via the Reviews API. NEVER post separate issue comments (`gh pr comment`) for initial reviews — all feedback (summary + inline comments) goes in a single review submission. The only exception is responding to re-review requests or @claude mentions, which use issue comments to reply.
+**CRITICAL: Single review per trigger.** Submit exactly ONE review. NEVER post separate issue comments (`gh pr comment`) for initial reviews — all feedback goes in a single review submission. The only exception is responding to re-review requests or @claude mentions, which use issue comments to reply.
+
+**CRITICAL: No fallback comments.** If you cannot determine the correct line number for a finding, include it in the review body with the file path — do NOT post it as a separate issue comment.
 
 ### Determining Line Numbers
 
-The `line` field in each comment must be the line number in the file (not the diff position). To find the correct line number from `gh pr diff` output:
+The `line` field must be the line number in the NEW file version (at the PR's HEAD commit).
 
-1. Find the relevant `@@` hunk header for your finding:
-   ```
-   @@ -196,12 +196,41 @@ func executeFinish(...)
-   ```
-   The `+196` means the new file version starts at line 196 in this hunk.
+**Preferred method — fetch PR branch and read files directly:**
 
-2. Count lines from the hunk start. Only count `+` lines and context lines (lines without `+` or `-` prefix). Skip `-` lines entirely — they don't exist in the new file.
+In local mode (or when you have git access), fetch the PR branch and use standard file/git operations:
 
-3. **Worked example:**
-   ```diff
-   @@ -10,7 +10,9 @@ func process() {
-        existing line       // line 10 (context)
-        another line        // line 11 (context)
-   -    old code            // SKIP (deleted, not in new file)
-   +    new code            // line 12
-   +    added line          // line 13
-        unchanged           // line 14
-   ```
-   To comment on `added line`, use `"line": 13`.
-
-4. For deleted lines (prefixed with `-`), add `"side": "LEFT"` and use the line number from the **old** file (the `-10` side of the hunk header).
-
-**Important:** If you cannot confidently determine the exact line number, read the file at the PR's HEAD to verify:
 ```bash
-gh api repos/$REPO/contents/PATH?ref=$COMMIT_SHA --jq '.content' | base64 -d | head -n 50
+# Fetch the PR branch
+git fetch origin <branch-name>
+
+# View diff stats
+git diff main...FETCH_HEAD --stat
+
+# Read file content directly
+git show FETCH_HEAD:path/to/file.go
+
+# Or use the Read tool on fetched files
 ```
+
+This is faster and more reliable than GitHub API calls, especially for large files.
+
+**Alternative — GitHub API (CI mode or when git fetch unavailable):**
+
+```bash
+# Fetch file content at PR HEAD
+gh api repos/$REPO/contents/PATH?ref=$COMMIT_SHA --jq '.content' | base64 -d
+```
+
+Then search for the specific code pattern to find its line number. This is more reliable than parsing diff hunks.
+
+**Fallback — parse from diff:**
+
+1. Find the `@@` hunk header: `@@ -196,12 +196,41 @@` — the `+196` is the starting line in the new file
+2. Count lines from hunk start: only count `+` lines and context lines (no prefix), skip `-` lines
+3. For deleted lines, use `"side": "LEFT"` with the old file line number
+
+**When uncertain:** If you cannot confidently determine the line number, do NOT guess. Include the finding in the review body instead:
+> **src/users.js**: Missing input validation in `processUser()` function.
 
 ---
 
@@ -207,16 +214,14 @@ Respond based on the question/request. If project guidelines specify a response 
 
 When `--dry-run` is passed OR running in local mode (no CI environment detected):
 - Analyze normally but DO NOT post to GitHub
-- Output the exact JSON that would be submitted, so the user sees exactly what would be posted
-
-For reviews, output the review JSON:
+- Output the exact JSON that would be submitted
 
 ````
 DRY RUN - Review for PR #123
 
 ```json
 {
-  "body": "<Review summary formatted per REVIEW_GUIDELINES.md>",
+  "body": "<Review summary>",
   "event": "COMMENT",
   "commit_id": "abc123...",
   "comments": [
