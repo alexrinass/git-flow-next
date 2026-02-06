@@ -792,26 +792,35 @@ func TestInitForceWithGlobalScope(t *testing.T) {
 	}
 }
 
-// TestInitWithSystemScope tests that --system flag is accepted by the command.
+// TestInitWithSystemScope tests that --system flag stores config in the system git config.
 // Steps:
-// 1. Sets up a test repository
-// 2. Runs 'git flow init --defaults --system'
-// 3. Verifies the command fails due to permission error (expected in test env)
-// 4. Verifies the error is from git, not from flag parsing
+// 1. Sets up a test repository with isolated GIT_CONFIG_SYSTEM
+// 2. Runs 'git flow init --defaults --system' with isolated system config
+// 3. Verifies gitflow.version is stored in system config
+// 4. Verifies gitflow.version is NOT stored in local config
 func TestInitWithSystemScope(t *testing.T) {
 	dir := testutil.SetupTestRepo(t)
 	defer testutil.CleanupTestRepo(t, dir)
 
-	output, err := runGitFlow(t, dir, "init", "--defaults", "--system")
-	// System scope typically requires elevated privileges, so expect failure
-	if err == nil {
-		// If it succeeds (e.g., running as root), that's also acceptable
-		return
+	// Create isolated system config file
+	systemConfigFile := filepath.Join(t.TempDir(), "gitconfig-system")
+	env := []string{"GIT_CONFIG_SYSTEM=" + systemConfigFile}
+
+	output, err := runGitFlowWithEnv(t, dir, env, "init", "--defaults", "--system")
+	if err != nil {
+		t.Fatalf("Failed to run git-flow init --defaults --system: %v\nOutput: %s", err, output)
 	}
 
-	// The error should be from git (permission denied), NOT from unknown flag
-	if strings.Contains(output, "unknown flag") {
-		t.Errorf("--system flag was not recognized: %s", output)
+	// Verify config is in system scope (read from the isolated file)
+	version := getGitConfigFromFile(t, systemConfigFile, "gitflow.version")
+	if version != "1.0" {
+		t.Errorf("Expected gitflow.version in system config to be '1.0', got: %s", version)
+	}
+
+	// Verify config is NOT in local scope
+	localVersion := getGitConfigWithScope(t, dir, "gitflow.version", "local")
+	if localVersion != "" {
+		t.Errorf("Expected gitflow.version to NOT be in local config, got: %s", localVersion)
 	}
 }
 
