@@ -324,14 +324,32 @@ These are operational settings that adjust command behavior. Some can override L
 [gitflow "release.finish"]
     sign = true
     signingkey = ABC123DEF456
-    
+
 # Use custom tag message pattern
 [gitflow "release.finish"]
     message = "Release version %s"
-    
+
 # Always fetch before release operations
 [gitflow "release"]
     fetch = true
+```
+
+### Custom Merge Message Overrides
+
+```ini
+# Feature branches: conventional commit format for merges
+[gitflow "feature.finish"]
+    mergemessage = "feat: merge %b into %p"
+
+# Release branches: sync message for develop updates
+[gitflow "release.finish"]
+    mergemessage = "release: merge %b into %p"
+    updatemessage = "chore: sync %b from main after release"
+
+# Hotfix branches: clear tracking of hotfix merges
+[gitflow "hotfix.finish"]
+    mergemessage = "fix: merge %b into %p"
+    updatemessage = "chore: sync %b with hotfix changes"
 ```
 
 ### Hotfix Branch Overrides
@@ -401,6 +419,23 @@ The finish command supports extensive merge strategy configuration through comma
 : After fetching, if the local topic branch is behind or diverged from its remote tracking branch, the finish operation will abort with an error to prevent accidental data loss. Use `--force` to bypass this safety check.
 : *Type*: boolean
 : *Default*: true
+
+### Merge Message Options
+
+**gitflow.*type*.finish.mergemessage**
+: Custom commit message for upstream merge (topic → parent). Supports placeholders: `%b` (branch name), `%B` (full refname), `%p` (parent branch), `%P` (full parent refname), `%%` (literal percent).
+: *Type*: string
+: *Default*: (none, uses Git's default merge message)
+
+**gitflow.*type*.finish.updatemessage**
+: Custom commit message for child branch updates (parent → child). Supports the same placeholders as mergemessage.
+: *Type*: string
+: *Default*: (none, uses auto-generated message)
+
+**--squash-message** (CLI-only)
+: Custom commit message for squash merges. This option has no git config equivalent, as squash messages are specific to each branch being finished.
+
+These options are useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages would be rejected.
 
 ### Strategy Precedence
 

@@ -112,6 +112,12 @@ The operation maintains a persistent state file that allows it to resume after c
 **--squash-message** *message*
 : Custom commit message for squash merge. This is a CLI-only option with no git config equivalent, as squash messages are specific to each branch being finished.
 
+**--merge-message**, **-M** *message*
+: Custom commit message for the upstream merge operation (topic branch to parent). Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected. Supports placeholders (see MESSAGE PLACEHOLDERS below). Can be configured as default via `gitflow.<type>.finish.mergemessage`.
+
+**--update-message** *message*
+: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. Supports placeholders (see MESSAGE PLACEHOLDERS below). Can be configured as default via `gitflow.<type>.finish.updatemessage`.
+
 **--preserve-merges**
 : Preserve merges during rebase operations
 
@@ -202,6 +208,50 @@ The following options modify strategy behavior:
 - **--no-ff**: Forces creation of merge commits, even for fast-forward cases
 - **--ff**: Allows fast-forward merges when possible (default)
 
+## MESSAGE PLACEHOLDERS
+
+Custom merge and update messages can include placeholders that are automatically expanded with branch names. This allows creating dynamic commit messages without hardcoding branch names.
+
+### Supported Placeholders
+
+| Placeholder | Description | Example Value |
+|-------------|-------------|---------------|
+| **%b** | Branch name | `feature/my-feature` |
+| **%B** | Full refname | `refs/heads/feature/my-feature` |
+| **%p** | Parent branch name | `develop` |
+| **%P** | Full parent refname | `refs/heads/develop` |
+| **%%** | Literal percent sign | `%` |
+
+### Context for Placeholders
+
+**For --merge-message** (topic branch to parent):
+- `%b` = the topic branch being merged (e.g., `feature/my-feature`)
+- `%p` = the parent branch receiving the merge (e.g., `develop`)
+
+**For --update-message** (parent to child branches):
+- `%b` = the child branch being updated (e.g., `develop`)
+- `%p` = the source branch (e.g., `main`)
+
+### Examples
+
+```bash
+# Simple branch name placeholder
+git flow feature finish my-feature --merge-message "feat: merge %b"
+# Result: "feat: merge feature/my-feature"
+
+# Branch and parent placeholders
+git flow feature finish my-feature --merge-message "feat: merge %b into %p"
+# Result: "feat: merge feature/my-feature into develop"
+
+# Child updates with placeholders
+git flow release finish 1.0 --update-message "chore: sync %b from %p"
+# Result on develop: "chore: sync develop from main"
+
+# Escaped percent sign
+git flow feature finish my-feature --merge-message "100%% complete: %b"
+# Result: "100% complete: feature/my-feature"
+```
+
 ## EXAMPLES
 
 ### Basic Usage
@@ -285,6 +335,20 @@ Squash with custom commit message:
 git flow feature finish my-feature --squash --squash-message "feat: add login functionality"
 ```
 
+### Custom Merge Commit Messages
+
+Use custom merge message for conventional commits:
+```bash
+git flow feature finish my-feature --merge-message "feat(auth): add user authentication"
+```
+
+Custom messages for both merge and child updates:
+```bash
+git flow release finish 1.2.0 \
+  --merge-message "release: version 1.2.0" \
+  --update-message "chore: sync develop with main after release 1.2.0"
+```
+
 ### Branch Retention
 
 Keep branch for backporting:
@@ -344,6 +408,10 @@ git config gitflow.<type>.finish.signingkey ABC123DEF
 
 # Remote fetch options
 git config gitflow.<type>.finish.fetch true
+
+# Custom merge commit messages (with placeholder support)
+git config gitflow.<type>.finish.mergemessage "feat: merge %b into %p"
+git config gitflow.<type>.finish.updatemessage "chore: sync %b from %p"
 ```
 
 ## EXIT STATUS
@@ -380,7 +448,10 @@ git config gitflow.<type>.finish.fetch true
 - **--preserve-merges** flag only applies to rebase operations
 - **--squash** and **--rebase** flags are mutually exclusive when both set explicitly
 - Use **--continue** and **--abort** for conflict resolution
-- Tag creation behavior varies by topic branch type configuration  
+- Tag creation behavior varies by topic branch type configuration
 - The **git-flow finish** shorthand automatically detects current topic branch type
 - Child branches are automatically updated when their parent changes
 - Some topic branch types (like releases and hotfixes) may create tags by default
+- **--merge-message** and **--update-message** can be configured as defaults via `gitflow.<type>.finish.mergemessage` and `gitflow.<type>.finish.updatemessage`
+- **--squash-message** is CLI-only with no git config equivalent, as squash messages are specific to each branch being finished
+- Custom messages are preserved in merge state and survive conflict resolution

@@ -442,6 +442,37 @@ func MergeWithOptions(branchName string, noFF bool) error {
 	return nil
 }
 
+// MergeWithMessage merges a branch into current branch with a custom commit message
+func MergeWithMessage(branchName string, message string, noFF bool) error {
+	args := []string{"merge"}
+	if noFF {
+		args = append(args, "--no-ff")
+	}
+	args = append(args, "-m", message, branchName)
+
+	cmd := exec.Command("git", args...)
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Check for merge conflicts - Git returns exit code 1 and specific output patterns
+	if err != nil {
+		// Check if there are unmerged paths (conflicts)
+		conflictCmd := exec.Command("git", "ls-files", "--unmerged")
+		conflictOutput, _ := conflictCmd.Output()
+
+		if len(conflictOutput) > 0 ||
+			strings.Contains(outputStr, "Automatic merge failed") ||
+			strings.Contains(outputStr, "CONFLICT") ||
+			strings.Contains(outputStr, "merge failed") ||
+			strings.Contains(outputStr, "needs merge") {
+			return fmt.Errorf("merge conflict: %s", outputStr)
+		}
+		return fmt.Errorf("failed to merge branch: %s", outputStr)
+	}
+
+	return nil
+}
+
 // Commit creates a commit with the given message
 func Commit(message string) error {
 	cmd := exec.Command("git", "commit", "-m", message)

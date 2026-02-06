@@ -28,6 +28,10 @@ type ResolvedFinishOptions struct {
 
 	// Fetch options
 	ShouldFetch bool // Whether to fetch from remote before finishing
+
+	// Custom merge commit messages
+	MergeMessage  string // Custom commit message for upstream merge
+	UpdateMessage string // Custom commit message for child updates
 }
 
 // TagOptions represents command-line tag options
@@ -59,6 +63,8 @@ type MergeStrategyOptions struct {
 	NoFF           *bool   // --no-ff/--ff
 	Squash         *bool   // --squash/--no-squash override
 	SquashMessage  *string // --squash-message custom commit message
+	MergeMessage   *string // --merge-message custom commit message for upstream merge
+	UpdateMessage  *string // --update-message custom commit message for child updates
 }
 
 // ResolveFinishOptions resolves all finish command options using three-layer precedence:
@@ -99,6 +105,10 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 
 		// Fetch resolution
 		ShouldFetch: resolveFinishShouldFetch(cfg, branchType, fetch),
+
+		// Merge commit message resolution
+		MergeMessage:  resolveMergeMessage(cfg, branchType, fullBranchName, branchConfig.Parent, mergeOpts),
+		UpdateMessage: resolveUpdateMessage(cfg, branchType, mergeOpts),
 	}
 }
 
@@ -451,4 +461,40 @@ func resolveSquashMessage(fullBranchName string, mergeOpts *MergeStrategyOptions
 
 	// Default message
 	return fmt.Sprintf("Squashed commit of branch '%s'", fullBranchName)
+}
+
+// resolveMergeMessage resolves the merge commit message.
+// Layer 2: gitflow.<branchtype>.finish.mergemessage
+// Layer 3: --merge-message flag (highest priority)
+func resolveMergeMessage(cfg *Config, branchType string, fullBranchName string, parentBranch string, mergeOpts *MergeStrategyOptions) string {
+	// Layer 3: CLI flag overrides all
+	if mergeOpts != nil && mergeOpts.MergeMessage != nil && *mergeOpts.MergeMessage != "" {
+		return *mergeOpts.MergeMessage
+	}
+
+	// Layer 2: Command-specific config
+	if msg := getCommandConfigString(cfg, fmt.Sprintf("gitflow.%s.finish.mergemessage", branchType)); msg != "" {
+		return msg
+	}
+
+	// Empty string signals to use Git's default merge message
+	return ""
+}
+
+// resolveUpdateMessage resolves the update commit message for child branch updates.
+// Layer 2: gitflow.<branchtype>.finish.updateMessage
+// Layer 3: --update-message flag (highest priority)
+func resolveUpdateMessage(cfg *Config, branchType string, mergeOpts *MergeStrategyOptions) string {
+	// Layer 3: CLI flag overrides all
+	if mergeOpts != nil && mergeOpts.UpdateMessage != nil && *mergeOpts.UpdateMessage != "" {
+		return *mergeOpts.UpdateMessage
+	}
+
+	// Layer 2: Command-specific config
+	if msg := getCommandConfigString(cfg, fmt.Sprintf("gitflow.%s.finish.updatemessage", branchType)); msg != "" {
+		return msg
+	}
+
+	// Empty string signals to use the default auto-generated message
+	return ""
 }

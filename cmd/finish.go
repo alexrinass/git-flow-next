@@ -57,6 +57,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/hooks"
 	"github.com/gittower/git-flow-next/internal/mergestate"
 	"github.com/gittower/git-flow-next/internal/update"
+	"github.com/gittower/git-flow-next/internal/util"
 )
 
 // Step constants
@@ -326,6 +327,8 @@ func finishBranch(cfg *config.Config, branchType string, name string, branchConf
 		UpdatedBranches: []string{},
 		ChildStrategies: childStrategies,
 		SquashMessage:   resolvedOptions.SquashMessage,
+		MergeMessage:    resolvedOptions.MergeMessage,
+		UpdateMessage:   resolvedOptions.UpdateMessage,
 	}
 	if err := mergestate.SaveMergeState(state); err != nil {
 		return &errors.GitError{Operation: "save merge state", Err: err}
@@ -393,8 +396,17 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			if err != nil {
 				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
 			}
-			// Use NoFastForward option for the final merge
-			err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			// Use custom merge message if provided (from CLI or saved state), otherwise use default
+			mergeMsg := state.MergeMessage
+			if mergeOptions != nil && mergeOptions.MergeMessage != nil && *mergeOptions.MergeMessage != "" {
+				mergeMsg = *mergeOptions.MergeMessage
+			}
+			if mergeMsg != "" {
+				expandedMsg := util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
+				err = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+			} else {
+				err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			}
 			if err != nil {
 				return &errors.GitError{Operation: "merge rebased branch", Err: err}
 			}
@@ -413,8 +425,17 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 
 		case strategyMerge:
 			// Complete the merge by committing
-			mergeMessage := fmt.Sprintf("Merge branch '%s' into %s", state.FullBranchName, state.ParentBranch)
-			err = git.Commit(mergeMessage)
+			// Use custom merge message if provided (from CLI or saved state), otherwise use default
+			mergeMsg := state.MergeMessage
+			if mergeOptions != nil && mergeOptions.MergeMessage != nil && *mergeOptions.MergeMessage != "" {
+				mergeMsg = *mergeOptions.MergeMessage
+			}
+			if mergeMsg == "" {
+				mergeMsg = fmt.Sprintf("Merge branch '%s' into %s", state.FullBranchName, state.ParentBranch)
+			} else {
+				mergeMsg = util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
+			}
+			err = git.Commit(mergeMsg)
 			if err != nil {
 				return &errors.GitError{Operation: "commit merge", Err: err}
 			}
@@ -481,18 +502,38 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 
 		case "squash":
 			// Commit the squashed changes
-			squashMessage := fmt.Sprintf("Update %s: squashed changes from %s",
-				currentChild, state.ParentBranch)
-			err = git.Commit(squashMessage)
+			// Use custom update message if provided (from CLI or saved state), otherwise use default
+			updateMsg := state.UpdateMessage
+			if mergeOptions != nil && mergeOptions.UpdateMessage != nil && *mergeOptions.UpdateMessage != "" {
+				updateMsg = *mergeOptions.UpdateMessage
+			}
+			if updateMsg == "" {
+				updateMsg = fmt.Sprintf("Update %s: squashed changes from %s",
+					currentChild, state.ParentBranch)
+			} else {
+				// For child updates, the "branch" is the child and "parent" is the source
+				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
+			}
+			err = git.Commit(updateMsg)
 			if err != nil {
 				return &errors.GitError{Operation: "commit squashed child update", Err: err}
 			}
 
 		default: // "merge" or unknown
 			// Complete the merge
-			mergeMessage := fmt.Sprintf("Merge branch '%s' into %s",
-				state.ParentBranch, currentChild)
-			err = git.Commit(mergeMessage)
+			// Use custom update message if provided (from CLI or saved state), otherwise use default
+			updateMsg := state.UpdateMessage
+			if mergeOptions != nil && mergeOptions.UpdateMessage != nil && *mergeOptions.UpdateMessage != "" {
+				updateMsg = *mergeOptions.UpdateMessage
+			}
+			if updateMsg == "" {
+				updateMsg = fmt.Sprintf("Merge branch '%s' into %s",
+					state.ParentBranch, currentChild)
+			} else {
+				// For child updates, the "branch" is the child and "parent" is the source
+				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
+			}
+			err = git.Commit(updateMsg)
 			if err != nil {
 				return &errors.GitError{Operation: "commit child branch update", Err: err}
 			}
@@ -578,13 +619,23 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 			if err != nil {
 				return &errors.GitError{Operation: "checkout target branch after rebase", Err: err}
 			}
-			// Use NoFastForward option for the final merge
-			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			// Use custom merge message if provided, otherwise use default
+			if resolvedOptions.MergeMessage != "" {
+				expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
+				mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+			} else {
+				mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+			}
 		}
 	case strategySquash:
 		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, resolvedOptions.SquashMessage)
 	case strategyMerge:
-		mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+		if resolvedOptions.MergeMessage != "" {
+			expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
+			mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
+		} else {
+			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
+		}
 	default:
 		return &errors.GitError{Operation: fmt.Sprintf("unknown merge strategy: %s", resolvedOptions.MergeStrategy), Err: nil}
 	}
@@ -853,8 +904,15 @@ func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.
 		strategy = childBranchConfig.DownstreamStrategy
 	}
 
-	// Use the shared update logic with the determined strategy
-	err := update.UpdateBranchFromParent(branchName, state.ParentBranch, strategy, true, state)
+	// Expand placeholders in update message if provided
+	// For child updates, the "branch" is the child and "parent" is the source
+	updateMsg := state.UpdateMessage
+	if updateMsg != "" {
+		updateMsg = util.ExpandMessagePlaceholders(updateMsg, branchName, state.ParentBranch)
+	}
+
+	// Use the shared update logic with the determined strategy and custom message if provided
+	err := update.UpdateBranchFromParentWithMessage(branchName, state.ParentBranch, strategy, updateMsg, true, state)
 	if err != nil {
 		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
 			// Get resolved options for the message (might be nil, but generateConflictMessage handles that)

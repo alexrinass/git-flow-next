@@ -203,6 +203,10 @@ func registerBranchCommand(branchType string) {
 				ForceDelete: getBoolFlag(forceDelete, noForceDelete),
 			}
 
+			// Get merge message flags
+			mergeMessage, _ := cmd.Flags().GetString("merge-message")
+			updateMessage, _ := cmd.Flags().GetString("update-message")
+
 			// Create merge strategy options
 			mergeOptions := &config.MergeStrategyOptions{
 				Rebase:         getBoolFlag(rebase, noRebase),
@@ -210,6 +214,8 @@ func registerBranchCommand(branchType string) {
 				NoFF:           getBoolFlag(noFF, ff),
 				Squash:         getBoolFlag(squash, noSquash),
 				SquashMessage:  getStringPtr(squashMessage),
+				MergeMessage:   getStringPtr(mergeMessage),
+				UpdateMessage:  getStringPtr(updateMessage),
 			}
 
 			// Call the generic finish command with the branch type and name
@@ -429,6 +435,8 @@ func addFinishFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("squash", "S", false, "Squash all commits into single commit")
 	cmd.Flags().Bool("no-squash", false, "Keep individual commits (don't squash)")
 	cmd.Flags().String("squash-message", "", "Custom commit message for squash merge")
+	cmd.Flags().StringP("merge-message", "M", "", "Custom commit message for the upstream merge operation")
+	cmd.Flags().String("update-message", "", "Custom commit message for child branch update operations")
 
 	// Fetch Flags
 	cmd.Flags().Bool("fetch", false, "Fetch from remote before finishing")

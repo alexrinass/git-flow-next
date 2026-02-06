@@ -12,6 +12,11 @@ import (
 
 // UpdateBranchFromParent updates a branch with changes from its parent branch using the configured strategy
 func UpdateBranchFromParent(branchName string, parentBranch string, strategy string, saveState bool, state *mergestate.MergeState) error {
+	return UpdateBranchFromParentWithMessage(branchName, parentBranch, strategy, "", saveState, state)
+}
+
+// UpdateBranchFromParentWithMessage updates a branch with changes from its parent branch using the configured strategy and optional custom message
+func UpdateBranchFromParentWithMessage(branchName string, parentBranch string, strategy string, customMessage string, saveState bool, state *mergestate.MergeState) error {
 	// Checkout the branch if needed
 	currentBranch, err := git.GetCurrentBranch()
 	if err != nil {
@@ -31,10 +36,18 @@ func UpdateBranchFromParent(branchName string, parentBranch string, strategy str
 		mergeErr = git.Rebase(parentBranch)
 	case "squash":
 		fmt.Printf("Using squash strategy for '%s'\n", branchName)
-		mergeErr = git.SquashMerge(parentBranch)
+		if customMessage != "" {
+			mergeErr = git.MergeSquashWithMessage(parentBranch, customMessage)
+		} else {
+			mergeErr = git.SquashMerge(parentBranch)
+		}
 	default:
 		fmt.Printf("Using merge strategy for '%s'\n", branchName)
-		mergeErr = git.Merge(parentBranch)
+		if customMessage != "" {
+			mergeErr = git.MergeWithMessage(parentBranch, customMessage, true)
+		} else {
+			mergeErr = git.Merge(parentBranch)
+		}
 	}
 
 	if mergeErr != nil {
