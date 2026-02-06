@@ -50,7 +50,7 @@ Use the following structure for commit messages:
 - **fix**: Bug fix or correction (user-facing issues only — not for internal tooling, CI, or infrastructure fixes; use the appropriate type instead)
 - **refactor**: Code restructuring without changing functionality
 - **perf**: Performance improvements
-- **test**: Adding or modifying tests
+- **test**: Adding or modifying tests (including fixes to tests — use `test:` not `fix:` for test corrections)
 - **docs**: Documentation changes
 - **style**: Code formatting, whitespace, or style changes
 
