@@ -173,6 +173,54 @@ Then search for the specific code pattern to find its line number. This is more 
 
 ---
 
+## Error Handling (CI Mode)
+
+In CI mode, the skill MUST fail explicitly rather than complete silently when it cannot perform its review. Use `exit 1` to indicate failure.
+
+### Permission Errors
+
+After any `gh api` call, check for permission failures:
+
+```bash
+# Check if API call failed
+if ! RESULT=$(gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input - 2>&1); then
+  echo "ERROR: Failed to submit review - $RESULT"
+  exit 1
+fi
+```
+
+Common permission errors to catch:
+- `Resource not accessible by integration` — missing workflow permissions
+- `Not Found` — repo access denied or PR doesn't exist
+- `Validation Failed` — invalid review data (e.g., bad line numbers)
+
+### Review Quality Failures
+
+The skill MUST fail if it cannot produce a meaningful review:
+
+1. **No findings with valid line numbers**: If line detection fails for ALL findings and none can be attached as inline comments, the review adds no value. **Exit with error** rather than posting only a summary.
+
+2. **API submission failure**: If the review submission itself fails for any reason, **exit with error**.
+
+```bash
+# Track successful line detections
+INLINE_COMMENT_COUNT=<number of comments with confirmed line numbers>
+
+if [ "$INLINE_COMMENT_COUNT" -eq 0 ] && [ "$TOTAL_FINDINGS" -gt 0 ]; then
+  echo "ERROR: Found $TOTAL_FINDINGS issues but could not determine line numbers for any. Review cannot proceed."
+  exit 1
+fi
+```
+
+### Success Criteria
+
+A review is considered successful when:
+- At least one inline comment has a verified line number, OR
+- There are genuinely no findings (clean PR)
+- The review was successfully submitted to GitHub
+
+---
+
 ## Action: Respond
 
 Handle @claude mentions that aren't review requests.
@@ -241,3 +289,16 @@ DRY RUN - Response for PR #123
 Your response text here exactly as it would be posted...
 ```
 ````
+
+---
+
+## Exit Codes (CI Mode)
+
+In CI mode, use exit codes to signal workflow success or failure:
+
+| Exit Code | Meaning |
+|-----------|---------|
+| `0` | Review completed successfully |
+| `1` | Review failed (permissions, line detection, API error) |
+
+**Local mode** does not use exit codes — it outputs dry-run results for the user to review.
