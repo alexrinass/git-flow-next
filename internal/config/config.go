@@ -324,6 +324,36 @@ func IsGitFlowNextInitialized() (bool, error) {
 	return false, nil
 }
 
+// InitializedStatus contains information about initialization state and source
+type InitializedStatus struct {
+	Initialized bool
+	SourceScope git.ConfigScope // which scope the config was found in (for messaging)
+}
+
+// IsGitFlowNextInitializedWithScope checks if git-flow-next is initialized at a specific scope.
+// - ConfigScopeDefault: checks merged config, returns the scope where config was found
+// - Specific scope: checks only that scope
+func IsGitFlowNextInitializedWithScope(scope git.ConfigScope, filePath string) (InitializedStatus, error) {
+	if scope == git.ConfigScopeDefault {
+		// Check scopes in order: local > global > system
+		// Return the first scope where gitflow.version is found
+		for _, checkScope := range []git.ConfigScope{git.ConfigScopeLocal, git.ConfigScopeGlobal, git.ConfigScopeSystem} {
+			version, err := git.GetConfigWithScope("gitflow.version", checkScope, "")
+			if err == nil && version != "" {
+				return InitializedStatus{Initialized: true, SourceScope: checkScope}, nil
+			}
+		}
+		return InitializedStatus{Initialized: false}, nil
+	}
+
+	// Check only the specified scope
+	version, err := git.GetConfigWithScope("gitflow.version", scope, filePath)
+	if err == nil && version != "" {
+		return InitializedStatus{Initialized: true, SourceScope: scope}, nil
+	}
+	return InitializedStatus{Initialized: false}, nil
+}
+
 // CheckGitFlowAVHConfig checks if git-flow-avh configuration exists
 func CheckGitFlowAVHConfig() bool {
 	// Get current directory for git operations
@@ -581,10 +611,24 @@ func ApplyOverrides(cfg *Config, overrides ConfigOverrides) *Config {
 // Writing and saving functions
 //
 
-// SaveConfig saves the git-flow configuration to Git config
+// SaveConfig saves the git-flow configuration to Git config (local scope).
+// This is a convenience wrapper around SaveConfigWithScope for callers
+// that don't need explicit scope control.
 func SaveConfig(config *Config) error {
+	return SaveConfigWithScope(config, git.ConfigScopeDefault, "")
+}
+
+// MarkRepoInitialized marks the repository as initialized with git-flow (local scope).
+// This is a convenience wrapper around MarkRepoInitializedWithScope for callers
+// that don't need explicit scope control.
+func MarkRepoInitialized() error {
+	return MarkRepoInitializedWithScope(git.ConfigScopeDefault, "")
+}
+
+// SaveConfigWithScope saves the git-flow configuration to Git config at a specific scope
+func SaveConfigWithScope(config *Config, scope git.ConfigScope, filePath string) error {
 	// Set git-flow version
-	err := git.SetConfig("gitflow.version", config.Version)
+	err := git.SetConfigWithScope("gitflow.version", config.Version, scope, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to set gitflow.version: %w", err)
 	}
@@ -592,14 +636,14 @@ func SaveConfig(config *Config) error {
 	// Save branch configurations
 	for branchName, branchConfig := range config.Branches {
 		// Set branch type
-		err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.type", branchName), branchConfig.Type)
+		err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.type", branchName), branchConfig.Type, scope, filePath)
 		if err != nil {
 			return fmt.Errorf("failed to set branch type for %s: %w", branchName, err)
 		}
 
 		// Set parent branch if it exists
 		if branchConfig.Parent != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.parent", branchName), branchConfig.Parent)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.parent", branchName), branchConfig.Parent, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set parent branch for %s: %w", branchName, err)
 			}
@@ -607,7 +651,7 @@ func SaveConfig(config *Config) error {
 
 		// Set start point if it exists
 		if branchConfig.StartPoint != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.startPoint", branchName), branchConfig.StartPoint)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.startPoint", branchName), branchConfig.StartPoint, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set start point for %s: %w", branchName, err)
 			}
@@ -615,7 +659,7 @@ func SaveConfig(config *Config) error {
 
 		// Set upstream strategy if it exists
 		if branchConfig.UpstreamStrategy != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.upstreamStrategy", branchName), branchConfig.UpstreamStrategy)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.upstreamStrategy", branchName), branchConfig.UpstreamStrategy, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set upstream strategy for %s: %w", branchName, err)
 			}
@@ -623,7 +667,7 @@ func SaveConfig(config *Config) error {
 
 		// Set downstream strategy if it exists
 		if branchConfig.DownstreamStrategy != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.downstreamStrategy", branchName), branchConfig.DownstreamStrategy)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.downstreamStrategy", branchName), branchConfig.DownstreamStrategy, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set downstream strategy for %s: %w", branchName, err)
 			}
@@ -631,21 +675,21 @@ func SaveConfig(config *Config) error {
 
 		// Set prefix if it exists
 		if branchConfig.Prefix != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.prefix", branchName), branchConfig.Prefix)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.prefix", branchName), branchConfig.Prefix, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set prefix for %s: %w", branchName, err)
 			}
 		}
 
 		// Set auto update
-		err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.autoUpdate", branchName), strconv.FormatBool(branchConfig.AutoUpdate))
+		err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.autoUpdate", branchName), strconv.FormatBool(branchConfig.AutoUpdate), scope, filePath)
 		if err != nil {
 			return fmt.Errorf("failed to set auto update for %s: %w", branchName, err)
 		}
 
 		// Set tag configuration only if true (false is default)
 		if branchConfig.Tag {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.tag", branchName), "true")
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.tag", branchName), "true", scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set tag configuration for %s: %w", branchName, err)
 			}
@@ -653,7 +697,7 @@ func SaveConfig(config *Config) error {
 
 		// Set tag prefix if it exists
 		if branchConfig.TagPrefix != "" {
-			err = git.SetConfig(fmt.Sprintf("gitflow.branch.%s.tagprefix", branchName), branchConfig.TagPrefix)
+			err = git.SetConfigWithScope(fmt.Sprintf("gitflow.branch.%s.tagprefix", branchName), branchConfig.TagPrefix, scope, filePath)
 			if err != nil {
 				return fmt.Errorf("failed to set tag prefix for %s: %w", branchName, err)
 			}
@@ -663,11 +707,9 @@ func SaveConfig(config *Config) error {
 	return nil
 }
 
-// MarkRepoInitialized marks the repository as initialized with git-flow
-func MarkRepoInitialized() error {
-	// This is effectively done by setting the gitflow.version in SaveConfig
-	// But we'll add a specific initialized flag for clarity
-	err := git.SetConfig("gitflow.initialized", "true")
+// MarkRepoInitializedWithScope marks the repository as initialized with git-flow at a specific scope
+func MarkRepoInitializedWithScope(scope git.ConfigScope, filePath string) error {
+	err := git.SetConfigWithScope("gitflow.initialized", "true", scope, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to mark repository as initialized: %w", err)
 	}

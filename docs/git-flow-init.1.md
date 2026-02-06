@@ -6,7 +6,7 @@ git-flow-init - Initialize git-flow in a repository
 
 ## SYNOPSIS
 
-**git-flow init** [**-f**|**--force**] [**--preset**=*preset*] [**--custom**] [**--defaults**] [*options*]
+**git-flow init** [**-f**|**--force**] [**--preset**=*preset*] [**--custom**] [**--defaults**] [**--local**|**--global**|**--system**|**--file**=*path*] [*options*]
 
 ## DESCRIPTION
 
@@ -38,6 +38,22 @@ Initialize git-flow configuration in the current Git repository. This command se
 
 **--no-create-branches**
 : Don't create branches even if they don't exist in the repository.
+
+### Configuration Scope Options
+
+These options control where git-flow configuration is stored. Only one scope option may be specified at a time. When no scope option is given, git-flow reads from merged config (local > global > system precedence) and writes to local config.
+
+**--local**
+: Read and write configuration only in the repository's **.git/config** file. This is the default for writes when no scope option is specified.
+
+**--global**
+: Read and write configuration in the user's global **~/.gitconfig** file. Useful for setting up defaults that apply to all repositories.
+
+**--system**
+: Read and write configuration in the system-wide **/etc/gitconfig** file. Typically requires administrator privileges.
+
+**--file**=*path*
+: Read and write configuration in the specified file. The parent directory must exist and be writable. Paths may be absolute or relative to the current working directory. Useful for managing shared configuration files.
 
 ### Branch Name Overrides
 
@@ -191,9 +207,29 @@ Reconfigure with short flag:
 git flow init -f --defaults
 ```
 
+Initialize with global scope (user-wide defaults):
+```bash
+git flow init --defaults --global
+```
+
+Initialize with local scope (repository-specific):
+```bash
+git flow init --defaults --local
+```
+
+Initialize with configuration file:
+```bash
+git flow init --defaults --file=/path/to/custom-gitflow.config
+```
+
+Create local config when global config already exists:
+```bash
+git flow init --defaults --local
+```
+
 ## CONFIGURATION
 
-After initialization, git-flow stores configuration in **.git/config** under the **gitflow.*** namespace:
+By default, git-flow stores configuration in the repository's **.git/config** file under the **gitflow.*** namespace. The **--global**, **--system**, or **--file** options can be used to store configuration in alternate locations.
 
 ```
 [gitflow]
@@ -235,4 +271,6 @@ After initialization, git-flow stores configuration in **.git/config** under the
 - In interactive mode without **--force**, users are prompted for confirmation before reconfiguring
 - Existing branches are preserved during initialization
 - Compatible with repositories previously initialized with git-flow-avh
-- All configuration is stored locally in the repository
+- Configuration scope options (**--local**, **--global**, **--system**, **--file**) only affect the **init** command. All other git-flow commands (start, finish, update, etc.) always read from merged config using Git's standard precedence (local > global > system)
+- When checking initialization status without an explicit scope flag, git-flow checks merged config and reports which scope the configuration was found in
+- When initialized via global or system config, attempting to initialize again without a scope flag will suggest using **--local** to create repository-specific config

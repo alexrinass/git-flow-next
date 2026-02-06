@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gittower/git-flow-next/internal/config"
@@ -23,6 +24,12 @@ You can use presets for common workflows:
   --preset=github     GitHub Flow with main and feature branches
   --preset=gitlab     GitLab Flow with production, staging, main, feature, and hotfix
 
+Configuration scope options control where settings are stored:
+  --local             Store in repository's .git/config (default write location)
+  --global            Store in user's ~/.gitconfig
+  --system            Store in system-wide /etc/gitconfig
+  --file=<path>       Store in specified file
+
 Use --custom for interactive custom configuration.
 If git-flow-avh configuration exists, it will be imported.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -39,13 +46,17 @@ If git-flow-avh configuration exists, it will be imported.`,
 		hotfixPrefix, _ := cmd.Flags().GetString("hotfix")
 		supportPrefix, _ := cmd.Flags().GetString("support")
 		tagPrefix, _ := cmd.Flags().GetString("tag")
-		InitCommand(useDefaults, !noCreateBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix)
+		localScope, _ := cmd.Flags().GetBool("local")
+		globalScope, _ := cmd.Flags().GetBool("global")
+		systemScope, _ := cmd.Flags().GetBool("system")
+		fileScope, _ := cmd.Flags().GetString("file")
+		InitCommand(useDefaults, !noCreateBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix, localScope, globalScope, systemScope, fileScope)
 	},
 }
 
 // InitCommand is the implementation of the init command
-func InitCommand(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) {
-	if err := initFlow(useDefaults, createBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix); err != nil {
+func InitCommand(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string, localScope, globalScope, systemScope bool, fileScope string) {
+	if err := initFlow(useDefaults, createBranches, force, preset, custom, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix, localScope, globalScope, systemScope, fileScope); err != nil {
 		var exitCode errors.ExitCode
 		if flowErr, ok := err.(errors.Error); ok {
 			exitCode = flowErr.ExitCode()
@@ -58,31 +69,92 @@ func InitCommand(useDefaults, createBranches, force bool, preset string, custom 
 }
 
 // initFlow performs the actual initialization logic and returns any errors
-func initFlow(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string) error {
+func initFlow(useDefaults, createBranches, force bool, preset string, custom bool, mainBranch, developBranch, featurePrefix, bugfixPrefix, releasePrefix, hotfixPrefix, supportPrefix, tagPrefix string, localScope, globalScope, systemScope bool, fileScope string) error {
+	// Validate mutual exclusivity of scope flags
+	scopeCount := 0
+	if localScope {
+		scopeCount++
+	}
+	if globalScope {
+		scopeCount++
+	}
+	if systemScope {
+		scopeCount++
+	}
+	if fileScope != "" {
+		scopeCount++
+	}
+	if scopeCount > 1 {
+		return fmt.Errorf("cannot use multiple scope options together; specify only one of --local, --global, --system, or --file")
+	}
+
+	// Determine config scope
+	var scope git.ConfigScope
+	var scopeFile string
+	switch {
+	case globalScope:
+		scope = git.ConfigScopeGlobal
+	case systemScope:
+		scope = git.ConfigScopeSystem
+	case fileScope != "":
+		scope = git.ConfigScopeFile
+		scopeFile = fileScope
+		// Validate parent directory exists
+		dir := filepath.Dir(scopeFile)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return fmt.Errorf("config file directory does not exist: %s", dir)
+		}
+	case localScope:
+		scope = git.ConfigScopeLocal
+	default:
+		scope = git.ConfigScopeDefault // no flag = merged read, local write
+	}
+
 	// Check if we're in a git repo
 	if !git.IsGitRepo() {
 		return &errors.GitError{Operation: "check if git repository", Err: fmt.Errorf("not a git repository. Please run 'git init' first")}
 	}
 
-	// Check if git-flow-next is already initialized (not just AVH config)
-	// AVH config should be allowed to be imported without --force
-	initialized, err := config.IsGitFlowNextInitialized()
+	// Check if git-flow-next is already initialized at the specified scope
+	status, err := config.IsGitFlowNextInitializedWithScope(scope, scopeFile)
 	if err != nil {
 		return &errors.GitError{Operation: "check if git-flow is initialized", Err: err}
 	}
 
-	if initialized && !force {
+	if status.Initialized && !force {
 		// Check if any configuration options are provided (non-interactive mode indicators)
 		hasConfigFlags := mainBranch != "" || developBranch != "" || featurePrefix != "" || bugfixPrefix != "" || releasePrefix != "" || hotfixPrefix != "" || supportPrefix != "" || tagPrefix != ""
 		isNonInteractive := useDefaults || preset != "" || custom || hasConfigFlags
 
+		// Generate scope-aware message
+		var msg string
+		switch {
+		case scope == git.ConfigScopeDefault && status.SourceScope == git.ConfigScopeGlobal:
+			msg = "Git-flow is configured via global config. Use --local to create repo-specific config, or --force to reconfigure."
+		case scope == git.ConfigScopeDefault && status.SourceScope == git.ConfigScopeSystem:
+			msg = "Git-flow is configured via system config. Use --local to create repo-specific config, or --force to reconfigure."
+		case scope == git.ConfigScopeDefault && status.SourceScope == git.ConfigScopeLocal:
+			msg = "Git-flow is already configured in this repository."
+		case scope == git.ConfigScopeLocal:
+			msg = "Git-flow is already configured in local config."
+		case scope == git.ConfigScopeGlobal:
+			msg = "Git-flow is already configured in global config."
+		case scope == git.ConfigScopeSystem:
+			msg = "Git-flow is already configured in system config."
+		case scope == git.ConfigScopeFile:
+			msg = fmt.Sprintf("Git-flow is already configured in %s.", scopeFile)
+		default:
+			msg = "Git-flow is already configured."
+		}
+
 		if isNonInteractive {
-			// Non-interactive mode without force flag
+			// Non-interactive mode without force flag - print message to stderr before error
+			fmt.Fprintln(os.Stderr, msg)
 			return &errors.AlreadyInitializedError{}
 		}
 
 		// Interactive mode - prompt for confirmation
-		fmt.Println("Git-flow is already configured in this repository.")
+		fmt.Println(msg)
 		fmt.Print("Do you want to reconfigure? [y/N]: ")
 
 		var response string
@@ -94,7 +166,7 @@ func initFlow(useDefaults, createBranches, force bool, preset string, custom boo
 	}
 
 	// If forcing reconfiguration, show a note
-	if initialized && force {
+	if status.Initialized && force {
 		fmt.Println("Reconfiguring git-flow (--force specified)...")
 	}
 
@@ -156,13 +228,11 @@ func initFlow(useDefaults, createBranches, force bool, preset string, custom boo
 		cfg = config.ApplyOverrides(cfg, overrides)
 	}
 
-	// Save configuration
-	if err := config.SaveConfig(cfg); err != nil {
+	// Save configuration with the appropriate scope
+	if err := config.SaveConfigWithScope(cfg, scope, scopeFile); err != nil {
 		return &errors.GitError{Operation: "save configuration", Err: err}
 	}
-
-	// Mark the repository as initialized
-	if err := config.MarkRepoInitialized(); err != nil {
+	if err := config.MarkRepoInitializedWithScope(scope, scopeFile); err != nil {
 		return &errors.GitError{Operation: "mark repository as initialized", Err: err}
 	}
 
@@ -611,4 +681,10 @@ func init() {
 	initCmd.Flags().StringP("hotfix", "x", "", "Hotfix branch prefix")
 	initCmd.Flags().StringP("support", "s", "", "Support branch prefix")
 	initCmd.Flags().StringP("tag", "t", "", "Version tag prefix")
+
+	// Configuration scope options
+	initCmd.Flags().Bool("local", false, "Store configuration in repository's .git/config")
+	initCmd.Flags().Bool("global", false, "Store configuration in user's global ~/.gitconfig")
+	initCmd.Flags().Bool("system", false, "Store configuration in system-wide /etc/gitconfig")
+	initCmd.Flags().String("file", "", "Store configuration in specified file")
 }

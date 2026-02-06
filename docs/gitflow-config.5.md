@@ -10,6 +10,55 @@ git-flow-next stores all configuration in Git's configuration system under the *
 
 Configuration is stored in standard Git config files (**.git/config** for repository-specific, **~/.gitconfig** for user-global, **/etc/gitconfig** for system-wide).
 
+## CONFIGURATION SCOPE
+
+git-flow-next follows Git's native configuration scope precedence:
+
+1. **Local** (**.git/config**) - Highest priority, repository-specific
+2. **Global** (**~/.gitconfig**) - User-wide defaults
+3. **System** (**/etc/gitconfig**) - System-wide defaults, lowest priority
+
+When configuration exists in multiple scopes, git-flow uses the value from the highest-priority scope where it is found.
+
+### Initialization Scope Control
+
+The **git flow init** command supports scope options to control where configuration is stored:
+
+- **--local** - Store in repository's **.git/config** (default)
+- **--global** - Store in user's **~/.gitconfig**
+- **--system** - Store in system-wide **/etc/gitconfig**
+- **--file**=*path* - Store in specified file
+
+### Scope Behavior
+
+When checking initialization status:
+
+- **Without scope flag**: Checks merged config (local > global > system). If configuration is found in a non-local scope, git-flow reports which scope contains the configuration and suggests using **--local** to create repository-specific config.
+
+- **With explicit scope flag**: Checks only that specific scope. This allows initializing local config even when global config exists.
+
+### Runtime Behavior
+
+All runtime commands (start, finish, update, etc.) always read from merged configuration using Git's standard precedence. The scope options only affect the **init** command.
+
+### Multi-Scope Use Cases
+
+**Team Defaults**: Store common configuration globally, override per-repository:
+
+```bash
+# Set team defaults globally
+git flow init --defaults --global
+
+# Override specific settings in a repository
+git flow init --defaults --local
+```
+
+**Shared Configuration**: Use **--file** for configuration shared across systems:
+
+```bash
+git flow init --defaults --file=/shared/team-gitflow.config
+```
+
 ## CONFIGURATION HIERARCHY
 
 git-flow-next follows a strict three-layer configuration hierarchy:
