@@ -1,16 +1,28 @@
-<!-- Summarize the purpose of this PR in a sentence or two. -->
-<!-- Briefly describe what was changed — enough for a reviewer to grasp the scope without reading the diff. -->
-<!-- Focus on what areas of the codebase were touched and key decisions, not line-by-line details. -->
-<!-- Keep it concise — avoid excessive formatting; just write prose, no need for sub-headers here. -->
-<!-- Link to resolved issues with "Resolves #ISSUE" (only if no commit already contains a closing keyword). -->
+<!-- PR SUMMARY FORMAT -->
+<!-- First line: One sentence TL;DR - what this PR does and why -->
+<!-- Details paragraph: What was added/modified, how it works, key areas touched -->
+<!-- GitHub keywords: On their own line (Resolves/Relates/Closes #ISSUE) -->
+<!-- Remarks section: Optional - design decisions, scope boundaries, caveats -->
+<!-- Review focus: Optional - specific files/lines reviewers should inspect -->
 
-## Notes
+<!-- EXAMPLE:
+Adds `--merge-message` flag to customize merge commit messages during finish operations.
 
-<!-- Call out risks and edge cases: Flag breaking changes or areas needing careful review -->
-<!-- Keep the scope clear: Note if something is intentionally left out or part of a larger effort -->
-<!-- Remove this section if not applicable -->
+The implementation supports both CLI flags and git config with placeholder expansion (`%b` for branch, `%p` for parent). Messages persist through conflict resolution. Changes touch `cmd/finish.go`, `internal/git/repo.go`, and `internal/mergestate/mergestate.go`.
 
-<!-- AUTHOR CHECKLIST — Do not include in final PR summary, this is for your own verification -->
+Resolves #58
+
+## Remarks
+
+- Squash message remains CLI-only since content is branch-specific
+- Both upstream and child merges support custom messages
+
+**Review focus:**
+- `cmd/finish.go:142-168` - placeholder expansion logic
+- `internal/mergestate/mergestate.go` - new persistence fields
+-->
+
+<!-- AUTHOR CHECKLIST — Do not include in final PR, for your own verification only -->
 <!-- - [ ] Commit messages follow COMMIT_GUIDELINES.md -->
 <!-- - [ ] Tests added/updated and passing (go test ./...) -->
 <!-- - [ ] Documentation updated in docs/ for changed commands or options -->

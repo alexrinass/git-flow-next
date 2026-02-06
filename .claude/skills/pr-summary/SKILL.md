@@ -12,9 +12,15 @@ Generate a pull request summary based on branch changes.
 
 1. **Gather Context**
    - Get current branch name
-   - Find workflow folder for this branch (`.ai/issue-<number>-*` or `.ai/<feature>/`)
-   - Read analysis.md and plan.md if they exist
-   - Get associated issue number from branch name or commits
+   - Find the corresponding `.ai/` workflow folder for this branch:
+     - For issue branches (e.g., `feature/59-no-verify`): look for `.ai/issue-59-*`
+     - For named branches (e.g., `feature/worktree-support`): look for `.ai/feature-worktree-support/` or `.ai/worktree-support/`
+     - Use `ls .ai/` and match based on branch name patterns
+   - Read these files if they exist (use them to understand the feature goals and implementation approach):
+     - `concept.md` - Feature concept and design rationale
+     - `analysis.md` - Issue analysis and requirements
+     - `plan.md` - Implementation plan with specific changes
+   - Get associated issue number from branch name, commits, or analysis.md
 
 2. **Analyze Changes**
    ```bash
@@ -30,25 +36,14 @@ Generate a pull request summary based on branch changes.
 
 3. **Generate Summary**
 
-   Follow the format from `.github/PULL_REQUEST_TEMPLATE.md`.
+   Read `.github/PULL_REQUEST_TEMPLATE.md` for the format specification and example.
 
-   Write to `.ai/<folder>/pr_summary.md`:
+   Use context from the `.ai/` folder files to write a better summary:
+   - **concept.md**: Understand the design goals and rationale
+   - **analysis.md**: Reference the original issue requirements
+   - **plan.md**: Verify all planned changes were implemented
 
-   ```markdown
-   <Summary prose — no header. Describe what changed and why in 1-3 sentences.
-   Mention key areas touched and important decisions.
-   Link to resolved issues with "Resolves #ISSUE".>
-
-   ## Notes
-
-   <Optional. Call out risks, edge cases, breaking changes, or scope clarifications.
-   Remove this section if not applicable.>
-   ```
-
-   **Guidelines:**
-   - Keep it concise — prose, not bullet lists or tables
-   - Focus on what and why, not line-by-line details
-   - Do NOT include checklists — those are for author verification only
+   Write the summary to `.ai/<folder>/pr_summary.md`.
 
 4. **Create PR Command**
 
