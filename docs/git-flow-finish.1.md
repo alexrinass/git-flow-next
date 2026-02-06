@@ -113,10 +113,10 @@ The operation maintains a persistent state file that allows it to resume after c
 : Custom commit message for squash merge. This is a CLI-only option with no git config equivalent, as squash messages are specific to each branch being finished.
 
 **--merge-message**, **-M** *message*
-: Custom commit message for the upstream merge operation (topic branch to parent). This is a CLI-only option with no git config equivalent, as merge messages are specific to each branch being finished. Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected. Supports placeholders (see MESSAGE PLACEHOLDERS below).
+: Custom commit message for the upstream merge operation (topic branch to parent). Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected. Supports placeholders (see MESSAGE PLACEHOLDERS below). Can be configured as default via `gitflow.<type>.finish.mergemessage`.
 
 **--update-message** *message*
-: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. This is a CLI-only option with no git config equivalent. Supports placeholders (see MESSAGE PLACEHOLDERS below).
+: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. Supports placeholders (see MESSAGE PLACEHOLDERS below). Can be configured as default via `gitflow.<type>.finish.updatemessage`.
 
 **--preserve-merges**
 : Preserve merges during rebase operations
@@ -408,6 +408,10 @@ git config gitflow.<type>.finish.signingkey ABC123DEF
 
 # Remote fetch options
 git config gitflow.<type>.finish.fetch true
+
+# Custom merge commit messages (with placeholder support)
+git config gitflow.<type>.finish.mergemessage "feat: merge %b into %p"
+git config gitflow.<type>.finish.updatemessage "chore: sync %b from %p"
 ```
 
 ## EXIT STATUS
@@ -448,5 +452,6 @@ git config gitflow.<type>.finish.fetch true
 - The **git-flow finish** shorthand automatically detects current topic branch type
 - Child branches are automatically updated when their parent changes
 - Some topic branch types (like releases and hotfixes) may create tags by default
-- Custom merge messages (**--merge-message**, **--update-message**, **--squash-message**) are CLI-only options with no git config equivalent
+- **--merge-message** and **--update-message** can be configured as defaults via `gitflow.<type>.finish.mergemessage` and `gitflow.<type>.finish.updatemessage`
+- **--squash-message** is CLI-only with no git config equivalent, as squash messages are specific to each branch being finished
 - Custom messages are preserved in merge state and survive conflict resolution

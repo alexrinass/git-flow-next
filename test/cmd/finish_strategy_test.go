@@ -1368,3 +1368,290 @@ func TestFinishMessagePlaceholderEscaping(t *testing.T) {
 		t.Errorf("Expected commit message '%s', got '%s'", expectedMsg, strings.TrimSpace(commitMsg))
 	}
 }
+
+// TestFinishWithMergeMessageFromConfig tests that merge message from git config is used.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Configures gitflow.feature.finish.mergeMessage with placeholder "chore: merge %b into %p"
+// 3. Creates a feature branch and adds a commit
+// 4. Adds a commit to develop to ensure non-fast-forward merge
+// 5. Finishes the feature branch without --merge-message flag
+// 6. Verifies the merge commit message is "chore: merge feature/config-test into develop"
+// 7. Verifies the feature branch is deleted
+func TestFinishWithMergeMessageFromConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Configure merge message in git config (Layer 2)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.mergemessage", "chore: merge %b into %p")
+	if err != nil {
+		t.Fatalf("Failed to configure mergemessage: %v", err)
+	}
+
+	// Create feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "config-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Add a commit to develop to force non-fast-forward merge
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch WITHOUT --merge-message flag
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "config-test")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the merge commit message
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	expectedMessage := "chore: merge feature/config-test into develop"
+	if strings.TrimSpace(commitMsg) != expectedMessage {
+		t.Errorf("Expected commit message '%s', got '%s'", expectedMessage, strings.TrimSpace(commitMsg))
+	}
+
+	// Verify feature branch is deleted
+	if testutil.BranchExists(t, dir, "feature/config-test") {
+		t.Error("Expected feature branch to be deleted")
+	}
+}
+
+// TestFinishMergeMessageCLIOverridesConfig tests that CLI flag overrides git config.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Configures gitflow.feature.finish.mergeMessage to "config: message"
+// 3. Creates a feature branch and adds a commit
+// 4. Adds a commit to develop to ensure non-fast-forward merge
+// 5. Finishes the feature branch WITH --merge-message "cli: override"
+// 6. Verifies the merge commit uses "cli: override", not the config message
+func TestFinishMergeMessageCLIOverridesConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Configure merge message in git config (Layer 2)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.feature.finish.mergemessage", "config: message")
+	if err != nil {
+		t.Fatalf("Failed to configure mergemessage: %v", err)
+	}
+
+	// Create feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "override-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Add a commit to develop to force non-fast-forward merge
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch WITH --merge-message flag (CLI override)
+	cliMessage := "cli: override"
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "override-test", "--merge-message", cliMessage)
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the merge commit uses CLI message, not config
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != cliMessage {
+		t.Errorf("Expected CLI message '%s' to override config, got '%s'", cliMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishWithUpdateMessageFromConfig tests that update message from git config is used.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Configures gitflow.release.finish.updateMessage with "chore: sync %b from main"
+// 3. Creates a release branch and adds a commit
+// 4. Finishes the release branch without --update-message flag
+// 5. Verifies the develop update merge commit uses the configured message
+func TestFinishWithUpdateMessageFromConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Configure update message in git config (Layer 2)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.release.finish.updatemessage", "chore: sync %b from main")
+	if err != nil {
+		t.Fatalf("Failed to configure updatemessage: %v", err)
+	}
+
+	// Create release branch
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to start release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to release branch
+	testutil.WriteFile(t, dir, "release.txt", "release content")
+	_, err = testutil.RunGit(t, dir, "add", "release.txt")
+	if err != nil {
+		t.Fatalf("Failed to add release file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Release changes")
+	if err != nil {
+		t.Fatalf("Failed to commit release file: %v", err)
+	}
+
+	// Finish release branch WITHOUT --update-message flag
+	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to finish release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Check the develop branch for the update merge commit
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the most recent merge commit on develop (should be the update from main)
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	// The update message should have placeholders expanded
+	expectedMessage := "chore: sync develop from main"
+	if strings.TrimSpace(commitMsg) != expectedMessage {
+		t.Errorf("Expected update message '%s', got '%s'", expectedMessage, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishUpdateMessageCLIOverridesConfig tests that CLI flag overrides git config for update message.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Configures gitflow.release.finish.updateMessage to "config: update"
+// 3. Creates a release branch and adds a commit
+// 4. Finishes the release branch WITH --update-message "cli: update override"
+// 5. Verifies the develop update uses the CLI message, not config
+func TestFinishUpdateMessageCLIOverridesConfig(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Configure update message in git config (Layer 2)
+	_, err = testutil.RunGit(t, dir, "config", "gitflow.release.finish.updatemessage", "config: update")
+	if err != nil {
+		t.Fatalf("Failed to configure updatemessage: %v", err)
+	}
+
+	// Create release branch
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.1")
+	if err != nil {
+		t.Fatalf("Failed to start release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to release branch
+	testutil.WriteFile(t, dir, "release.txt", "release content")
+	_, err = testutil.RunGit(t, dir, "add", "release.txt")
+	if err != nil {
+		t.Fatalf("Failed to add release file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Release changes")
+	if err != nil {
+		t.Fatalf("Failed to commit release file: %v", err)
+	}
+
+	// Finish release branch WITH --update-message flag (CLI override)
+	cliUpdateMessage := "cli: update override"
+	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "1.0.1", "--update-message", cliUpdateMessage)
+	if err != nil {
+		t.Fatalf("Failed to finish release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Check the develop branch for the update merge commit
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	// Get the most recent merge commit on develop
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	if strings.TrimSpace(commitMsg) != cliUpdateMessage {
+		t.Errorf("Expected CLI update message '%s' to override config, got '%s'", cliUpdateMessage, strings.TrimSpace(commitMsg))
+	}
+}

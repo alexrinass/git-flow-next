@@ -107,8 +107,8 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 		ShouldFetch: resolveFinishShouldFetch(cfg, branchType, fetch),
 
 		// Merge commit message resolution
-		MergeMessage:  resolveMergeMessage(fullBranchName, branchConfig.Parent, mergeOpts),
-		UpdateMessage: resolveUpdateMessage(mergeOpts),
+		MergeMessage:  resolveMergeMessage(cfg, branchType, fullBranchName, branchConfig.Parent, mergeOpts),
+		UpdateMessage: resolveUpdateMessage(cfg, branchType, mergeOpts),
 	}
 }
 
@@ -464,12 +464,17 @@ func resolveSquashMessage(fullBranchName string, mergeOpts *MergeStrategyOptions
 }
 
 // resolveMergeMessage resolves the merge commit message.
-// This is CLI-only (no git config support) because merge messages are specific
-// to each branch being finished.
-func resolveMergeMessage(fullBranchName string, parentBranch string, mergeOpts *MergeStrategyOptions) string {
-	// Command-line flag overrides default
+// Layer 2: gitflow.<branchtype>.finish.mergemessage
+// Layer 3: --merge-message flag (highest priority)
+func resolveMergeMessage(cfg *Config, branchType string, fullBranchName string, parentBranch string, mergeOpts *MergeStrategyOptions) string {
+	// Layer 3: CLI flag overrides all
 	if mergeOpts != nil && mergeOpts.MergeMessage != nil && *mergeOpts.MergeMessage != "" {
 		return *mergeOpts.MergeMessage
+	}
+
+	// Layer 2: Command-specific config
+	if msg := getCommandConfigString(cfg, fmt.Sprintf("gitflow.%s.finish.mergemessage", branchType)); msg != "" {
+		return msg
 	}
 
 	// Empty string signals to use Git's default merge message
@@ -477,12 +482,17 @@ func resolveMergeMessage(fullBranchName string, parentBranch string, mergeOpts *
 }
 
 // resolveUpdateMessage resolves the update commit message for child branch updates.
-// This is CLI-only (no git config support) because update messages are specific
-// to each finish operation.
-func resolveUpdateMessage(mergeOpts *MergeStrategyOptions) string {
-	// Command-line flag overrides default
+// Layer 2: gitflow.<branchtype>.finish.updateMessage
+// Layer 3: --update-message flag (highest priority)
+func resolveUpdateMessage(cfg *Config, branchType string, mergeOpts *MergeStrategyOptions) string {
+	// Layer 3: CLI flag overrides all
 	if mergeOpts != nil && mergeOpts.UpdateMessage != nil && *mergeOpts.UpdateMessage != "" {
 		return *mergeOpts.UpdateMessage
+	}
+
+	// Layer 2: Command-specific config
+	if msg := getCommandConfigString(cfg, fmt.Sprintf("gitflow.%s.finish.updatemessage", branchType)); msg != "" {
+		return msg
 	}
 
 	// Empty string signals to use the default auto-generated message
