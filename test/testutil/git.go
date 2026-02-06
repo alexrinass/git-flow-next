@@ -169,8 +169,9 @@ func AddRemote(t *testing.T, dir string, remoteName string, pushAll bool) (strin
 		return "", fmt.Errorf("failed to create temporary directory for remote: %w", err)
 	}
 
-	// Initialize bare repository
-	_, err = RunGit(t, bareDir, "init", "--bare")
+	// Initialize bare repository with explicit initial branch to avoid
+	// depending on user's init.defaultBranch setting
+	_, err = RunGit(t, bareDir, "init", "--bare", "--initial-branch=main")
 	if err != nil {
 		os.RemoveAll(bareDir)
 		return "", fmt.Errorf("failed to initialize bare repository: %w", err)
