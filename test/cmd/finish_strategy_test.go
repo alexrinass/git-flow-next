@@ -1164,3 +1164,207 @@ func TestMergeStrategyConfigUsedByDefault(t *testing.T) {
 		t.Error("Expected develop.txt to exist in develop branch")
 	}
 }
+
+// TestFinishWithMergeMessagePlaceholders tests that placeholders in --merge-message are expanded correctly.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch and adds a commit
+// 3. Finishes with --merge-message "Merge %b into %p" (uses placeholders)
+// 4. Verifies the merge commit message has expanded placeholders
+func TestFinishWithMergeMessagePlaceholders(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "placeholder-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Switch to develop and add a commit to prevent fast-forward
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to switch to develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch with merge message containing placeholders
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "placeholder-test", "--merge-message", "feat: merge %b into %p")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the merge commit message in develop has expanded placeholders
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	expectedMsg := "feat: merge feature/placeholder-test into develop"
+	if strings.TrimSpace(commitMsg) != expectedMsg {
+		t.Errorf("Expected commit message '%s', got '%s'", expectedMsg, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishWithUpdateMessagePlaceholders tests that placeholders in --update-message are expanded correctly.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a release branch and adds a commit
+// 3. Finishes with --update-message "chore: sync %b from %p" (uses placeholders)
+// 4. Verifies the develop update commit message has expanded placeholders
+func TestFinishWithUpdateMessagePlaceholders(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to release branch
+	output, err = testutil.RunGitFlow(t, dir, "release", "start", "1.0.0")
+	if err != nil {
+		t.Fatalf("Failed to start release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to release branch
+	testutil.WriteFile(t, dir, "release.txt", "release content")
+	_, err = testutil.RunGit(t, dir, "add", "release.txt")
+	if err != nil {
+		t.Fatalf("Failed to add release file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add release file")
+	if err != nil {
+		t.Fatalf("Failed to commit release file: %v", err)
+	}
+
+	// Finish release branch with update message containing placeholders
+	// %b = child branch (develop), %p = parent branch (main)
+	output, err = testutil.RunGitFlow(t, dir, "release", "finish", "1.0.0", "--update-message", "chore: sync %b from %p")
+	if err != nil {
+		t.Fatalf("Failed to finish release branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the update commit message in develop has expanded placeholders
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	// For child updates: %b = child branch (develop), %p = source branch (main)
+	expectedMsg := "chore: sync develop from main"
+	if strings.TrimSpace(commitMsg) != expectedMsg {
+		t.Errorf("Expected commit message '%s', got '%s'", expectedMsg, strings.TrimSpace(commitMsg))
+	}
+}
+
+// TestFinishMessagePlaceholderEscaping tests that %% produces a literal percent sign.
+// Steps:
+// 1. Sets up a test repository and initializes git-flow with defaults
+// 2. Creates a feature branch and adds a commit
+// 3. Finishes with --merge-message "100%% complete: %b" (escaped percent)
+// 4. Verifies the merge commit message has literal % and expanded %b
+func TestFinishMessagePlaceholderEscaping(t *testing.T) {
+	// Setup
+	dir := testutil.SetupTestRepo(t)
+	defer testutil.CleanupTestRepo(t, dir)
+
+	// Initialize git-flow with defaults
+	output, err := testutil.RunGitFlow(t, dir, "init", "--defaults")
+	if err != nil {
+		t.Fatalf("Failed to initialize git-flow: %v\nOutput: %s", err, output)
+	}
+
+	// Create and switch to feature branch
+	output, err = testutil.RunGitFlow(t, dir, "feature", "start", "escape-test")
+	if err != nil {
+		t.Fatalf("Failed to start feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Add a commit to feature branch
+	testutil.WriteFile(t, dir, "feature.txt", "feature content")
+	_, err = testutil.RunGit(t, dir, "add", "feature.txt")
+	if err != nil {
+		t.Fatalf("Failed to add feature file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add feature file")
+	if err != nil {
+		t.Fatalf("Failed to commit feature file: %v", err)
+	}
+
+	// Switch to develop and add a commit to prevent fast-forward
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to switch to develop: %v", err)
+	}
+	testutil.WriteFile(t, dir, "develop.txt", "develop content")
+	_, err = testutil.RunGit(t, dir, "add", "develop.txt")
+	if err != nil {
+		t.Fatalf("Failed to add develop file: %v", err)
+	}
+	_, err = testutil.RunGit(t, dir, "commit", "-m", "Add develop file")
+	if err != nil {
+		t.Fatalf("Failed to commit develop file: %v", err)
+	}
+
+	// Finish feature branch with merge message containing escaped percent
+	output, err = testutil.RunGitFlow(t, dir, "feature", "finish", "escape-test", "--merge-message", "100%% complete: %b")
+	if err != nil {
+		t.Fatalf("Failed to finish feature branch: %v\nOutput: %s", err, output)
+	}
+
+	// Verify the merge commit message in develop
+	_, err = testutil.RunGit(t, dir, "checkout", "develop")
+	if err != nil {
+		t.Fatalf("Failed to checkout develop: %v", err)
+	}
+
+	commitMsg, err := testutil.RunGit(t, dir, "log", "-1", "--format=%s")
+	if err != nil {
+		t.Fatalf("Failed to get commit message: %v", err)
+	}
+
+	// %% should become %, %b should be expanded
+	expectedMsg := "100% complete: feature/escape-test"
+	if strings.TrimSpace(commitMsg) != expectedMsg {
+		t.Errorf("Expected commit message '%s', got '%s'", expectedMsg, strings.TrimSpace(commitMsg))
+	}
+}

@@ -113,10 +113,10 @@ The operation maintains a persistent state file that allows it to resume after c
 : Custom commit message for squash merge. This is a CLI-only option with no git config equivalent, as squash messages are specific to each branch being finished.
 
 **--merge-message**, **-M** *message*
-: Custom commit message for the upstream merge operation (topic branch to parent). This is a CLI-only option with no git config equivalent, as merge messages are specific to each branch being finished. Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected.
+: Custom commit message for the upstream merge operation (topic branch to parent). This is a CLI-only option with no git config equivalent, as merge messages are specific to each branch being finished. Useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages like "Merge branch 'feature/foo'" would be rejected. Supports placeholders (see MESSAGE PLACEHOLDERS below).
 
 **--update-message** *message*
-: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. This is a CLI-only option with no git config equivalent.
+: Custom commit message for child branch update operations (parent to child branches). When finishing a release or hotfix, child branches like develop are automatically updated from the parent. This option allows customizing those merge commit messages. This is a CLI-only option with no git config equivalent. Supports placeholders (see MESSAGE PLACEHOLDERS below).
 
 **--preserve-merges**
 : Preserve merges during rebase operations
@@ -207,6 +207,50 @@ The following options modify strategy behavior:
 - **--preserve-merges**: Only valid with rebase operations
 - **--no-ff**: Forces creation of merge commits, even for fast-forward cases
 - **--ff**: Allows fast-forward merges when possible (default)
+
+## MESSAGE PLACEHOLDERS
+
+Custom merge and update messages can include placeholders that are automatically expanded with branch names. This allows creating dynamic commit messages without hardcoding branch names.
+
+### Supported Placeholders
+
+| Placeholder | Description | Example Value |
+|-------------|-------------|---------------|
+| **%b** | Branch name | `feature/my-feature` |
+| **%B** | Full refname | `refs/heads/feature/my-feature` |
+| **%p** | Parent branch name | `develop` |
+| **%P** | Full parent refname | `refs/heads/develop` |
+| **%%** | Literal percent sign | `%` |
+
+### Context for Placeholders
+
+**For --merge-message** (topic branch to parent):
+- `%b` = the topic branch being merged (e.g., `feature/my-feature`)
+- `%p` = the parent branch receiving the merge (e.g., `develop`)
+
+**For --update-message** (parent to child branches):
+- `%b` = the child branch being updated (e.g., `develop`)
+- `%p` = the source branch (e.g., `main`)
+
+### Examples
+
+```bash
+# Simple branch name placeholder
+git flow feature finish my-feature --merge-message "feat: merge %b"
+# Result: "feat: merge feature/my-feature"
+
+# Branch and parent placeholders
+git flow feature finish my-feature --merge-message "feat: merge %b into %p"
+# Result: "feat: merge feature/my-feature into develop"
+
+# Child updates with placeholders
+git flow release finish 1.0 --update-message "chore: sync %b from %p"
+# Result on develop: "chore: sync develop from main"
+
+# Escaped percent sign
+git flow feature finish my-feature --merge-message "100%% complete: %b"
+# Result: "100% complete: feature/my-feature"
+```
 
 ## EXAMPLES
 

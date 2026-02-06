@@ -57,6 +57,7 @@ import (
 	"github.com/gittower/git-flow-next/internal/hooks"
 	"github.com/gittower/git-flow-next/internal/mergestate"
 	"github.com/gittower/git-flow-next/internal/update"
+	"github.com/gittower/git-flow-next/internal/util"
 )
 
 // Step constants
@@ -401,7 +402,8 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 				mergeMsg = *mergeOptions.MergeMessage
 			}
 			if mergeMsg != "" {
-				err = git.MergeWithMessage(state.FullBranchName, mergeMsg, resolvedOptions.NoFastForward)
+				expandedMsg := util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
+				err = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
 			} else {
 				err = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 			}
@@ -430,6 +432,8 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			}
 			if mergeMsg == "" {
 				mergeMsg = fmt.Sprintf("Merge branch '%s' into %s", state.FullBranchName, state.ParentBranch)
+			} else {
+				mergeMsg = util.ExpandMessagePlaceholders(mergeMsg, state.FullBranchName, state.ParentBranch)
 			}
 			err = git.Commit(mergeMsg)
 			if err != nil {
@@ -506,6 +510,9 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			if updateMsg == "" {
 				updateMsg = fmt.Sprintf("Update %s: squashed changes from %s",
 					currentChild, state.ParentBranch)
+			} else {
+				// For child updates, the "branch" is the child and "parent" is the source
+				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
 			}
 			err = git.Commit(updateMsg)
 			if err != nil {
@@ -522,6 +529,9 @@ func handleContinue(cfg *config.Config, state *mergestate.MergeState, branchConf
 			if updateMsg == "" {
 				updateMsg = fmt.Sprintf("Merge branch '%s' into %s",
 					state.ParentBranch, currentChild)
+			} else {
+				// For child updates, the "branch" is the child and "parent" is the source
+				updateMsg = util.ExpandMessagePlaceholders(updateMsg, currentChild, state.ParentBranch)
 			}
 			err = git.Commit(updateMsg)
 			if err != nil {
@@ -611,7 +621,8 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 			}
 			// Use custom merge message if provided, otherwise use default
 			if resolvedOptions.MergeMessage != "" {
-				mergeErr = git.MergeWithMessage(state.FullBranchName, resolvedOptions.MergeMessage, resolvedOptions.NoFastForward)
+				expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
+				mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
 			} else {
 				mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 			}
@@ -620,7 +631,8 @@ func handleMergeStep(cfg *config.Config, state *mergestate.MergeState, branchCon
 		mergeErr = git.MergeSquashWithMessage(state.FullBranchName, resolvedOptions.SquashMessage)
 	case strategyMerge:
 		if resolvedOptions.MergeMessage != "" {
-			mergeErr = git.MergeWithMessage(state.FullBranchName, resolvedOptions.MergeMessage, resolvedOptions.NoFastForward)
+			expandedMsg := util.ExpandMessagePlaceholders(resolvedOptions.MergeMessage, state.FullBranchName, state.ParentBranch)
+			mergeErr = git.MergeWithMessage(state.FullBranchName, expandedMsg, resolvedOptions.NoFastForward)
 		} else {
 			mergeErr = git.MergeWithOptions(state.FullBranchName, resolvedOptions.NoFastForward)
 		}
@@ -892,8 +904,15 @@ func updateChildBranch(cfg *config.Config, branchName string, state *mergestate.
 		strategy = childBranchConfig.DownstreamStrategy
 	}
 
+	// Expand placeholders in update message if provided
+	// For child updates, the "branch" is the child and "parent" is the source
+	updateMsg := state.UpdateMessage
+	if updateMsg != "" {
+		updateMsg = util.ExpandMessagePlaceholders(updateMsg, branchName, state.ParentBranch)
+	}
+
 	// Use the shared update logic with the determined strategy and custom message if provided
-	err := update.UpdateBranchFromParentWithMessage(branchName, state.ParentBranch, strategy, state.UpdateMessage, true, state)
+	err := update.UpdateBranchFromParentWithMessage(branchName, state.ParentBranch, strategy, updateMsg, true, state)
 	if err != nil {
 		if _, ok := err.(*errors.UnresolvedConflictsError); ok {
 			// Get resolved options for the message (might be nil, but generateConflictMessage handles that)
