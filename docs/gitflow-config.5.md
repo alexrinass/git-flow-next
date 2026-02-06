@@ -437,6 +437,13 @@ The finish command supports extensive merge strategy configuration through comma
 
 These options are useful for teams using commit message validation hooks (e.g., conventional commits) where auto-generated messages would be rejected.
 
+### Hook Control Options
+
+**gitflow.*type*.finish.noverify**
+: Bypass pre-commit and commit-msg hooks during merge and commit operations. When enabled, passes `--no-verify` to the underlying `git merge` and `git commit` commands. This is useful in CI/CD pipelines or when hooks would interfere with automated workflows. The setting is persisted through `--continue` operations after conflict resolution.
+: *Type*: boolean
+: *Default*: false
+
 ### Strategy Precedence
 
 1. **Command-line flags** (Layer 3 — highest priority, one-off overrides)

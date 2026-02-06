@@ -138,6 +138,11 @@ The operation maintains a persistent state file that allows it to resume after c
 **--no-fetch**
 : Don't fetch from remote before finishing. Disables the default fetch behavior. Overrides git config setting `gitflow.<type>.finish.fetch`.
 
+### Hook Control
+
+**--no-verify**
+: Bypass pre-commit and commit-msg hooks during merge and commit operations. This passes the `--no-verify` flag to the underlying `git merge` and `git commit` commands. Useful when hooks would interfere with automated finishing workflows or when you want to temporarily skip validation. The setting is persisted through `--continue` operations after conflict resolution. Overrides git config setting `gitflow.<type>.finish.noverify`.
+
 ## REMOTE SYNC CHECK
 
 Before performing the merge operation, the finish command checks if the local topic branch is in sync with its remote tracking branch. This safety check prevents accidental data loss when the remote has commits that are not present locally.
@@ -361,6 +366,18 @@ Clean up both local and remote:
 git flow feature finish my-feature --no-keeplocal --no-keepremote
 ```
 
+### Bypassing Hooks
+
+Skip pre-commit and commit-msg hooks during finish:
+```bash
+git flow feature finish my-feature --no-verify
+```
+
+Useful in CI/CD environments where hooks might interfere:
+```bash
+git flow release finish 1.2.0 --no-verify --tag
+```
+
 ## WORKFLOW BEHAVIOR
 
 ### Dual Merge Pattern
@@ -412,6 +429,9 @@ git config gitflow.<type>.finish.fetch true
 # Custom merge commit messages (with placeholder support)
 git config gitflow.<type>.finish.mergemessage "feat: merge %b into %p"
 git config gitflow.<type>.finish.updatemessage "chore: sync %b from %p"
+
+# Hook control
+git config gitflow.<type>.finish.noverify true
 ```
 
 ## EXIT STATUS

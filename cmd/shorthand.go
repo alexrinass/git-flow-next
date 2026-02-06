@@ -151,7 +151,13 @@ func RegisterShorthandCommands() {
 				Squash:         getBoolPtr(cmd, "squash", "no-squash"),
 				SquashMessage:  getStringPtrFromFlag(cmd, "squash-message"),
 			}
-			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, nil)
+			// Get no-verify flag
+			noVerify, _ := cmd.Flags().GetBool("no-verify")
+			var noVerifyPtr *bool
+			if noVerify {
+				noVerifyPtr = &noVerify
+			}
+			FinishCommand(branchType, name, continueOp, abortOp, force, tagOptions, retentionOptions, mergeOptions, nil, noVerifyPtr)
 		},
 	}
 

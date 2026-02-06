@@ -32,6 +32,9 @@ type ResolvedFinishOptions struct {
 	// Custom merge commit messages
 	MergeMessage  string // Custom commit message for upstream merge
 	UpdateMessage string // Custom commit message for child updates
+
+	// Hook options
+	NoVerify bool // Whether to skip pre-commit and commit-msg hooks
 }
 
 // TagOptions represents command-line tag options
@@ -71,7 +74,7 @@ type MergeStrategyOptions struct {
 // Layer 1: Branch configuration defaults
 // Layer 2: Command-specific git config (gitflow.<branchtype>.finish.*)
 // Layer 3: Command-line arguments (highest priority)
-func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions, fetch *bool) *ResolvedFinishOptions {
+func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tagOpts *TagOptions, retentionOpts *BranchRetentionOptions, mergeOpts *MergeStrategyOptions, fetch *bool, noVerify *bool) *ResolvedFinishOptions {
 	branchConfig := cfg.Branches[branchType]
 
 	// Compute full branch name from prefix + branchName
@@ -109,6 +112,9 @@ func ResolveFinishOptions(cfg *Config, branchType string, branchName string, tag
 		// Merge commit message resolution
 		MergeMessage:  resolveMergeMessage(cfg, branchType, fullBranchName, branchConfig.Parent, mergeOpts),
 		UpdateMessage: resolveUpdateMessage(cfg, branchType, mergeOpts),
+
+		// Hook resolution
+		NoVerify: resolveFinishNoVerify(cfg, branchType, noVerify),
 	}
 }
 
@@ -448,6 +454,26 @@ func resolveFinishShouldFetch(cfg *Config, branchType string, fetch *bool) bool 
 	}
 
 	return shouldFetch
+}
+
+// resolveFinishNoVerify resolves whether to skip pre-commit and commit-msg hooks
+func resolveFinishNoVerify(cfg *Config, branchType string, noVerify *bool) bool {
+	// Layer 1: Default is to run hooks (no-verify = false)
+	skipVerify := false
+
+	// Layer 2: Check command-specific config
+	// Note: Git config keys are stored lowercase, so we use "noverify" not "noVerify"
+	configKey := fmt.Sprintf("gitflow.%s.finish.noverify", branchType)
+	if value, exists := cfg.CommandConfig[configKey]; exists {
+		skipVerify = value == "true"
+	}
+
+	// Layer 3: Command-line flags override config
+	if noVerify != nil {
+		skipVerify = *noVerify
+	}
+
+	return skipVerify
 }
 
 // resolveSquashMessage resolves the squash commit message.

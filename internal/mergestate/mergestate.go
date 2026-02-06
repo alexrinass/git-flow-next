@@ -55,6 +55,9 @@ type MergeState struct {
 	// Custom merge commit messages
 	MergeMessage  string `json:"mergeMessage,omitempty"`  // Custom commit message for upstream merge
 	UpdateMessage string `json:"updateMessage,omitempty"` // Custom commit message for child updates
+
+	// Hook options
+	NoVerify bool `json:"noVerify,omitempty"` // Skip pre-commit and commit-msg hooks
 }
 
 // SaveMergeState saves the current merge state to a file
