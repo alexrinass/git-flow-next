@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-02-08
+
+### Added
+
+- `--no-verify` option for finish command to skip git hooks during merge
+- `--merge-message` and `--update-message` options for finish command with placeholder support
+- Git config support for merge message options (`gitflow.<type>.finish.mergeMessage`, `gitflow.<type>.finish.updateMessage`)
+- Configuration scope flags for init command (`--local`, `--global`, `--system`, `--file`)
+- `--force` option for init command to allow reconfiguration
+- Remote sync check before finish to ensure local branch is up-to-date with remote
+
+### Changed
+
+- Default fetch behavior changed to `true` for finish command
+
+### Fixed
+
+- Hooks now receive correct positional arguments
+
 ## [0.3.0] - 2026-01-14
 
 ### Added
@@ -60,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic updates to child branches (e.g., develop syncs from main)
 - Compatibility with existing git-flow-avh repositories
 
-[Unreleased]: https://github.com/gittower/git-flow-next/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/gittower/git-flow-next/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/gittower/git-flow-next/compare/v0.3.0...v1.0.0
 [0.3.0]: https://github.com/gittower/git-flow-next/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gittower/git-flow-next/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/gittower/git-flow-next/compare/v0.1.0...v0.1.1
