@@ -126,8 +126,8 @@ Use the `Write` tool to create a JSON payload, then submit via `gh api --input`:
   "event": "COMMENT",
   "commit_id": "<HEAD commit SHA>",
   "comments": [
-    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation..."},
-    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value."}
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation...\n\n<details>\n<summary>🤖 AI fix prompt</summary>\n\n```prompt\nFix instructions here...\n```\n\n</details>"},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value.\n\n<details>\n<summary>🤖 AI fix prompt</summary>\n\n```prompt\nFix instructions here...\n```\n\n</details>"}
   ]
 }
 ```
@@ -312,8 +312,8 @@ DRY RUN - Review for PR #123
   "event": "REQUEST_CHANGES",
   "commit_id": "abc123...",
   "comments": [
-    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation..."},
-    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value."}
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation...\n\n<details>\n<summary>🤖 AI fix prompt</summary>\n\n```prompt\nFix instructions here...\n```\n\n</details>"},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value.\n\n<details>\n<summary>🤖 AI fix prompt</summary>\n\n```prompt\nFix instructions here...\n```\n\n</details>"}
   ]
 }
 ```

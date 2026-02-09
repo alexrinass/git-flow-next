@@ -169,13 +169,13 @@ The **Test Coverage** section should list every test introduced or changed by na
 
 ### Fix Prompts
 
-For actionable issues, include a copy-pasteable prompt that the developer can give to an AI assistant to fix the issue:
+For actionable issues, include a copy-pasteable prompt that the developer can give to an AI assistant to fix the issue. Use the same collapsible format as the review body:
 
 ````markdown
 **Issue:** [Description of the problem]
 
 <details>
-<summary>Fix prompt</summary>
+<summary>🤖 AI fix prompt</summary>
 
 ```prompt
 [Clear, specific instructions that can be copy-pasted to an AI to fix this exact issue.
@@ -191,7 +191,7 @@ Example:
 **Issue:** Missing input validation in `processUser()` function.
 
 <details>
-<summary>Fix prompt</summary>
+<summary>🤖 AI fix prompt</summary>
 
 ```prompt
 In src/users.js, add input validation to the processUser() function.
