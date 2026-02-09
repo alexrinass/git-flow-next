@@ -18,9 +18,17 @@ The workflow provides:
 
 ## Execution Context Detection
 
+Run these two commands (in parallel) to check for CI environment:
+
 ```bash
-echo "GITHUB_ACTIONS=${GITHUB_ACTIONS:-not_set} CI=${CI:-not_set}"
+echo $GITHUB_ACTIONS
 ```
+
+```bash
+echo $CI
+```
+
+If either prints `true`, you are in **CI mode**. If both are empty, you are in **local mode**.
 
 **Execution modes:**
 - **CI mode**: `GITHUB_ACTIONS=true` or `CI=true` — Posts reviews to GitHub
