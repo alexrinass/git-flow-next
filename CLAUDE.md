@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 git-flow-next is a modern Go implementation of the git-flow branching model. It's a CLI tool that helps manage Git workflows with feature, release, and hotfix branches.
 
+**GitHub Repository**: [gittower/git-flow-next](https://github.com/gittower/git-flow-next)
+
 ## Development Commands
 
 ### Version Updates
