@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: PR code review mechanics via GitHub API
-allowed-tools: Bash, Read, Grep, Glob
+allowed-tools: Bash, Read, Write, Grep, Glob
 ---
 
 # Code Review Skill
@@ -115,22 +115,36 @@ When force-push detected:
 
 ### Submitting the Review
 
-Use `gh api` to submit the review with inline comments:
+Use the `Write` tool to create a JSON payload, then submit via `gh api --input`:
+
+1. **Build the JSON payload** using the `Write` tool (avoids pipe permission issues in CI):
+
+```json
+// Write to review_payload.json using the Write tool
+{
+  "body": "Review summary here",
+  "event": "COMMENT",
+  "commit_id": "<HEAD commit SHA>",
+  "comments": [
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation..."},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value."}
+  ]
+}
+```
+
+2. **Get the HEAD commit SHA:**
 
 ```bash
-# Get HEAD commit SHA
 COMMIT_SHA=$(gh pr view $PR_NUMBER --json headRefOid --jq '.headRefOid')
-
-# Submit review (use jq to construct JSON properly)
-jq -n \
-  --arg body "Review summary here" \
-  --arg event "COMMENT" \
-  --arg commit_id "$COMMIT_SHA" \
-  '{body: $body, event: $event, commit_id: $commit_id, comments: [
-    {path: "src/users.js", line: 42, body: "**Issue:** Missing input validation..."},
-    {path: "src/api.js", line: 15, body: "**Issue:** Ignored error return value."}
-  ]}' | gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input -
 ```
+
+3. **Submit the review:**
+
+```bash
+gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input review_payload.json
+```
+
+**IMPORTANT:** Do NOT use `jq ... | gh api ...` pipes — piped commands trigger separate permission checks in CI that cause failures. Always write the JSON payload to a file first using the `Write` tool, then pass it via `--input`.
 
 **Review structure:**
 - `body`: The review summary, formatted per `REVIEW_FORMAT.md`. Contains the header (verdict + impact + assessment), severity sections, test coverage assessment, and AI fix prompt. Severity section items are concise one-liners **without** file/line references — inline diff comments carry that detail. If some findings cannot be attached as inline comments (line number uncertain), include them in the relevant severity section with file path context as an exception.
@@ -160,22 +174,23 @@ The `line` field must be the line number in the NEW file version (at the PR's HE
 
 **Preferred method — fetch PR branch and read files directly:**
 
-In local mode (or when you have git access), fetch the PR branch and use standard file/git operations:
+Fetch the PR branch and use standard file/git operations. Always use `origin/` prefixed refs — bare branch names like `main` may not exist as local refs in CI:
 
 ```bash
-# Fetch the PR branch
-git fetch origin <branch-name>
+# Fetch both branches with proper remote refs
+git fetch origin <branch-name>:refs/remotes/origin/<branch-name>
+git fetch origin main:refs/remotes/origin/main
 
-# View diff stats
-git diff main...FETCH_HEAD --stat
+# View diff stats (always use origin/ prefix)
+git diff origin/main...origin/<branch-name> --stat
 
 # Read file content directly
-git show FETCH_HEAD:path/to/file.go
+git show origin/<branch-name>:path/to/file.go
 
 # Or use the Read tool on fetched files
 ```
 
-This is faster and more reliable than GitHub API calls, especially for large files.
+**IMPORTANT:** Do NOT use `FETCH_HEAD` — it changes with each `git fetch` call. Always use explicit `origin/<branch-name>` refs instead.
 
 **Alternative — GitHub API (CI mode or when git fetch unavailable):**
 

@@ -59,13 +59,13 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
           START="${{ steps.start.outputs.time }}"
 
-          # Count reviews posted after workflow started
+          # Count reviews posted after workflow started (check both bot identities)
           REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" \
-            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and .submitted_at >= \"${START}\")] | length")
+            --jq "[.[] | select((.user.login == \"github-actions[bot]\" or .user.login == \"claude[bot]\") and .submitted_at >= \"${START}\")] | length")
 
           # Count comments posted after workflow started
           COMMENTS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
-            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and .created_at >= \"${START}\")] | length")
+            --jq "[.[] | select((.user.login == \"github-actions[bot]\" or .user.login == \"claude[bot]\") and .created_at >= \"${START}\")] | length")
 
           TOTAL=$((REVIEWS + COMMENTS))
 
