@@ -2,7 +2,7 @@
 
 ## Overview
 
-The PR review produces a structured summary designed for human reviewers. It provides two quick-glance signals (verdict and impact), a brief assessment, categorized findings by severity, a detailed test coverage evaluation, and a collapsible AI fix prompt for automated remediation.
+The PR review produces a structured summary designed for human reviewers. It provides two quick-glance signals (verdict and impact), a brief assessment, action items grouped by severity, a collapsible test case overview, and a collapsible AI fix prompt for automated remediation.
 
 ## Structure
 
@@ -21,44 +21,45 @@ Two inline status indicators followed by a 1-3 sentence assessment:
 
 The assessment summary briefly explains why those two states were chosen. It should describe what the changeset does, how confident the review is, and what the scope of impact is if something goes wrong.
 
-### Severity Sections (h3)
+### Action Items (h3)
 
-Findings are grouped by severity, not by category (security, code quality, etc.). Each item is a concise one-liner describing what is wrong without file or line references — inline diff comments carry that detail.
+All findings are grouped under a single `### Action Items` heading, then organized by severity as h4 subsections. Each item is a concise one-liner describing what is wrong without file or line references — inline diff comments carry that detail. This includes test issues, missing tests, and any other findings from all review areas.
 
-- `### Must fix` — Must fix before merge. Issues that would cause failures, data loss, security vulnerabilities, or violate critical project guidelines.
-- `### Should fix` — Expected to be addressed but won't block merge. Convention violations, gaps in documentation, maintainability concerns.
-- `### Nit` — Optional improvements at the author's discretion. Style, additional tests, minor optimizations.
+- `#### Must fix` — Must fix before merge. Issues that would cause failures, data loss, security vulnerabilities, or violate critical project guidelines.
+- `#### Should fix` — Expected to be addressed but won't block merge. Convention violations, gaps in documentation, maintainability concerns.
+- `#### Nit` — Optional improvements at the author's discretion. Style, additional tests, minor optimizations.
 
-If a severity section has no items, omit it entirely.
+If a severity subsection has no items, omit it entirely. If there are no action items at all, omit the entire section.
 
-### Test Coverage Assessment (h3)
+### Test Cases (collapsible, collapsed by default)
 
-Always present. Starts with a summary sentence evaluating whether tests are sufficient to merge with confidence.
+A `<details>` block (collapsed by default) providing an overview of tests in the changeset. Contains a table with columns: Test, Coverage, Verdict.
 
-Contains up to three subsections (h4):
+- **Test**: The test function name (e.g. `TestProcessBasic`). Include the file name only when needed to disambiguate (e.g. when multiple test files define similarly-named tests).
+- **Coverage**: A brief explanation of the scenario — what setup, action, and expected outcome the test verifies.
+- **Verdict**: `✅` for solid tests, `⚠️` with a short note for tests with concerns.
 
-- `#### Test issues` — Problems with existing tests: guideline violations, broken setup, tautological assertions, missing isolation, shared state mutation, tests that can never fail, wrong assertion targets. Each item tagged with severity: `[must fix]`, `[should fix]`, or `[nit]`.
-- `#### Existing tests` — Table of tests in the changeset with columns: Test file, What it covers (a brief explanation of the scenario being tested — what setup, action, and expected outcome the test verifies), Evaluation (✅ Solid, ⚠️ with note).
-- `#### Missing tests` — Tests that should exist but don't. Each tagged with `[impact: high]`, `[impact: medium]`, or `[impact: low]`.
+This section is purely an overview of what tests exist in the changeset. Do not include test issues, missing tests, or a summary sentence here — those belong in Action Items.
 
-If a subsection has no items, omit it.
+If the changeset contains no tests, omit this section entirely.
 
 ### AI Fix Prompt (collapsible, at the bottom)
 
-A single collapsible `<details>` block at the very end, separated by a horizontal rule. Contains numbered fix instructions organized by severity category. Each item provides enough context for an AI agent to locate and fix the issue: file path, what is wrong, and what the fix should look like. Fix instructions should reference the project's conventions and patterns where applicable.
+A single collapsible `<details>` block at the very end. **Never** place a horizontal rule (`---`) or any other separator before it. The block contains a fenced code block (` ```prompt `) with numbered fix instructions organized by severity category — including nits. Every severity level that has findings in the review must have a corresponding section in the AI fix prompt. Each item provides enough context for an AI agent to locate and fix the issue: file path, what is wrong, and what the fix should look like. Fix instructions should reference the project's conventions and patterns where applicable.
 
-The numbering is continuous across categories so items are easy to reference. The user can copy the prompt, remove items they don't want addressed, and paste it into an AI coding agent.
+The content must always be inside a fenced code block so the user can copy it in one click. The numbering is continuous across categories so items are easy to reference. The user can copy the prompt, remove items they don't want addressed, and paste it into an AI coding agent.
+
+**If there are no findings (clean PR), omit the AI fix prompt section entirely.** Do not include an empty collapsible block.
 
 ## Rules
 
-1. All sections use h3 (`###`). Subsections within Test Coverage use h4 (`####`).
-2. The summary items (Must fix, Should fix, Nit) stay concise and do not include file/line details — inline diff comments provide that context.
-3. The Test Coverage Assessment is always present and always includes the summary sentence.
-4. If a severity section has no items, omit the section entirely.
-5. If an area defined in the project's review guidelines was evaluated and had no findings, state what was evaluated and that no issues were found in the assessment summary. The reviewer should know which areas were checked.
-6. The verdict and impact are independent dimensions: verdict reflects quality of the change, impact reflects consequence of getting it wrong.
+1. The header has no heading. Action Items uses h3 (`###`). Severity groups within Action Items use h4 (`####`).
+2. The action items stay concise and do not include file/line details — inline diff comments provide that context.
+3. If a severity subsection has no items, omit it. If the entire Action Items section is empty, omit it.
+4. If an area defined in the project's review guidelines was evaluated and had no findings, state what was evaluated and that no issues were found in the assessment summary. The reviewer should know which areas were checked.
+5. The verdict and impact are independent dimensions: verdict reflects quality of the change, impact reflects consequence of getting it wrong.
    Verdict is determined by the highest severity present: **Must fix** → Changes requested, **Should fix** (with or without Nit) → Approved with notes, **Nit** only or no findings → Approved.
-7. Severity definitions:
+6. Severity definitions:
    - **Must fix**: Issues that would cause failures, data loss, security vulnerabilities, or violate critical project guidelines. The PR must not merge until these are resolved.
    - **Should fix**: Issues that affect maintainability, violate project conventions, or have gaps that should be addressed. Won't block merge but expected to be resolved.
    - **Nit**: Optional improvements. Style preferences, additional test ideas, minor optimizations. Author's discretion.
@@ -69,7 +70,7 @@ The review evaluates the changeset against the project's review guidelines. The 
 
 Typical review areas include security, code quality & architecture, test coverage, performance, and formal checks (documentation, commit messages, style). The project's review guidelines define the specifics for each area.
 
-All findings from all areas are merged into the severity sections. If an area was evaluated and had no findings, mention it in the assessment summary so the reviewer knows it was checked.
+All findings from all areas are merged into the Action Items severity subsections. If an area was evaluated and had no findings, mention it in the assessment summary so the reviewer knows it was checked.
 
 ## Concrete Examples
 
@@ -85,40 +86,34 @@ flaky test. The scope of impact is high — failures here could cause
 silent data loss. Security and performance were reviewed with no
 concerns.
 
-### Must fix
+### Action Items
+
+#### Must fix
 - Silently ignored error in directory creation could fail without indication on restricted systems.
 - Test mutates shared state without cleanup, causing ordering-dependent flaky failures.
+- No test for concurrent access to the shared cache.
 
-### Should fix
+#### Should fix
 - Business logic mixed into the request handler instead of the service layer, violating project architecture guidelines.
 - No documentation update for the new `--force` flag.
+- Error path when upstream service returns 429 is untested.
 
-### Nit
+#### Nit
 - Configuration value used directly instead of going through the resolution chain defined in project guidelines.
 - Imports not grouped according to project style conventions.
 
-### Test Coverage Assessment
-Tests cover the happy path well but lack edge case and error path
-coverage for the new processing logic.
+<details><summary>Test Cases</summary>
 
-#### Test issues
-- **[must fix]** `processor_test.go::TestProcess` — Mutates shared state
-  without cleanup, will cause ordering-dependent flaky failures.
+| Test | Coverage | Verdict |
+|------|----------|---------|
+| `TestProcessBasic` | Processes standard input with default config, verifies output matches expected transformation | ✅ |
+| `TestProcessEmpty` | Processes empty input, checks output is empty without errors | ⚠️ Shallow — only asserts no error, doesn't verify output state |
 
-#### Existing tests
-| Test file | What it covers | Evaluation |
-|-----------|---------------|------------|
-| `processor_test.go::TestProcessBasic` | Processes a standard input with default config and verifies the output matches expected transformation | ✅ Solid |
-| `processor_test.go::TestProcessEmpty` | Processes an empty input and checks that the output is empty without errors | ⚠️ Shallow — only asserts no error, doesn't verify output state |
-
-#### Missing tests
-- **[impact: high]** No test for concurrent access to the shared cache
-- **[impact: medium]** Error path when upstream service returns 429 is untested
-
----
+</details>
 
 <details><summary>🤖 AI fix prompt</summary>
 
+```prompt
 ## Must fix
 
 1. In `internal/processor/setup.go`, the error returned by `os.MkdirAll`
@@ -129,23 +124,29 @@ coverage for the new processing logic.
    but has no cleanup. Add cleanup that resets the state after each test,
    or refactor to use an isolated fixture per test case.
 
+3. Add a test for concurrent access to the shared cache — spawn multiple
+   goroutines and verify no data races or corruption occur.
+
 ## Should fix
 
-3. In `handlers/process.go`, move the business logic out of the HTTP
+4. In `handlers/process.go`, move the business logic out of the HTTP
    handler into the service layer, following the project's layered
    architecture pattern.
 
-4. Add documentation for the new `--force` flag. Include a description
+5. Add documentation for the new `--force` flag. Include a description
    of its behavior, default value, and any interaction with existing flags.
+
+6. Add a test for the error path when the upstream service returns 429.
 
 ## Nit
 
-5. In `internal/processor/config.go`, update the configuration resolution
+7. In `internal/processor/config.go`, update the configuration resolution
    to follow the project's config precedence chain instead of reading the
    flag value directly.
 
-6. Reorganize imports in affected files to follow the project's import
+8. Reorganize imports in affected files to follow the project's import
    grouping conventions.
+```
 
 </details>
 ```
@@ -161,31 +162,29 @@ solid. A few minor items to consider around documentation and code
 structure. Security, performance, and architecture were reviewed with
 no concerns.
 
-### Should fix
+### Action Items
+
+#### Should fix
 - No documentation for the new `--format` flag.
 
-### Nit
+#### Nit
 - The output formatter could share an interface with the existing pretty-printer to reduce duplication.
 - Commit message on `a1b2c3d` exceeds the project's subject line length limit.
+- No test for extremely long entity names in machine-readable output.
 
-### Test Coverage Assessment
-Good coverage across output formats and edge cases. Tests are well
-isolated and assertions are meaningful.
+<details><summary>Test Cases</summary>
 
-#### Existing tests
-| Test file | What it covers | Evaluation |
-|-----------|---------------|------------|
-| `status_test.go::TestMachineOutput` | Runs status with mixed entity states and verifies the machine-readable output matches the expected format | ✅ Solid |
-| `status_test.go::TestMachineOutputEmpty` | Runs status with no entities present and checks for correct empty output | ✅ Solid |
-| `status_test.go::TestMachineOutputNested` | Creates nested entity structures and verifies paths appear with correct prefixes | ✅ Solid |
+| Test | Coverage | Verdict |
+|------|----------|---------|
+| `TestMachineOutput` | Runs status with mixed entity states, verifies machine-readable output matches expected format | ✅ |
+| `TestMachineOutputEmpty` | Runs status with no entities present, checks for correct empty output | ✅ |
+| `TestMachineOutputNested` | Creates nested entity structures, verifies paths appear with correct prefixes | ✅ |
 
-#### Missing tests
-- **[impact: low]** No test for extremely long entity names in machine-readable output
-
----
+</details>
 
 <details><summary>🤖 AI fix prompt</summary>
 
+```prompt
 ## Should fix
 
 1. Add documentation for the new `--format` flag. Include a description
@@ -200,6 +199,10 @@ isolated and assertions are meaningful.
 
 3. Amend commit `a1b2c3d` to shorten the subject line per the project's
    commit message conventions.
+
+4. Add a test for extremely long entity names to verify the
+   machine-readable output handles them correctly.
+```
 
 </details>
 ```
@@ -221,7 +224,7 @@ The verdict and impact reflect the **current state of the entire PR**, not just 
 
 ### Follow-up Sections
 
-The follow-up review uses three sections to track state changes, followed by an incremental test coverage assessment:
+The follow-up review uses three sections to track state changes:
 
 - `### Resolved from previous review` — Items from the prior review that have been addressed. Use strikethrough on the original finding with a brief note on how it was resolved.
 - `### Still open from previous review` — Items from the prior review that remain unaddressed. Listed without re-explaining — the previous review has the detail.
@@ -229,9 +232,9 @@ The follow-up review uses three sections to track state changes, followed by an 
 
 If a section would be empty, omit it entirely. For example, if all previous items are resolved and there are no new findings, only the "Resolved" section appears.
 
-### Follow-up Test Coverage Assessment
+### Follow-up Test Cases
 
-Incremental — only covers tests added or changed in the new commits. Updates the missing tests list from the prior review (noting what was addressed and what remains). Does not repeat the full test table from the previous review.
+Incremental — only covers tests added or changed in the new commits. Does not repeat the full test table from the previous review. If no tests were added or changed, omit this section.
 
 ### Follow-up AI Fix Prompt
 
@@ -263,22 +266,17 @@ remaining concerns.
 #### Nit
 - New helper function in `utils/parse.go` duplicates existing logic in `utils/format.go`.
 
-### Test Coverage Assessment
-Previous gaps have been partially addressed. Concurrent access test
-added. Error path for 429 responses still untested.
+<details><summary>Test Cases</summary>
 
-#### Existing tests
-| Test file | What it covers | Evaluation |
-|-----------|---------------|------------|
-| `processor_test.go::TestProcessConcurrent` | Spawns multiple goroutines accessing the shared cache simultaneously and verifies no data races or corruption | ✅ Solid |
+| Test | Coverage | Verdict |
+|------|----------|---------|
+| `TestProcessConcurrent` | Spawns multiple goroutines accessing the shared cache simultaneously, verifies no data races or corruption | ✅ |
 
-#### Missing tests
-- **[impact: medium]** Error path when upstream service returns 429 is still untested
-
----
+</details>
 
 <details><summary>🤖 AI fix prompt</summary>
 
+```prompt
 ## Still open
 
 1. In `handlers/process.go`, move the business logic out of the HTTP
@@ -290,6 +288,7 @@ added. Error path for 429 responses still untested.
 2. In `utils/parse.go`, the new `extractFields` function duplicates
    logic already present in `utils/format.go::parseFields`. Reuse the
    existing function or extract a shared helper.
+```
 
 </details>
 ```

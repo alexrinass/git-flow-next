@@ -147,7 +147,7 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input review_payload.json
 **IMPORTANT:** Do NOT use `jq ... | gh api ...` pipes — piped commands trigger separate permission checks in CI that cause failures. Always write the JSON payload to a file first using the `Write` tool, then pass it via `--input`.
 
 **Review structure:**
-- `body`: The review summary, formatted per `REVIEW_FORMAT.md`. Contains the header (verdict + impact + assessment), severity sections, test coverage assessment, and AI fix prompt. Severity section items are concise one-liners **without** file/line references — inline diff comments carry that detail. If some findings cannot be attached as inline comments (line number uncertain), include them in the relevant severity section with file path context as an exception.
+- `body`: The review summary, formatted per `REVIEW_FORMAT.md`. Contains the header (verdict + impact + assessment), Action Items with severity subsections, collapsible Test Cases table, and AI fix prompt. Action item entries are concise one-liners **without** file/line references — inline diff comments carry that detail. If some findings cannot be attached as inline comments (line number uncertain), include them in the relevant severity subsection with file path context as an exception.
 - `comments`: File-specific findings with confident line numbers. Each comment targets a file and line number so it appears directly on the diff. Every finding that can be mapped to a specific line MUST be an inline comment.
 - `event`: Map verdict to event — `"APPROVE"` for "Approved" or "Approved with notes", `"REQUEST_CHANGES"` for "Changes requested"
 
@@ -163,10 +163,10 @@ The review body MUST follow the structure defined in `REVIEW_FORMAT.md`. The wor
 2. **Classify** each finding by severity: Must fix, Should fix, or Nit
 3. **Format** all findings into the `REVIEW_FORMAT.md` structure:
    - Header with verdict, impact, and 1-3 sentence assessment (mention areas evaluated with no findings)
-   - Severity sections with concise one-liners (omit empty sections)
-   - Test Coverage Assessment (always present) with subsections as applicable
+   - Action Items (h3) with severity subsections (h4) — concise one-liners, omit empty subsections
+   - Test Cases in a collapsible `<details>` block (collapsed by default) — overview table only
    - AI fix prompt in a collapsible `<details>` block at the bottom
-4. **Attach** file-specific findings as inline diff comments — the severity sections in the body stay concise and free of file/line details
+4. **Attach** file-specific findings as inline diff comments — the action items in the body stay concise and free of file/line details
 
 ### Determining Line Numbers
 
