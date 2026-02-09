@@ -194,6 +194,14 @@ All documentation follows Unix manpage standards. See `docs/README.md` for detai
 
 Follow the project's commit message standards as defined in **[COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md)**. Use structured format with appropriate types (feat, fix, refactor, test, docs) and clear, imperative subjects ≤50 characters.
 
+## Branching
+
+When needing to create branches for development work, use git-flow commands:
+
+```bash
+git flow feature start <feature-name>   # Create a new feature branch
+```
+
 ## Development Notes
 
 ### Compatibility
