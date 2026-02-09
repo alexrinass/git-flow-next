@@ -89,7 +89,7 @@ LAST_REVIEW_COMMIT=$(echo "$LAST_REVIEW" | jq -r '.commit_id // empty')
 
 **Decision:**
 - No previous review → Full review (`gh pr diff $PR_NUMBER`)
-- Same commit → Post "No new changes to review"
+- Same commit → Complete successfully with no action (do not post anything)
 - New commits in history → Incremental review
 - Last commit not in history → Force-push handling
 
