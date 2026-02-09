@@ -203,3 +203,93 @@ isolated and assertions are meaningful.
 
 </details>
 ```
+
+## Follow-up Reviews
+
+When new commits are pushed to a branch that has already been reviewed, the AI reviews only the new commits and produces a follow-up review. The follow-up review must not repeat findings from the previous review — it builds on top of it.
+
+### Follow-up Header
+
+Same verdict and impact format as an initial review, but the assessment summary must state:
+
+- The commit range reviewed (e.g. `a1b2c3d`..`f4e5d6a`)
+- How many commits are covered
+- A link or reference to the previous review it builds on
+- An updated overall assessment reflecting the current state of the PR
+
+The verdict and impact reflect the **current state of the entire PR**, not just the new commits. If the previous review had must-fix issues and the new commits resolve them, the verdict should update accordingly.
+
+### Follow-up Sections
+
+The follow-up review uses three sections to track state changes, followed by an incremental test coverage assessment:
+
+- `### Resolved from previous review` — Items from the prior review that have been addressed. Use strikethrough on the original finding with a brief note on how it was resolved.
+- `### Still open from previous review` — Items from the prior review that remain unaddressed. Listed without re-explaining — the previous review has the detail.
+- `### New findings` — New issues introduced by the new commits. Uses the same severity subsections (`#### Must fix`, `#### Should fix`, `#### Nit`). If a severity level has no new findings, omit it.
+
+If a section would be empty, omit it entirely. For example, if all previous items are resolved and there are no new findings, only the "Resolved" section appears.
+
+### Follow-up Test Coverage Assessment
+
+Incremental — only covers tests added or changed in the new commits. Updates the missing tests list from the prior review (noting what was addressed and what remains). Does not repeat the full test table from the previous review.
+
+### Follow-up AI Fix Prompt
+
+Combines still-open items from the previous review and new findings into a single actionable prompt, organized by category (`## Still open`, `## New findings` with severity subsections).
+
+### Example 3: Follow-up review after fixes
+
+```markdown
+✅ **Approved** · 🔴 **High impact**
+
+Follow-up review covering commits `a1b2c3d`..`f4e5d6a` (3 commits),
+building on [previous review](#link-to-previous-review).
+
+The must-fix issues from the prior review have been resolved. Error
+handling is now in place and the flaky test has been fixed. One new
+nit introduced by the new commits. All areas reviewed with no
+remaining concerns.
+
+### Resolved from previous review
+- ~~Silently ignored error in directory creation~~ — Fixed, proper error handling added.
+- ~~Test mutates shared state without cleanup~~ — Fixed, uses isolated fixtures now.
+- ~~No documentation update for the new `--force` flag~~ — Fixed, documentation added.
+
+### Still open from previous review
+- Business logic mixed into the request handler instead of the service layer.
+
+### New findings
+
+#### Nit
+- New helper function in `utils/parse.go` duplicates existing logic in `utils/format.go`.
+
+### Test Coverage Assessment
+Previous gaps have been partially addressed. Concurrent access test
+added. Error path for 429 responses still untested.
+
+#### Existing tests
+| Test file | What it covers | Evaluation |
+|-----------|---------------|------------|
+| `processor_test.go::TestProcessConcurrent` | Spawns multiple goroutines accessing the shared cache simultaneously and verifies no data races or corruption | ✅ Solid |
+
+#### Missing tests
+- **[impact: medium]** Error path when upstream service returns 429 is still untested
+
+---
+
+<details><summary>🤖 AI fix prompt</summary>
+
+## Still open
+
+1. In `handlers/process.go`, move the business logic out of the HTTP
+   handler into the service layer, following the project's layered
+   architecture pattern.
+
+## New nit
+
+2. In `utils/parse.go`, the new `extractFields` function duplicates
+   logic already present in `utils/format.go::parseFields`. Reuse the
+   existing function or extract a shared helper.
+
+</details>
+```

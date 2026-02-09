@@ -99,7 +99,7 @@ LAST_REVIEW_COMMIT=$(echo "$LAST_REVIEW" | jq -r '.commit_id // empty')
 git diff $LAST_REVIEW_COMMIT..$CURRENT_HEAD
 ```
 
-Only comment on lines changed in new commits.
+Only comment on lines changed in new commits. Use the **Follow-up Reviews** format from `REVIEW_FORMAT.md` — track resolved/still-open items from the previous review and present new findings separately.
 
 ### Force-Push Handling
 
