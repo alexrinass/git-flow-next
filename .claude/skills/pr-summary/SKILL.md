@@ -62,4 +62,4 @@ Generate a pull request summary based on branch changes.
 
 - Use imperative mood: "Add feature" not "Added feature"
 - Be specific but concise
-- Include issue number if applicable: "Add squash merge support (#42)"
+- Do NOT include the issue number in the title (it will be linked in the PR body)
