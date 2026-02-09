@@ -38,9 +38,10 @@ jobs:
       - name: Run Claude
         id: claude
         uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_MODEL: claude-opus-4-6
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: opus
           prompt: |
             EVENT: ${{ github.event_name }}
             REPO: ${{ github.repository }}
@@ -49,7 +50,7 @@ jobs:
 
             Follow .claude/skills/code-review/SKILL.md to handle this event.
 
-          claude_args: '--allowed-tools "Bash(echo:*),Bash(jq:*),Bash(base64:*),Bash(git fetch:*),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr review:*),Bash(gh api:*),Bash(cat:*),Bash(sed:*),Read,Write,Edit,Grep,Glob"'
+          claude_args: '--model opus --allowed-tools "Bash(echo:*),Bash(jq:*),Bash(base64:*),Bash(git fetch:*),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr review:*),Bash(gh api:*),Bash(cat:*),Bash(sed:*),Read,Write,Edit,Grep,Glob"'
 
       - name: Verify output was posted
         if: always() && steps.claude.outcome == 'success'
