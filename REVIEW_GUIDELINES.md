@@ -211,20 +211,20 @@ TypeError with a descriptive message if validation fails.
 
 Categorize findings by severity:
 
-**Blocking (Must Fix):**
+**Must fix:**
 - Security vulnerabilities
 - Test failures or missing critical tests
 - Build errors
 - Missing error handling
 - Architecture violations that affect correctness
 
-**Warnings (Should Fix):**
+**Should fix:**
 - Missing documentation
 - Inconsistent naming
 - Suboptimal patterns
 - Minor guideline violations
 
-**Suggestions (Nice to Have):**
+**Nit:**
 - Code clarity improvements
 - Additional test cases
 - Performance optimizations

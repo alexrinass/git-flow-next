@@ -149,7 +149,7 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input review_payload.json
 **Review structure:**
 - `body`: The review summary, formatted per `REVIEW_FORMAT.md`. Contains the header (verdict + impact + assessment), severity sections, test coverage assessment, and AI fix prompt. Severity section items are concise one-liners **without** file/line references — inline diff comments carry that detail. If some findings cannot be attached as inline comments (line number uncertain), include them in the relevant severity section with file path context as an exception.
 - `comments`: File-specific findings with confident line numbers. Each comment targets a file and line number so it appears directly on the diff. Every finding that can be mapped to a specific line MUST be an inline comment.
-- `event`: Map verdict to event — `"APPROVE"` for "Approved" or "Approved with suggestions", `"REQUEST_CHANGES"` for "Changes requested"
+- `event`: Map verdict to event — `"APPROVE"` for "Approved" or "Approved with notes", `"REQUEST_CHANGES"` for "Changes requested"
 
 **CRITICAL: Single review per trigger.** Submit exactly ONE review. NEVER post separate issue comments (`gh pr comment`) for initial reviews — all feedback goes in a single review submission. The only exception is responding to re-review requests or @claude mentions, which use issue comments to reply.
 
@@ -160,7 +160,7 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input review_payload.json
 The review body MUST follow the structure defined in `REVIEW_FORMAT.md`. The workflow is:
 
 1. **Evaluate** the changeset using `REVIEW_GUIDELINES.md` criteria (test coverage, coding guidelines & architecture, code quality, security, documentation, commit messages)
-2. **Classify** each finding by severity: Blocking, Should fix, or Suggestion
+2. **Classify** each finding by severity: Must fix, Should fix, or Nit
 3. **Format** all findings into the `REVIEW_FORMAT.md` structure:
    - Header with verdict, impact, and 1-3 sentence assessment (mention areas evaluated with no findings)
    - Severity sections with concise one-liners (omit empty sections)

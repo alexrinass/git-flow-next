@@ -175,12 +175,12 @@ Specifies what to review. Can be:
    - <item 1>
    - <item 2>
 
-   ### Issues Found
+   ### Must Fix
    - [ ] <issue 1> - <file:line> - <description>
    - [ ] <issue 2> - <file:line> - <description>
 
-   ### Warnings
-   - <warning 1>
+   ### Should Fix
+   - <item 1>
 
    ## Quality Checks (auto-detect mode only)
    - Build: PASS/FAIL
@@ -206,4 +206,4 @@ Specifies what to review. Can be:
 
 ## Issue Categories
 
-Categorize findings using the severity levels defined in REVIEW_GUIDELINES.md (Blocking, Warnings, Suggestions).
+Categorize findings using the severity levels defined in REVIEW_GUIDELINES.md (Must fix, Should fix, Nit).
