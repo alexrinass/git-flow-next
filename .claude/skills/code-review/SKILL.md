@@ -48,13 +48,16 @@ If EVENT == "issue_comment" or "pull_request_review_comment":
 
 ## Loading Guidelines
 
-Before reviewing or responding, check for project-specific guidelines:
+Before reviewing or responding, load project-specific guidelines:
 
 1. **Read CLAUDE.md** (if exists) - may contain review instructions
 2. **Follow references** - if CLAUDE.md mentions other files (e.g., "see `REVIEW_GUIDELINES.md`"), read them
 3. **Check common locations**: `REVIEW_GUIDELINES.md`, `.github/CONTRIBUTING.md`, `docs/code-standards.md`
+4. **Read `REVIEW_FORMAT.md`** (in this skill's directory) - defines the output structure for all review output
 
-Follow `REVIEW_GUIDELINES.md` for review criteria, summary format, and inline comment format.
+**Two concerns, two documents:**
+- `REVIEW_GUIDELINES.md` defines **what to evaluate** (review criteria, checklists, severity definitions)
+- `REVIEW_FORMAT.md` defines **how to present findings** (output structure, sections, formatting rules)
 
 ---
 
@@ -122,13 +125,26 @@ jq -n \
 ```
 
 **Review structure:**
-- `body`: The summary (formatted per REVIEW_GUIDELINES.md). If some findings cannot be attached as inline comments (line number uncertain), include them here with file path context.
-- `comments`: File-specific findings with confident line numbers. Each comment targets a file and line number so it appears directly on the diff.
-- `event`: "COMMENT", "APPROVE", or "REQUEST_CHANGES"
+- `body`: The review summary, formatted per `REVIEW_FORMAT.md`. Contains the header (verdict + impact + assessment), severity sections, test coverage assessment, and AI fix prompt. Severity section items are concise one-liners **without** file/line references — inline diff comments carry that detail. If some findings cannot be attached as inline comments (line number uncertain), include them in the relevant severity section with file path context as an exception.
+- `comments`: File-specific findings with confident line numbers. Each comment targets a file and line number so it appears directly on the diff. Every finding that can be mapped to a specific line MUST be an inline comment.
+- `event`: Map verdict to event — `"APPROVE"` for "Approved" or "Approved with suggestions", `"REQUEST_CHANGES"` for "Changes requested"
 
 **CRITICAL: Single review per trigger.** Submit exactly ONE review. NEVER post separate issue comments (`gh pr comment`) for initial reviews — all feedback goes in a single review submission. The only exception is responding to re-review requests or @claude mentions, which use issue comments to reply.
 
 **CRITICAL: No fallback comments.** If you cannot determine the correct line number for a finding, include it in the review body with the file path — do NOT post it as a separate issue comment.
+
+### Review Output Format
+
+The review body MUST follow the structure defined in `REVIEW_FORMAT.md`. The workflow is:
+
+1. **Evaluate** the changeset using `REVIEW_GUIDELINES.md` criteria (test coverage, coding guidelines & architecture, code quality, security, documentation, commit messages)
+2. **Classify** each finding by severity: Blocking, Should fix, or Suggestion
+3. **Format** all findings into the `REVIEW_FORMAT.md` structure:
+   - Header with verdict, impact, and 1-3 sentence assessment (mention areas evaluated with no findings)
+   - Severity sections with concise one-liners (omit empty sections)
+   - Test Coverage Assessment (always present) with subsections as applicable
+   - AI fix prompt in a collapsible `<details>` block at the bottom
+4. **Attach** file-specific findings as inline diff comments — the severity sections in the body stay concise and free of file/line details
 
 ### Determining Line Numbers
 
@@ -269,12 +285,12 @@ DRY RUN - Review for PR #123
 
 ```json
 {
-  "body": "<Review summary>",
-  "event": "COMMENT",
+  "body": "<Review body formatted per REVIEW_FORMAT.md>",
+  "event": "REQUEST_CHANGES",
   "commit_id": "abc123...",
   "comments": [
-    {"path": "src/users.js", "line": 42, "body": "**Issue:** ..."},
-    {"path": "src/api.js", "line": 15, "body": "**Issue:** ..."}
+    {"path": "src/users.js", "line": 42, "body": "**Issue:** Missing input validation..."},
+    {"path": "src/api.js", "line": 15, "body": "**Issue:** Ignored error return value."}
   ]
 }
 ```
