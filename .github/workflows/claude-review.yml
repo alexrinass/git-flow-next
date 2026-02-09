@@ -31,7 +31,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Record start time
+        id: start
+        run: echo "time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Run Claude
+        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -44,4 +49,29 @@ jobs:
 
             Follow .claude/skills/code-review/SKILL.md to handle this event.
 
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr review:*),Bash(gh api:*),Bash(cat:*),Bash(sed:*),Read,Write,Edit"'
+          claude_args: '--allowed-tools "Bash(echo:*),Bash(jq:*),Bash(base64:*),Bash(git fetch:*),Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git merge-base:*),Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr review:*),Bash(gh api:*),Bash(cat:*),Bash(sed:*),Read,Write,Edit,Grep,Glob"'
+
+      - name: Verify output was posted
+        if: always() && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
+          START="${{ steps.start.outputs.time }}"
+
+          # Count reviews posted after workflow started
+          REVIEWS=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" \
+            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and .submitted_at >= \"${START}\")] | length")
+
+          # Count comments posted after workflow started
+          COMMENTS=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and .created_at >= \"${START}\")] | length")
+
+          TOTAL=$((REVIEWS + COMMENTS))
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::Claude completed but did not post any review or comment to PR #${PR_NUMBER}"
+            exit 1
+          fi
+
+          echo "Verified: Claude posted ${TOTAL} review(s)/comment(s) to PR #${PR_NUMBER}"
