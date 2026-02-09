@@ -51,7 +51,7 @@ PR opened / new commits pushed / @claude mention
 |------|---------|
 | `SKILL.md` | Execution logic: intent detection, pre-review checks, API submission, error handling |
 | `REVIEW_FORMAT.md` | Output format: review structure, severity definitions, verdict rules, examples |
-| `REVIEW_GUIDELINES.md` (project root) | What to evaluate: checklists for tests, architecture, security, code quality |
+| `REVIEW_CRITERIA.md` | What to evaluate: checklists for tests, architecture, security, code quality |
 
 ## Severity Levels
 

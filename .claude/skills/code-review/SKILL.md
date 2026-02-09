@@ -59,12 +59,12 @@ If EVENT == "issue_comment" or "pull_request_review_comment":
 Before reviewing or responding, load project-specific guidelines:
 
 1. **Read CLAUDE.md** (if exists) - may contain review instructions
-2. **Follow references** - if CLAUDE.md mentions other files (e.g., "see `REVIEW_GUIDELINES.md`"), read them
-3. **Check common locations**: `REVIEW_GUIDELINES.md`, `.github/CONTRIBUTING.md`, `docs/code-standards.md`
+2. **Follow references** - if CLAUDE.md mentions other guideline files, read them
+3. **Read `REVIEW_CRITERIA.md`** (in this skill's directory) - defines what to evaluate (review criteria, checklists, severity definitions)
 4. **Read `REVIEW_FORMAT.md`** (in this skill's directory) - defines the output structure for all review output
 
 **Two concerns, two documents:**
-- `REVIEW_GUIDELINES.md` defines **what to evaluate** (review criteria, checklists, severity definitions)
+- `REVIEW_CRITERIA.md` defines **what to evaluate** (review criteria, checklists, severity definitions)
 - `REVIEW_FORMAT.md` defines **how to present findings** (output structure, sections, formatting rules)
 
 ---
@@ -159,7 +159,7 @@ gh api repos/$REPO/pulls/$PR_NUMBER/reviews --input review_payload.json
 
 The review body MUST follow the structure defined in `REVIEW_FORMAT.md`. The workflow is:
 
-1. **Evaluate** the changeset using `REVIEW_GUIDELINES.md` criteria (test coverage, coding guidelines & architecture, code quality, security, documentation, commit messages)
+1. **Evaluate** the changeset using `REVIEW_CRITERIA.md` criteria (test coverage, coding guidelines & architecture, code quality, security, documentation, commit messages)
 2. **Classify** each finding by severity: Must fix, Should fix, or Nit
 3. **Format** all findings into the `REVIEW_FORMAT.md` structure:
    - Header with verdict, impact, and 1-3 sentence assessment (mention areas evaluated with no findings)

@@ -85,14 +85,13 @@ Specifies what to review. Can be:
 
 4. **Review Against Guidelines**
 
-   Review the code against **[REVIEW_GUIDELINES.md](../../../REVIEW_GUIDELINES.md)**, which covers:
-   - Architecture checklist
-   - Code style checklist
-   - Configuration precedence checklist
-   - Anti-over-engineering checklist
-   - Testing checklist
-   - Commit message checklist
-   - Documentation checklist
+   Review the code against **[REVIEW_CRITERIA.md](REVIEW_CRITERIA.md)**, which covers:
+   - Test coverage
+   - Coding guidelines and architecture
+   - Code quality
+   - Security
+   - Documentation
+   - Commit messages
 
 5. **Code Quality Checks** (auto-detect mode only)
 
@@ -206,4 +205,4 @@ Specifies what to review. Can be:
 
 ## Issue Categories
 
-Categorize findings using the severity levels defined in REVIEW_GUIDELINES.md (Must fix, Should fix, Nit).
+Categorize findings using the severity levels defined in REVIEW_CRITERIA.md (Must fix, Should fix, Nit).
