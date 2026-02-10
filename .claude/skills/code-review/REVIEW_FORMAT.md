@@ -23,7 +23,7 @@ The assessment summary briefly explains why those two states were chosen. It sho
 
 ### Action Items (h3)
 
-All findings are grouped under a single `### Action Items` heading, then organized by severity as h4 subsections. Each item is a concise one-liner describing what is wrong without file or line references — inline diff comments carry that detail. This includes test issues, missing tests, and any other findings from all review areas.
+All findings are grouped under a single `### Action Items` heading, then organized by severity as h4 subsections. **Every finding must appear here** — including those that also have inline diff comments. Each item is a concise one-liner describing what is wrong without file or line references. This includes test issues, missing tests, and any other findings from all review areas.
 
 - `#### Must fix` — Must fix before merge. Issues that would cause failures, data loss, security vulnerabilities, or violate critical project guidelines.
 - `#### Should fix` — Expected to be addressed but won't block merge. Convention violations, gaps in documentation, maintainability concerns.
