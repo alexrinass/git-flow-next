@@ -31,8 +31,7 @@ PR opened / new commits pushed / @claude mention
 │                 │     │                      │
 │  No prior review ────► Full review           │
 │  Same commit ────────► "No new changes"      │
-│  New commits ────────► Follow-up review      │
-│  Force-push ─────────► Full review (deduped) │
+│  Different commit ───► Follow-up review      │
 └────────┬────────┘     └──────────────────────┘
          ▼
 ┌─────────────────┐
@@ -105,9 +104,9 @@ When new commits are pushed after a previous review. Tracks resolution state:
 
 The verdict reflects the current state of the entire PR, not just the new commits.
 
-### Force-Push Review
+### Force-Push Handling
 
-Full review against the base branch, but deduplicates against previous inline comments to avoid re-posting the same feedback.
+Force-pushes are treated as follow-up reviews. GitHub retains commits by SHA, so the skill fetches the previously reviewed commit and diffs against the new HEAD — same as any incremental review. If the old commit is unreachable, falls back to a full review with deduplication against previous comments.
 
 ## Actions
 

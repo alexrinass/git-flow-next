@@ -90,28 +90,34 @@ LAST_REVIEW_COMMIT=$(echo "$LAST_REVIEW" | jq -r '.commit_id // empty')
 **Decision:**
 - No previous review → Full review (`gh pr diff $PR_NUMBER`)
 - Same commit → Complete successfully with no action (do not post anything)
-- New commits in history → Incremental review
-- Last commit not in history → Force-push handling
+- Different commit → Incremental review (handles both normal pushes and force-pushes)
 
 ### Incremental Review
+
+Ensure the last reviewed commit is accessible. After a force-push the commit is no longer in branch history, but GitHub retains commits by SHA:
+
+```bash
+# Ensure the last reviewed commit is locally available
+if ! git cat-file -e $LAST_REVIEW_COMMIT 2>/dev/null; then
+  git fetch origin $LAST_REVIEW_COMMIT
+fi
+```
+
+Then diff against the current HEAD:
 
 ```bash
 git diff $LAST_REVIEW_COMMIT..$CURRENT_HEAD
 ```
 
-Only comment on lines changed in new commits. Use the **Follow-up Reviews** format from `REVIEW_FORMAT.md` — track resolved/still-open items from the previous review and present new findings separately.
+Only comment on lines changed since the last review. Use the **Follow-up Reviews** format from `REVIEW_FORMAT.md` — track resolved/still-open items from the previous review and present new findings separately.
 
-### Force-Push Handling
+To avoid duplicate inline comments, fetch previous comments and skip re-commenting on the same file+line+issue:
 
 ```bash
-git merge-base --is-ancestor $LAST_REVIEW_COMMIT $CURRENT_HEAD
-# Exit 0 = normal push, non-zero = force-push
+gh api repos/$REPO/pulls/$PR_NUMBER/comments
 ```
 
-When force-push detected:
-1. Full review against base branch
-2. Fetch previous comments: `gh api repos/$REPO/pulls/$PR_NUMBER/comments`
-3. Skip re-commenting on same file+line+issue
+**Fallback:** If the last reviewed commit cannot be fetched (rare — e.g., repository was recreated), fall back to a full review with deduplication against previous comments.
 
 ### Submitting the Review
 
