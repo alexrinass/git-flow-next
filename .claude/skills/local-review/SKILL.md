@@ -99,12 +99,6 @@ Specifies what to review. Can be:
 
    For auto-detect mode, run:
    ```bash
-   # Build check
-   go build ./...
-
-   # Test check
-   go test ./...
-
    # Format check
    go fmt ./...
 
@@ -182,8 +176,6 @@ Specifies what to review. Can be:
    - <item 1>
 
    ## Quality Checks (auto-detect mode only)
-   - Build: PASS/FAIL
-   - Tests: PASS/FAIL (<count> passed)
    - Format: PASS/FAIL
    - Vet: PASS/FAIL
 
