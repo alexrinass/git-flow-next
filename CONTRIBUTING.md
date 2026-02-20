@@ -20,7 +20,6 @@ The end-to-end development process is described in [DEV_WORKFLOW.md](DEV_WORKFLO
 | `/pr-summary` | Generate a PR summary |
 | `/commit` | Create a commit following project conventions |
 | `/gh-issue` | Create a GitHub issue following project guidelines |
-| `/code-review` | Review a pull request |
 
 ### Key Documentation
 
@@ -184,11 +183,7 @@ For a detailed overview of our end-to-end development process — from issue ana
 
 ### Review Process
 
-Code changes are reviewed using two skills, each with their own review criteria:
-- **`/local-review`** — self-review before creating a PR (see `.claude/skills/local-review/REVIEW_CRITERIA.md`)
-- **`/code-review`** — automated PR review via GitHub API (see `.claude/skills/code-review/REVIEW_CRITERIA.md`)
-
-Both cover: architecture, code style, testing, documentation, and security checklists.
+Code changes are reviewed using `/local-review`, which checks architecture, code style, testing, documentation, and security against project guidelines (see `.claude/skills/local-review/REVIEW_CRITERIA.md`).
 
 Please review your changes against these criteria before submitting a pull request.
 
